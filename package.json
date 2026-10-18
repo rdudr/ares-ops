@@ -1,0 +1,15 @@
+{
+  "name": "ares-ops",
+  "version": "0.1.0",
+  "private": true,
+  "description": "ARES Console: team dashboard, credentials and cloud sync server for AR Energy Services",
+  "type": "module",
+  "engines": {
+    "node": ">=22.13"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "test": "node test/smoke.mjs"
+  }
+}
