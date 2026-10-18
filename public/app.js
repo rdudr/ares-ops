@@ -189,24 +189,104 @@ async function loadMe() {
   state.sectors = r.sectors;
 }
 
-// ---------- shell ----------
+// ---------- icons (line symbols in the spirit of SF Symbols) ----------
+const ICONS = {
+  overview: ['M4 16a8 8 0 1 1 16 0', 'M12 16l4-5', 'M3 20h18'],
+  team: ['M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z', 'M2.5 20a6.5 6.5 0 0 1 13 0', 'M16 4.5a3.5 3.5 0 0 1 0 7', 'M18 14.5a6.5 6.5 0 0 1 3.5 5.5'],
+  audits: ['M5 21V4a1 1 0 0 1 1-1h8a1 1 0 0 1 1 1v17', 'M15 9h3a1 1 0 0 1 1 1v11', 'M3 21h18', 'M8.5 7h3M8.5 11h3M8.5 15h3'],
+  tasks: ['M4 6l1.5 1.5L8 5', 'M4 12l1.5 1.5L8 11', 'M4 18l1.5 1.5L8 17', 'M11 6h9M11 12h9M11 18h9'],
+  activity: ['M12 7v5l3 2', 'M3.5 12a8.5 8.5 0 1 0 2.5-6', 'M3 4v4h4'],
+  account: ['M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z', 'M12 12.5a3 3 0 1 0 0-6 3 3 0 0 0 0 6z', 'M6.5 18.5a6 6 0 0 1 11 0'],
+  sidebar: ['M4 5h16v14H4z', 'M9 5v14'],
+  live: ['M13 2 4 14h7l-1 8 9-12h-7z'],
+  clock: ['M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z', 'M12 7v5l3 2'],
+  doc: ['M7 3h7l4 4v14H7z', 'M14 3v4h4', 'M10 12h5M10 16h5'],
+  play: ['M8 5.5v13l10-6.5z'],
+  signout: ['M15 4h4v16h-4', 'M10 8l-4 4 4 4', 'M6 12h10'],
+};
+const SVG_NS = 'http://www.w3.org/2000/svg';
+function icon(name) {
+  const s = document.createElementNS(SVG_NS, 'svg');
+  s.setAttribute('viewBox', '0 0 24 24');
+  s.setAttribute('class', 'ic');
+  s.setAttribute('aria-hidden', 'true');
+  for (const d of ICONS[name]) {
+    const p = document.createElementNS(SVG_NS, 'path');
+    p.setAttribute('d', d);
+    s.append(p);
+  }
+  return s;
+}
+const initials = name => name.split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join('');
+
+function readPref(key, fallback) {
+  try { return localStorage.getItem(key) ?? fallback; } catch { return fallback; }
+}
+function writePref(key, v) {
+  try { localStorage.setItem(key, v); } catch { /* storage blocked: preference just isn't remembered */ }
+}
+
+// ---------- shell: sidebar (regular width) / tab bar (compact width) + toolbar ----------
 const PAGES = [
-  ['overview', 'Overview'], ['team', 'Team & access'], ['audits', 'Audits'], ['tasks', 'Tasks'], ['activity', 'Activity log'], ['account', 'My account'],
+  { id: 'overview', label: 'Overview', group: 'Monitor', icon: 'overview' },
+  { id: 'tasks', label: 'Tasks', group: 'Monitor', icon: 'tasks' },
+  { id: 'activity', label: 'Activity log', group: 'Monitor', icon: 'activity' },
+  { id: 'team', label: 'Team & access', group: 'Manage', icon: 'team' },
+  { id: 'audits', label: 'Audits', group: 'Manage', icon: 'audits' },
+  { id: 'account', label: 'My account', group: null, icon: 'account' },
 ];
 
 function shell(active, content) {
-  const side = h('nav', { class: 'side', 'aria-label': 'Console' },
-    h('div', { class: 'brand' }, h('img', { src: '/logo.png', alt: '' }), h('div', {}, h('b', {}, 'ARES Console'), h('small', {}, 'AR Energy Services'))),
-    PAGES.map(([id, label]) => h('a', { class: `nav${id === active ? ' on' : ''}`, href: `#/${id}` }, label)),
-    h('div', { class: 'who' }, h('b', {}, state.me.name), h('span', {}, ROLE[state.me.role]),
-      h('button', {
-        type: 'button', onclick: async () => {
-          await api('POST', '/api/logout').catch(() => {});
-          state.me = null;
-          route();
-        },
-      }, 'Sign out')));
-  root.replaceChildren(h('div', { class: 'shell' }, side, h('main', { class: 'main' }, content)));
+  const navLink = p => h('a', { class: `nav${p.id === active ? ' on' : ''}`, href: `#/${p.id}`, 'aria-current': p.id === active ? 'page' : null }, icon(p.icon), p.label);
+  const side = h('nav', { class: 'side', 'aria-label': 'Sections' },
+    h('a', { class: 'brand', href: '#/overview' }, h('img', { src: '/logo.png', alt: '' }),
+      h('div', {}, h('b', {}, 'ARES Console'), h('small', {}, 'AR Energy Services'))),
+    ['Monitor', 'Manage'].map(g => [h('div', { class: 'group' }, g), PAGES.filter(p => p.group === g).map(navLink)]));
+
+  const tabbar = h('nav', { class: 'tabbar', 'aria-label': 'Sections' },
+    PAGES.filter(p => p.group).map(p => h('a', { class: p.id === active ? 'on' : '', href: `#/${p.id}`, 'aria-current': p.id === active ? 'page' : null },
+      icon(p.icon), p.label.replace(' & access', '').replace(' log', ''))));
+
+  const shellEl = h('div', { class: `shell${readPref('ares.sidebar', 'open') === 'closed' ? ' collapsed' : ''}` });
+  const toggle = h('button', {
+    class: 'icon-btn sidebar-toggle', type: 'button', 'aria-label': 'Show or hide sidebar',
+    'aria-expanded': String(!shellEl.classList.contains('collapsed')),
+    onclick: () => {
+      const closed = shellEl.classList.toggle('collapsed');
+      toggle.setAttribute('aria-expanded', String(!closed));
+      writePref('ares.sidebar', closed ? 'closed' : 'open');
+    },
+  }, icon('sidebar'));
+
+  let pop = null;
+  const closePop = () => { pop?.remove(); pop = null; document.removeEventListener('click', outside, true); };
+  const outside = e => { if (pop && !pop.contains(e.target) && !menuBtn.contains(e.target)) closePop(); };
+  const menuBtn = h('button', {
+    class: 'menu-btn', type: 'button', 'aria-haspopup': 'menu',
+    onclick: () => {
+      if (pop) return closePop();
+      pop = h('div', { class: 'popover', role: 'menu' },
+        h('div', { class: 'who' }, h('b', {}, state.me.name), h('span', { class: 'small muted' }, `${state.me.login_id} · ${ROLE[state.me.role]}`)),
+        h('a', { href: '#/account', role: 'menuitem', onclick: closePop }, icon('account'), 'My account'),
+        h('button', {
+          type: 'button', role: 'menuitem', onclick: async () => {
+            closePop();
+            await api('POST', '/api/logout').catch(() => {});
+            state.me = null;
+            route();
+          },
+        }, icon('signout'), 'Sign out'));
+      toolbar.append(pop);
+      document.addEventListener('click', outside, true);
+      pop.querySelector('a').focus();
+    },
+  }, h('span', { class: 'av' }, initials(state.me.name)), state.me.name.split(' ')[0]);
+  const toolbar = h('header', { class: 'toolbar' }, toggle,
+    h('span', { class: 'title' }, PAGES.find(p => p.id === active)?.label || ''), h('span', { class: 'spacer' }), menuBtn);
+  toolbar.addEventListener('keydown', e => { if (e.key === 'Escape') closePop(); });
+
+  shellEl.append(side, h('div', { class: 'content' }, toolbar, h('main', { class: 'main' }, content)));
+  root.replaceChildren(shellEl, tabbar);
 }
 
 async function route() {
@@ -221,7 +301,7 @@ async function route() {
   const page = (location.hash.replace('#/', '') || 'overview').split('?')[0];
   const fn = { overview, team, audits, tasks, activity, account }[page] || overview;
   const holder = h('div', {}, h('p', { class: 'muted' }, 'Loading…'));
-  shell(PAGES.some(p => p[0] === page) ? page : 'overview', holder);
+  shell(PAGES.some(p => p.id === page) ? page : 'overview', holder);
   try {
     await fn(holder);
   } catch (ex) {
@@ -231,68 +311,165 @@ async function route() {
 window.addEventListener('hashchange', route);
 
 // ---------- overview ----------
+const PERIODS = [[7, 'Week'], [30, 'Month'], [90, 'Quarter'], [365, 'Year']];
+const PERSON_COLUMNS = [
+  { key: 'name', label: 'Person', get: p => p.name.toLowerCase() },
+  { key: 'hours', label: 'Hours', num: true, get: p => p.hours },
+  { key: 'records', label: 'Records', num: true, get: p => p.records },
+  { key: 'records_per_hour', label: 'Records / hour', num: true, get: p => p.records_per_hour ?? -1 },
+  { key: 'active_days', label: 'Active days', num: true, get: p => p.active_days },
+  { key: 'tasks_done', label: 'Tasks done', num: true, get: p => p.tasks_done },
+  { key: 'on_time_pct', label: 'On time', num: true, get: p => p.on_time_pct ?? -1 },
+  { key: 'overdue', label: 'Overdue', num: true, get: p => p.overdue },
+  { key: 'last_active', label: 'Last active', get: p => p.last_active || 0 },
+];
+state.sort = { key: 'hours', dir: -1 };
+
+function niceMax(n) {
+  if (n <= 4) return 4;
+  const pow = 10 ** Math.floor(Math.log10(n));
+  return [1, 2, 2.5, 5, 10].map(m => m * pow).find(m => m >= n);
+}
+
+function recordsChart(days) {
+  const total = days.reduce((s, x) => s + x.n, 0);
+  const busiest = days.reduce((a, b) => (b.n > a.n ? b : a), days[0]);
+  const today = days[days.length - 1];
+  const label = d => new Date(`${d}T12:00:00`).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+  const summary = total
+    ? `${total} records in the last 14 days. Busiest day: ${label(busiest.d)} with ${busiest.n}. Today so far: ${today.n}.`
+    : 'No records have been synced in the last 14 days.';
+  const top = niceMax(Math.max(...days.map(x => x.n)));
+  const ticks = [top, top / 2, 0];
+  return h('div', {},
+    h('p', { class: 'chart-summary' }, summary),
+    h('div', { class: 'chart', role: 'img', 'aria-label': `Bar chart of records collected per day. ${summary}` },
+      h('div', { class: 'yaxis', 'aria-hidden': 'true' }, ticks.map(t => h('span', {}, Number.isInteger(t) ? t : t.toFixed(1)))),
+      h('div', { class: 'plot', 'aria-hidden': 'true' },
+        ticks.slice(0, 2).map((t, i) => { const g = h('div', { class: 'grid' }); g.style.top = `${i * 50}%`; return g; }),
+        days.map((x, i) => {
+          const bar = h('div', { class: `bar${i === days.length - 1 ? ' today' : ''}`, title: `${label(x.d)}: ${x.n} records` }, h('i'));
+          bar.firstChild.style.height = `${(x.n / top) * 100}%`;
+          return bar;
+        })),
+      h('div', { class: 'xaxis', 'aria-hidden': 'true' },
+        days.map((x, i) => h('span', {}, i === days.length - 1 ? 'Today' : (i % 2 === 0 ? label(x.d) : ''))))),
+    // Same data as text for screen readers.
+    h('table', { class: 'sr' }, h('caption', {}, 'Records per day'),
+      h('tbody', {}, days.map(x => h('tr', {}, h('th', {}, label(x.d)), h('td', {}, x.n))))));
+}
+
+function peopleTable(people) {
+  const wrap = h('div', { class: 'scroll' });
+  const render = () => {
+    const col = PERSON_COLUMNS.find(c => c.key === state.sort.key);
+    const rows = [...people].sort((a, b) => {
+      const x = col.get(a), y = col.get(b);
+      return (x > y ? 1 : x < y ? -1 : 0) * state.sort.dir;
+    });
+    wrap.replaceChildren(h('table', {},
+      h('thead', {}, h('tr', {}, PERSON_COLUMNS.map(c => h('th', {
+        class: c.num ? 'n' : null, scope: 'col',
+        'aria-sort': c.key === state.sort.key ? (state.sort.dir > 0 ? 'ascending' : 'descending') : null,
+      }, h('button', {
+        type: 'button', onclick: () => {
+          state.sort = c.key === state.sort.key ? { key: c.key, dir: -state.sort.dir } : { key: c.key, dir: c.num || c.key === 'last_active' ? -1 : 1 };
+          render();
+        },
+      }, c.label, c.key === state.sort.key ? (state.sort.dir > 0 ? ' ↑' : ' ↓') : ''))))),
+      h('tbody', {}, rows.length ? rows.map(p => h('tr', {},
+        h('td', {},
+          h('div', { class: 'row', style: 'gap:8px;flex-wrap:nowrap' },
+            h('span', { class: 'av' }, initials(p.name)),
+            h('div', {},
+              h('b', {}, p.name),
+              h('div', { class: 'row small muted', style: 'gap:6px;margin-top:2px' },
+                h('span', {}, `${p.employment === 'freelancer' ? 'Freelancer' : 'Staff'} · ${ROLE[p.role]}`),
+                p.working_now && h('span', { class: 'live' }, 'Working now'),
+                p.status !== 'active' && statusPill(p.status))))),
+        h('td', { class: 'n' }, p.hours), h('td', { class: 'n' }, p.records),
+        h('td', { class: 'n' }, p.records_per_hour ?? '—'), h('td', { class: 'n' }, p.active_days),
+        h('td', { class: 'n' }, p.tasks_done), h('td', { class: 'n' }, p.on_time_pct == null ? '—' : `${p.on_time_pct}%`),
+        h('td', { class: 'n' }, p.overdue ? h('span', { class: 'pill bad' }, `${p.overdue} overdue`) : '0'),
+        h('td', { class: 'small muted' }, ago(p.last_active))))
+        : h('tr', {}, h('td', { colspan: PERSON_COLUMNS.length, class: 'empty' }, 'No team members yet. Add people in Team & access.')))));
+  };
+  render();
+  return wrap;
+}
+
 async function overview(holder) {
   const d = await api('GET', `/api/dashboard?days=${state.days}`);
-  const period = h('select', {
-    'aria-label': 'Period', onchange: e => { state.days = Number(e.target.value); route(); },
-  }, [7, 30, 90, 365].map(n => h('option', { value: n, selected: n === state.days }, `Last ${n} days`)));
-
   const t = d.totals;
-  const tile = (v, l) => h('div', { class: 'tile' }, h('div', { class: 'v num' }, v), h('div', { class: 'l' }, l));
+  const overdueTotal = d.people.reduce((s, p) => s + p.overdue, 0);
+  const periodName = (PERIODS.find(p => p[0] === d.days)?.[1] || `${d.days} days`).toLowerCase();
 
-  const peopleRows = d.people.filter(p => p.role !== 'super_admin' || p.records || p.hours);
-  const table = h('div', { class: 'scroll' }, h('table', {},
-    h('thead', {}, h('tr', {},
-      h('th', {}, 'Person'), h('th', { class: 'n' }, 'Hours'), h('th', { class: 'n' }, 'Records'),
-      h('th', { class: 'n', title: 'Records per logged hour' }, 'Rec / hour'), h('th', { class: 'n' }, 'Active days'),
-      h('th', { class: 'n' }, 'Tasks done'), h('th', { class: 'n' }, 'On time'), h('th', { class: 'n' }, 'Overdue'), h('th', {}, 'Last active'))),
-    h('tbody', {}, peopleRows.length ? peopleRows.map(p => h('tr', {},
-      h('td', {},
-        h('div', {}, p.working_now && h('span', { class: 'dot', title: 'Working now' }), h('b', {}, p.name)),
-        h('div', { class: 'row small muted', style: 'gap:6px;margin-top:3px' },
-          h('span', {}, `${p.employment === 'freelancer' ? 'Freelancer' : 'Staff'} · ${ROLE[p.role]}`), p.status !== 'active' && statusPill(p.status))),
-      h('td', { class: 'n' }, p.hours), h('td', { class: 'n' }, p.records),
-      h('td', { class: 'n' }, p.records_per_hour ?? '—'), h('td', { class: 'n' }, p.active_days),
-      h('td', { class: 'n' }, p.tasks_done), h('td', { class: 'n' }, p.on_time_pct == null ? '—' : `${p.on_time_pct}%`),
-      h('td', { class: 'n', style: p.overdue ? 'color:var(--bad);font-weight:600' : '' }, p.overdue),
-      h('td', { class: 'small' }, ago(p.last_active)))) : h('tr', {}, h('td', { colspan: 9, class: 'empty' }, 'No team members yet. Add people in Team & access.')))));
+  const seg = h('div', { class: 'seg', role: 'group', 'aria-label': 'Period shown' },
+    PERIODS.map(([n, label]) => h('button', {
+      type: 'button', 'aria-pressed': String(n === state.days),
+      onclick: () => { if (n !== state.days) { state.days = n; overview(holder); } },
+    }, label)));
 
-  const max = Math.max(1, ...d.records_per_day.map(x => x.n));
-  const bars = h('div', { class: 'bars', role: 'img', 'aria-label': 'Records collected per day, last 14 days' },
-    d.records_per_day.map(x => h('div', { title: `${x.d}: ${x.n} records` },
-      h('b', {}, x.n || ''), h('i', { style: `height:${(x.n / max) * 90}%` }), h('span', {}, x.d.slice(8)))));
+  const metric = (ic, label, value, note, unit) => h('div', { class: 'metric' },
+    h('div', { class: 'top' }, icon(ic), label),
+    h('div', { class: 'v' }, value, unit && h('small', {}, unit)),
+    note);
+
+  const people = d.people.filter(p => p.role !== 'super_admin' || p.records || p.hours);
 
   holder.replaceChildren(
-    h('div', { class: 'head' }, h('div', {}, h('h1', {}, 'Team overview'),
-      h('p', { class: 'muted small' }, `Updated ${fmtDate(d.generated_at)} · refreshes every minute`)), period),
-    h('div', { class: 'tiles' },
-      tile(t.working_now, 'Working now'), tile(t.running_tasks, 'Tasks running'), tile(t.open_tasks, 'Tasks open'),
-      tile(t.records, `Records, ${d.days} days`), tile(t.hours, `Hours logged, ${d.days} days`),
-      tile(t.active_people, 'Active people'), tile(t.open_audits, 'Audits in progress')),
-    h('div', { class: 'grid2' },
-      h('div', { class: 'card' }, h('h2', {}, 'Working now'),
-        d.working_now.length ? h('div', { class: 'list' }, d.working_now.map(w => h('div', {},
-          h('div', {}, h('span', { class: 'dot' }), h('b', {}, w.name), h('div', { class: 'small muted' }, appName(w.app), w.industry_tag ? ` · ${w.industry_tag}` : '')),
-          h('div', { class: 'small muted', style: 'text-align:right' }, `since ${fmtDate(w.started_at)}`, h('br'), `${w.records} records`))))
-          : h('p', { class: 'empty' }, 'Nobody has an open session in an app right now.')),
-      h('div', { class: 'card' }, h('div', { class: 'cap' }, h('h2', {}, 'Running tasks'), h('a', { href: '#/tasks', class: 'small' }, 'All tasks')),
-        d.running_tasks.length ? h('div', { class: 'list' }, d.running_tasks.map(r => h('div', {},
-          h('div', {}, h('b', {}, r.title), h('div', { class: 'small muted' }, r.assignee_name || 'Unassigned', ' · ', r.industry_tag, r.app ? ` · ${appName(r.app)}` : '')),
-          h('div', { class: 'small muted', style: 'text-align:right;white-space:nowrap' }, `started ${ago(r.started_at)}`,
-            r.due_at && h('div', { style: r.due_at < Date.now() ? 'color:var(--bad)' : '' }, `due ${fmtDay(r.due_at)}`)))))
-          : h('p', { class: 'empty' }, 'No task is marked as running.'))),
-    h('div', { class: 'card', style: 'margin-top:16px' }, h('h2', {}, 'Work done by each person'),
-      h('p', { class: 'small muted', style: 'margin:-6px 0 10px' },
-        'Hours come from the work sessions each app logs; records are readings saved by that person. ',
-        'Rec / hour is shown once at least 15 minutes are logged. Nothing here is estimated.'),
-      table),
+    h('div', { class: 'head' },
+      h('div', {}, h('h1', {}, 'Overview'),
+        h('p', { class: 'muted small' }, `Team activity this ${periodName} · updated ${fmtDate(d.generated_at)}`)),
+      seg),
+
+    h('section', { 'aria-label': 'At a glance', class: 'metrics' },
+      metric('live', 'Working now', t.working_now, h('div', { class: 'mnote' }, t.working_now === 1 ? 'person in an app' : 'people in an app')),
+      metric('play', 'Tasks running', t.running_tasks, h('div', { class: 'mnote' }, `${t.open_tasks} open in total`)),
+      metric('tasks', 'Overdue tasks', overdueTotal,
+        h('div', { class: `mnote${overdueTotal ? ' bad' : ''}` }, overdueTotal ? 'Past their due date' : 'Nothing overdue')),
+      metric('doc', 'Records', t.records, h('div', { class: 'mnote' }, `collected this ${periodName}`)),
+      metric('clock', 'Hours logged', t.hours, h('div', { class: 'mnote' }, `in apps this ${periodName}`), 'h'),
+      metric('audits', 'Audits in progress', t.open_audits, h('div', { class: 'mnote' }, `${t.active_people} active people`))),
+
     h('div', { class: 'grid2', style: 'margin-top:16px' },
-      h('div', { class: 'card' }, h('h2', {}, 'Records collected per day'), h('p', { class: 'small muted' }, 'Last 14 days, all apps'), bars),
-      h('div', { class: 'card' }, h('div', { class: 'cap' }, h('h2', {}, 'Recent activity'), h('a', { href: '#/activity', class: 'small' }, 'Full log')),
-        h('div', { class: 'list' }, d.recent.map(a => h('div', {},
-          h('div', { class: 'small' }, h('b', {}, a.user_name || 'System'), ' ', describe(a)),
-          h('div', { class: 'small muted', style: 'white-space:nowrap' }, ago(a.at))))))));
-  state.timer = setInterval(() => { if (location.hash.startsWith('#/overview') || !location.hash) route(); }, 60000);
+      h('section', { class: 'card', 'aria-labelledby': 'h-now' },
+        h('h2', { id: 'h-now' }, 'Working now'),
+        h('p', { class: 'sub' }, 'People with an open session in a field app'),
+        d.working_now.length ? h('div', { class: 'ilist' }, d.working_now.map(w => h('div', { class: 'it' },
+          h('span', { class: 'av' }, initials(w.name)),
+          h('div', { class: 'main-t' }, h('b', {}, w.name), h('span', {}, appName(w.app), w.industry_tag ? ` · ${w.industry_tag}` : '')),
+          h('div', { class: 'trail' }, h('span', { class: 'live' }, `since ${new Date(w.started_at).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' })}`),
+            h('div', {}, `${w.records} records`)))))
+          : h('p', { class: 'empty' }, 'Nobody is collecting data right now.')),
+      h('section', { class: 'card', 'aria-labelledby': 'h-run' },
+        h('div', { class: 'cap' }, h('h2', { id: 'h-run' }, 'Running tasks'), h('a', { href: '#/tasks', class: 'small' }, 'All tasks')),
+        d.running_tasks.length ? h('div', { class: 'ilist' }, d.running_tasks.map(r => h('div', { class: 'it' },
+          h('div', { class: 'main-t' }, h('b', {}, r.title),
+            h('span', {}, [r.assignee_name || 'Unassigned', r.industry_tag, r.app && appName(r.app)].filter(Boolean).join(' · '))),
+          h('div', { class: 'trail' }, `started ${ago(r.started_at)}`,
+            r.due_at && h('div', {}, r.due_at < Date.now() ? h('span', { class: 'pill bad' }, `overdue · ${fmtDay(r.due_at)}`) : `due ${fmtDay(r.due_at)}`)))))
+          : h('p', { class: 'empty' }, 'No task is marked as running.'))),
+
+    h('section', { class: 'card', style: 'margin-top:16px', 'aria-labelledby': 'h-team' },
+      h('h2', { id: 'h-team' }, 'Team performance'),
+      h('p', { class: 'sub' }, `This ${periodName}. Hours come from the work sessions each app logs; records are readings saved by that person. `,
+        'Records / hour appears once 15 minutes are logged. Select a column heading to sort.'),
+      peopleTable(people)),
+
+    h('div', { class: 'grid2', style: 'margin-top:16px' },
+      h('section', { class: 'card', 'aria-labelledby': 'h-chart' }, h('h2', { id: 'h-chart' }, 'Records collected'), h('p', { class: 'sub' }, 'Per day, last 14 days, all apps'),
+        recordsChart(d.records_per_day)),
+      h('section', { class: 'card', 'aria-labelledby': 'h-act' },
+        h('div', { class: 'cap' }, h('h2', { id: 'h-act' }, 'Recent activity'), h('a', { href: '#/activity', class: 'small' }, 'Full log')),
+        h('div', { class: 'ilist' }, d.recent.map(a => h('div', { class: 'it' },
+          h('div', { class: 'main-t' }, h('b', {}, a.user_name || 'System'), h('span', {}, describe(a))),
+          h('div', { class: 'trail' }, ago(a.at))))))));
+
+  clearInterval(state.timer);
+  state.timer = setInterval(() => {
+    if (document.visibilityState === 'visible' && (location.hash.startsWith('#/overview') || !location.hash)) overview(holder).catch(() => {});
+  }, 60000);
 }
 
 // ---------- team & access ----------
