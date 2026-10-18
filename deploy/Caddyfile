@@ -1,0 +1,18 @@
+# Caddy gets and renews HTTPS certificates automatically.
+# Both names point at the same Node process: the Console for people, /api/ for the apps.
+
+ops.arenergyservices.in, api.arenergyservices.in {
+	encode gzip
+	request_body {
+		max_size 10MB
+	}
+	reverse_proxy 127.0.0.1:8080 {
+		header_up X-Forwarded-For {remote_host}
+	}
+	log {
+		output file /var/log/caddy/ares-access.log {
+			roll_size 20MiB
+			roll_keep 5
+		}
+	}
+}

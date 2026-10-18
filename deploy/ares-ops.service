@@ -1,0 +1,36 @@
+[Unit]
+Description=ARES Console and sync API
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ares
+Group=ares
+WorkingDirectory=/opt/ares-ops
+ExecStart=/usr/bin/node server.js
+Restart=always
+RestartSec=3
+Environment=NODE_ENV=production
+Environment=HOST=127.0.0.1
+Environment=PORT=8080
+Environment=DB_FILE=/var/lib/ares/ares.db
+Environment=SECURE_COOKIES=1
+Environment=TRUST_PROXY=1
+
+# Hardening: the service can only write to its data folder.
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+ReadWritePaths=/var/lib/ares
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target
