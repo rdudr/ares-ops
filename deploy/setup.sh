@@ -47,10 +47,21 @@ echo "== daily backup"
 install -m 755 /opt/ares-ops/deploy/backup.sh /etc/cron.daily/ares-backup
 
 echo "== firewall: only SSH and web"
-ufw allow OpenSSH
-ufw allow 80/tcp
-ufw allow 443/tcp
-ufw --force enable
+if [ -f /etc/iptables/rules.v4 ] && command -v netfilter-persistent >/dev/null; then
+  # Oracle Cloud images ship their own iptables rules (everything but SSH rejected).
+  # Open 80/443 above the final REJECT rule and keep using those rules instead of ufw.
+  for port in 80 443; do
+    iptables -C INPUT -p tcp -m state --state NEW --dport "$port" -j ACCEPT 2>/dev/null \
+      || iptables -I INPUT 5 -p tcp -m state --state NEW --dport "$port" -j ACCEPT
+  done
+  netfilter-persistent save
+  echo "(Oracle Cloud: also allow ports 80 and 443 in the VCN security list.)"
+else
+  ufw allow OpenSSH
+  ufw allow 80/tcp
+  ufw allow 443/tcp
+  ufw --force enable
+fi
 
 echo "== automatic security updates"
 dpkg-reconfigure -f noninteractive unattended-upgrades
