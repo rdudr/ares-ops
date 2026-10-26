@@ -8,25 +8,29 @@ import { HttpError, createRouter, securityHeaders, sendJson, readJson, parseCook
 import { loadSession, isManager, WEB_MAX_MS } from './lib/auth.js';
 import { registerConsoleRoutes } from './lib/routes-console.js';
 import { registerDeviceRoutes } from './lib/routes-device.js';
+import { registerDataRoutes } from './lib/routes-data.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
+const dbFile = process.env.DB_FILE || path.join(here, 'data', 'ares.db');
 const config = {
   port: Number(process.env.PORT || 8080),
   host: process.env.HOST || '127.0.0.1',
-  dbFile: process.env.DB_FILE || path.join(here, 'data', 'ares.db'),
-  // Set both to 1 on the real server, behind HTTPS (e.g. Nginx or Hostinger's proxy).
+  dbFile,
+  filesDir: process.env.FILES_DIR || path.join(path.dirname(dbFile), 'files'),
+  // Set both to 1 on the real server, behind HTTPS (e.g. Caddy or Nginx).
   secureCookies: process.env.SECURE_COOKIES === '1',
   trustProxy: process.env.TRUST_PROXY === '1',
 };
 
 const COOKIE = config.secureCookies ? '__Host-ares' : 'ares';
 
-export function createServer(db) {
+export function createServer(db, { filesDir = config.filesDir } = {}) {
   const setupCode = crypto.randomBytes(6).toString('hex').toUpperCase();
   const router = createRouter();
   registerConsoleRoutes(router, { setupCode });
   registerDeviceRoutes(router);
+  registerDataRoutes(router, { filesDir });
 
   const files = {
     '/': ['index.html', 'text/html; charset=utf-8'],
@@ -37,10 +41,12 @@ export function createServer(db) {
 
   const server = http.createServer(async (req, res) => {
     securityHeaders(res, config.secureCookies);
-    const url = new URL(req.url, 'http://localhost');
-    const ip = (config.trustProxy && String(req.headers['x-forwarded-for'] || '').split(',')[0].trim()) || req.socket.remoteAddress;
-
+    let url = null;
     try {
+      // Parsed inside the try: a malformed request line must get a 400, not crash the process.
+      try { url = new URL(req.url, 'http://localhost'); } catch { throw new HttpError(400, 'Bad request.'); }
+      const ip = (config.trustProxy && String(req.headers['x-forwarded-for'] || '').split(',')[0].trim()) || req.socket.remoteAddress;
+
       if (!url.pathname.startsWith('/api/')) {
         const f = req.method === 'GET' && files[url.pathname];
         if (!f) throw new HttpError(404, 'Not found.');
@@ -60,38 +66,51 @@ export function createServer(db) {
           `${COOKIE}=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0${config.secureCookies ? '; Secure' : ''}`),
       };
 
-      if (opts.device) {
-        // Field apps: bearer token, re-checked against status and app access on every call.
-        const token = String(req.headers.authorization || '').replace(/^Bearer\s+/i, '');
-        ctx.auth = loadSession(db, token, 'device');
-        if (!ctx.auth) throw new HttpError(401, 'Please sign in again.', 'signed_out');
-      } else if (!opts.public) {
-        // Console: cookie session for Super Admin / Head only.
+      const bearer = String(req.headers.authorization || '').replace(/^Bearer\s+/i, '');
+      const deviceAuth = () => {
+        const a = loadSession(db, bearer, 'device');
+        if (!a) throw new HttpError(401, 'Please sign in again.', 'signed_out');
+        return { ...a, via: 'device' };
+      };
+      const consoleAuth = () => {
+        // Console: cookie session for Super Admin / Head only. Automatic refreshes send
+        // X-ARES-Background and do not count as activity for the 30-minute idle timeout.
         if (req.method !== 'GET') checkSameOrigin(req);
-        ctx.auth = loadSession(db, parseCookies(req.headers.cookie)[COOKIE], 'web');
-        if (!ctx.auth) throw new HttpError(401, 'Please sign in.', 'signed_out');
-        if (!isManager(ctx.auth.user)) throw new HttpError(403, 'Not allowed.');
-        if (ctx.auth.user.must_change_pw && !opts.allowPasswordChange) {
+        const a = loadSession(db, parseCookies(req.headers.cookie)[COOKIE], 'web', { touch: req.headers['x-ares-background'] !== '1' });
+        if (!a) throw new HttpError(401, 'Please sign in.', 'signed_out');
+        if (!isManager(a.user)) throw new HttpError(403, 'Not allowed.');
+        if (a.user.must_change_pw && !opts.allowPasswordChange) {
           throw new HttpError(403, 'Please set your own password first.', 'password_change_required');
         }
-      } else if (req.method !== 'GET' && !url.pathname.startsWith('/api/device/')) {
-        checkSameOrigin(req);
+        return { ...a, via: 'web' };
+      };
+
+      if (opts.device) ctx.auth = deviceAuth();
+      else if (opts.auth === 'either') {
+        ctx.auth = bearer ? deviceAuth() : consoleAuth();
+        if (ctx.auth.user.must_change_pw) throw new HttpError(403, 'Please set your own password first.', 'password_change_required');
       }
+      else if (!opts.public) ctx.auth = consoleAuth();
+      else if (req.method !== 'GET' && !url.pathname.startsWith('/api/device/')) checkSameOrigin(req);
 
       const out = await match.handler(ctx);
       if (!res.headersSent) sendJson(res, 200, out ?? { ok: true });
     } catch (err) {
       if (res.headersSent) return res.end();
+      const api = url ? url.pathname.startsWith('/api/') : true;
       if (err instanceof HttpError) {
-        if (err.status === 404 && !url.pathname.startsWith('/api/')) {
+        if (err.status === 404 && !api) {
           res.writeHead(404, { 'Content-Type': 'text/plain' });
           return res.end('Not found');
         }
         return sendJson(res, err.status, { error: err.message, code: err.code });
       }
-      console.error(new Date().toISOString(), req.method, url.pathname, err);
+      console.error(new Date().toISOString(), req.method, url?.pathname, err);
       sendJson(res, 500, { error: 'Something went wrong on the server.' });
     }
+  });
+  server.on('clientError', (err, socket) => {
+    if (socket.writable) socket.end('HTTP/1.1 400 Bad Request\r\nConnection: close\r\n\r\n');
   });
 
   return { server, setupCode };
@@ -101,10 +120,15 @@ export function createServer(db) {
 function checkSameOrigin(req) {
   if (req.headers['x-ares'] !== '1') throw new HttpError(403, 'Request blocked.');
   const origin = req.headers.origin;
-  if (origin && new URL(origin).host !== req.headers.host) throw new HttpError(403, 'Request blocked.');
+  if (!origin) return;
+  let host;
+  try { host = new URL(origin).host; } catch { throw new HttpError(403, 'Request blocked.'); }
+  if (host !== req.headers.host) throw new HttpError(403, 'Request blocked.');
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  // Log and keep serving rather than letting one stray promise take the whole service down.
+  process.on('unhandledRejection', err => console.error(new Date().toISOString(), 'unhandled rejection', err));
   const db = openDb(config.dbFile);
   const { server, setupCode } = createServer(db);
   // Remove expired sessions every hour.

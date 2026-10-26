@@ -27,10 +27,11 @@ class ApiError extends Error {
   constructor(message, code, status) { super(message); this.code = code; this.status = status; }
 }
 
-async function api(method, path, body) {
+// background: an automatic refresh, which must not keep an idle session alive.
+async function api(method, path, body, { background = false } = {}) {
   const res = await fetch(path, {
     method,
-    headers: { 'Content-Type': 'application/json', 'X-ARES': '1' },
+    headers: { 'Content-Type': 'application/json', 'X-ARES': '1', ...(background ? { 'X-ARES-Background': '1' } : {}) },
     body: body ? JSON.stringify(body) : undefined,
     credentials: 'same-origin',
   });
@@ -398,8 +399,8 @@ function peopleTable(people) {
   return wrap;
 }
 
-async function overview(holder) {
-  const d = await api('GET', `/api/dashboard?days=${state.days}`);
+async function overview(holder, { background = false } = {}) {
+  const d = await api('GET', `/api/dashboard?days=${state.days}`, null, { background });
   const t = d.totals;
   const overdueTotal = d.people.reduce((s, p) => s + p.overdue, 0);
   const periodName = (PERIODS.find(p => p[0] === d.days)?.[1] || `${d.days} days`).toLowerCase();
@@ -468,7 +469,7 @@ async function overview(holder) {
 
   clearInterval(state.timer);
   state.timer = setInterval(() => {
-    if (document.visibilityState === 'visible' && (location.hash.startsWith('#/overview') || !location.hash)) overview(holder).catch(() => {});
+    if (document.visibilityState === 'visible' && (location.hash.startsWith('#/overview') || !location.hash)) overview(holder, { background: true }).catch(() => {});
   }, 60000);
 }
 
@@ -509,7 +510,8 @@ async function team(holder) {
     const m = canManage(u);
     return h('div', { class: 'person' },
       h('div', {},
-        h('div', { class: 'row', style: 'gap:8px' }, h('span', { class: 'nm' }, u.name), statusPill(u.status)),
+        h('div', { class: 'row', style: 'gap:8px' }, h('span', { class: 'nm' }, u.name), statusPill(u.status),
+          u.locked && h('span', { class: 'pill bad' }, 'Locked: wrong passwords')),
         h('div', { class: 'small muted', style: 'margin-top:4px' }, `Login ID: ${u.login_id}`),
         h('div', { class: 'small muted' }, ROLE[u.role], ' · ', u.employment === 'freelancer' ? 'Freelancer' : 'Staff', u.phone ? ` · ${u.phone}` : ''),
         h('div', { class: 'small muted' }, `Last sign-in: ${ago(u.last_login_at)}`, u.must_change_pw ? ' · has not set own password yet' : '')),
@@ -531,6 +533,12 @@ async function team(holder) {
             catch (ex) { toast(ex.message); }
           },
         }, 'Reset password'),
+        m && u.locked && h('button', {
+          class: 'btn small', onclick: async () => {
+            try { await api('POST', `/api/users/${u.id}/unlock`); toast(`${u.name} can sign in again`); route(); }
+            catch (ex) { toast(ex.message); }
+          },
+        }, 'Unlock'),
         m && h('button', { class: 'btn small ghost', onclick: () => editPerson(u) }, 'Edit')));
   });
 
@@ -652,7 +660,7 @@ async function newAudit() {
     const siteSel = h('select', { name: 'site_id', onchange: e => { newSite.hidden = !!e.target.value; } });
     const fillSites = cid => {
       const c = clients.find(x => x.id === cid);
-      siteSel.replaceChildren(h('option', { value: '' }, 'New plant…'), (c?.sites || []).map(s => h('option', { value: s.id }, `${s.name} (${s.industry_tag})`)));
+      siteSel.replaceChildren(h('option', { value: '' }, 'New plant…'), ...(c?.sites || []).map(s => h('option', { value: s.id }, `${s.name} (${s.industry_tag})`)));
       newSite.hidden = false;
     };
     const clientSel = h('select', {
@@ -732,6 +740,8 @@ const ACTION = {
   'app.removed': 'removed app access', 'audit.created': 'created an audit', 'audit.status': 'changed audit status',
   'audit.assigned': 'added a person to an audit', 'audit.unassigned': 'removed a person from an audit',
   'task.created': 'added a task', 'task.status': 'moved a task', sync: 'synced data', 'setup.super_admin_created': 'set up the Console',
+  'user.unlocked': 'unlocked a person', 'file.uploaded': 'uploaded a file', 'file.downloaded': 'downloaded a file',
+  'admin.recovered': 'recovered an admin account on the server',
 };
 const describe = a => [ACTION[a.action] || a.action, (a.target_name || a.target) && `· ${a.target_name || a.target}`, a.detail && `· ${a.detail}`].filter(Boolean).join(' ');
 
