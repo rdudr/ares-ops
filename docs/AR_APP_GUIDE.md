@@ -234,7 +234,7 @@ PostMan hand-off of the KISEM apps: **there is nothing to send.**
   sign, then add the APK to **AR-Enterprise-APPS-Repo-** with `tools/publish.mjs`, which updates
   `apps.json` and the download page. Repo secrets: `APK_REPO_TOKEN`, `AR_KEYSTORE_BASE64`,
   `AR_KEYSTORE_PASSWORD`, `AR_KEY_ALIAS`, `AR_KEY_PASSWORD`.
-- **Download page:** https://rdudr.github.io/AR-Enterprise-APPS-Repo-/ lists each app's newest
+- **Download page:** https://ops.arenergyservices.in/apps/ lists each app's newest
   version first, with size, date, SHA-256 and earlier versions (last 3 files kept per app).
 - **Updates on the phone:** the app checks `apps.json` (at most every 6 hours, online only) and,
   when a newer version exists, shows a banner with a download link. Android always asks the person

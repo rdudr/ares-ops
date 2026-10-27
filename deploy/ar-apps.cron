@@ -1,0 +1,2 @@
+# Pull the AR apps download page from GitHub every 5 minutes (deploy/ar-apps-sync.sh).
+*/5 * * * * root /opt/ares-ops/deploy/ar-apps-sync.sh >/dev/null 2>&1

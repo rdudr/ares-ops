@@ -35,6 +35,11 @@ ssh "$HOST" 'set -e
     sudo install -m 644 /opt/ares-ops/deploy/ares-ops.service /etc/systemd/system/ares-ops.service
     sudo install -m 644 /opt/ares-ops/deploy/Caddyfile /etc/caddy/Caddyfile
     sudo install -m 755 /opt/ares-ops/deploy/backup.sh /etc/cron.daily/ares-backup
+    # AR apps download page: copy of the APK repo, refreshed every 5 minutes.
+    sudo chmod 755 /opt/ares-ops/deploy/ar-apps-sync.sh
+    sudo install -m 644 /opt/ares-ops/deploy/ar-apps.cron /etc/cron.d/ar-apps
+    sudo /opt/ares-ops/deploy/ar-apps-sync.sh
+    sudo caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile >/dev/null
     sudo systemctl daemon-reload
     sudo systemctl restart ares-ops
     sudo systemctl reload caddy

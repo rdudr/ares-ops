@@ -1,5 +1,5 @@
 # Builds this AR app's APK whenever main changes and publishes it to the AR Enterprise APK page
-# (https://rdudr.github.io/AR-Enterprise-APPS-Repo-/). Installed apps check that page and offer the
+# (https://ops.arenergyservices.in/apps/). Installed apps check that page and offer the
 # update, so a merge to main reaches the field engineers without anyone copying files around.
 #
 # Version: major.minor from package.json, patch = this workflow's run number (always increasing).

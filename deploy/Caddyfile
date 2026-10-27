@@ -6,8 +6,22 @@ ops.arenergyservices.in, api.arenergyservices.in {
 	request_body {
 		max_size 10MB
 	}
-	reverse_proxy 127.0.0.1:8080 {
-		header_up X-Forwarded-For {remote_host}
+	# AR apps download page and APKs (a copy of the public APK repo, see ar-apps-sync.sh).
+	redir /apps /apps/
+	handle_path /apps/* {
+		@hidden path /.* */.*
+		respond @hidden 404
+		root * /var/www/ar-apps
+		# Installed apps read apps.json to offer updates, from their own origin.
+		header /apps.json Access-Control-Allow-Origin *
+		header /apps.json Cache-Control "no-cache"
+		header *.apk Content-Type application/vnd.android.package-archive
+		file_server
+	}
+	handle {
+		reverse_proxy 127.0.0.1:8080 {
+			header_up X-Forwarded-For {remote_host}
+		}
 	}
 	log {
 		output file /var/log/caddy/ares-access.log {

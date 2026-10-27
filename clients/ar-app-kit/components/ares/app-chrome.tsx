@@ -12,7 +12,7 @@ import pkg from "@/package.json";
 const NOTICE_KEY = "ar-storage-notice-v1";
 
 // The public page where every AR app's latest APK is listed (GitHub Pages of the APK repo).
-export const APK_INDEX_URL = (process.env.NEXT_PUBLIC_APK_INDEX || "https://rdudr.github.io/AR-Enterprise-APPS-Repo-").replace(/\/$/, "");
+export const APK_INDEX_URL = (process.env.NEXT_PUBLIC_APK_INDEX || "https://ops.arenergyservices.in/apps/").replace(/\/$/, "");
 
 function readFlag(key: string) {
   try { return localStorage.getItem(key); } catch { return null; }
