@@ -15,7 +15,7 @@ echo "== packing"
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT
 tar -czf "$TMP/ares-ops.tgz" --exclude=./.git --exclude=./data --exclude=./test \
-  --exclude=./node_modules --exclude=./.claude --exclude=./tools --exclude='.env*' --exclude='*.db' --exclude='*.db-*' .
+  --exclude=./node_modules --exclude=./.claude --exclude=./tools --exclude=./clients --exclude='.env*' --exclude='*.db' --exclude='*.db-*' .
 
 echo "== uploading to $HOST"
 scp -q "$TMP/ares-ops.tgz" "$HOST:/tmp/ares-ops.tgz"
