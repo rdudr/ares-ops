@@ -140,6 +140,7 @@ def repair(src):
     """Undoes damage from an earlier version of this script: repeated ids, and an "e.g." example
     used as a field's accessible name."""
     src = re.sub(r'(\bid="[^"]+")(?:\s+\1)+', r'\1', src)
+    src = re.sub(r'\bid="f-([^"]+)"\s+(id="\1")', r'\2', src)  # keep the id the label already used
     return re.sub(r'\s+aria-label="e\.g\.[^"]*"', '', src)
 
 
