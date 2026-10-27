@@ -82,7 +82,7 @@ SHARED_FROM_TEMPLATE = ['app/login/page.tsx', 'app/change-password/page.tsx', 'a
                         'components/auth-guard.tsx', 'lib/auth-store.ts', 'scripts/kisem-sync.mjs',
                         '.github/workflows/kisem-logic-sync.yml', '.gitattributes']
 KIT_FILES = ['lib/ares/api.ts', 'lib/ares/session.ts', 'lib/ares/sync.ts', 'lib/ares/collection-binding.ts', 'lib/ares/client-state.ts',
-             'components/ares/ares-screens.tsx']
+             'components/ares/ares-screens.tsx', 'scripts/android-apk.mjs', '.github/workflows/android-apk.yml']
 
 
 def theme_css(scale, accent_name):
@@ -139,6 +139,7 @@ def main(key):
         fh.write('// This app\'s identity inside the AR Enterprise suite (ARES). The code is fixed for good once data\n'
                  '// exists under it (PLATFORM_RULES.md §3).\n'
                  f'export const APP = {{\n  code: "{cfg["code"]}",\n  name: {json.dumps(cfg["name"])},\n'
+                 f'  apk: "{cfg["apk"]}",\n'
                  f'  tagline: {json.dumps(cfg["tagline"])},\n}} as const;\n')
 
     # Theme: AR navy + accent; keep the KISEM app's own extra rules that are not theme/body.
@@ -182,6 +183,10 @@ def main(key):
     for k in [k for k in scripts if k.startswith('db:') or 'postman' in k or 'upsert' in k or k == 'report:check']:
         scripts.pop(k)
     scripts['kisem:check'] = 'node scripts/kisem-sync.mjs --check'
+    scripts['build:mobile'] = 'node scripts/build-mobile.mjs'  # no Prisma in AR apps
+    scripts['android:apk'] = 'node scripts/android-apk.mjs'
+    for k in [k for k in scripts if 'export-apk' in scripts[k]]:
+        scripts.pop(k)
     json.dump(pkg, open(pkg_path, 'w', encoding='utf-8'), indent=2)
     open(pkg_path, 'a', encoding='utf-8').write('\n')
 
@@ -195,11 +200,10 @@ def main(key):
         c = re.sub(r'\s*cleartext:\s*true,?', '', c)
         c = re.sub(r'allowMixedContent:\s*true', 'allowMixedContent: false', c)
         open(cap, 'w', encoding='utf-8').write(c)
-    apk = os.path.join(dest, 'scripts/export-apk.mjs')
-    if os.path.exists(apk):
-        s = open(apk, encoding='utf-8').read()
-        s = re.sub(r'`[\w-]+-v\$\{version\}\.apk`', f'`{cfg["apk"]}-v${{version}}.apk`', s)
-        open(apk, 'w', encoding='utf-8').write(s)
+    # The KISEM export script used KISEM file names; android-apk.mjs (from the kit) replaces it.
+    for old in ('scripts/export-apk.mjs',):
+        if os.path.exists(os.path.join(dest, old)):
+            os.remove(os.path.join(dest, old))
     icons = os.path.join(dest, 'scripts/generate-icons.mjs')
     if os.path.exists(icons):
         s = open(icons, encoding='utf-8').read()
@@ -209,7 +213,7 @@ def main(key):
     # Ignore rules, env example, KISEM logic link.
     gi = os.path.join(dest, '.gitignore')
     with open(gi, 'a', encoding='utf-8') as fh:
-        fh.write('\n# AR app\n/releases/*.apk\n*.apk\n*.db\n.env*\n!.env.example\n')
+        fh.write('\n# AR app\n/android/\n/releases/\n*.apk\n*.jks\n*.db\n.env*\n!.env.example\n')
     shutil.copy2(os.path.join(TEMPLATE, '.env.example'), os.path.join(dest, '.env.example'))
     lock = {
         "$comment": f"Tracks which commit of {cfg['repo']} this AR app's calculations match. Updated by scripts/kisem-sync.mjs; do not edit 'files' or 'synced_commit' by hand.",

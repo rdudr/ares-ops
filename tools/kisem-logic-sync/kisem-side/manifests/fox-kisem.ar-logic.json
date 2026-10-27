@@ -1,15 +1,14 @@
 {
-  "$comment": "Put this file in the KISEM repo root as ar-logic.json. 'copy' = pure calculation files the AR app reuses byte-for-byte. 'watch' = pages/graphs where logic sits inside the UI; changes are flagged for porting by hand. Replace the notify entry with the AR app repo once its name is decided.",
-  "app": "fox-kisem",
+  "$comment": "Put this file in the KISEM repo root as ar-logic.json. 'copy' = pure formula files the AR app reuses byte-for-byte. 'watch' = files whose changes are flagged for porting by hand.",
+  "app": "fox-kisen",
   "notify": [
-    "rdudr/REPLACE-WITH-AR-APP-REPO"
+    "rdudr/ares-brief"
   ],
-  "copy": [
-    "lib/export-offline.ts"
-  ],
+  "copy": [],
   "watch": [
+    "lib/export-offline.ts",
     "lib/store.ts",
     "app/(console)/**",
-    "components/dashboard/**"
+    "components/**"
   ]
 }

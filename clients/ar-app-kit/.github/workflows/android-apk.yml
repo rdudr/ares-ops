@@ -1,0 +1,97 @@
+# Builds this AR app's APK whenever main changes and publishes it to the AR Enterprise APK page
+# (https://rdudr.github.io/AR-Enterprise-APPS-Repo-/). Installed apps check that page and offer the
+# update, so a merge to main reaches the field engineers without anyone copying files around.
+#
+# Version: major.minor from package.json, patch = this workflow's run number (always increasing).
+#
+# Repository secrets (Settings > Secrets and variables > Actions):
+#   APK_REPO_TOKEN        fine-grained token with Contents: read and write on AR-Enterprise-APPS-Repo-
+#   AR_KEYSTORE_BASE64    the AR Enterprise signing key (base64 of the .jks file)
+#   AR_KEYSTORE_PASSWORD, AR_KEY_ALIAS, AR_KEY_PASSWORD
+name: Android APK
+
+on:
+  push:
+    branches: [main]
+    paths-ignore: ['**.md', 'kisem-logic.lock.json', '.github/workflows/kisem-logic-sync.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-apk
+  cancel-in-progress: true
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Check the signing key is set
+        env:
+          AR_KEYSTORE_BASE64: ${{ secrets.AR_KEYSTORE_BASE64 }}
+          APK_REPO_TOKEN: ${{ secrets.APK_REPO_TOKEN }}
+        run: |
+          if [ -z "$AR_KEYSTORE_BASE64" ] || [ -z "$APK_REPO_TOKEN" ]; then
+            echo "::error::Add the AR_KEYSTORE_* and APK_REPO_TOKEN secrets first (see the top of this file)."
+            exit 1
+          fi
+
+      - run: npm ci
+
+      - name: Build the signed APK
+        id: build
+        env:
+          AR_KEYSTORE_BASE64: ${{ secrets.AR_KEYSTORE_BASE64 }}
+          AR_KEYSTORE_PASSWORD: ${{ secrets.AR_KEYSTORE_PASSWORD }}
+          AR_KEY_ALIAS: ${{ secrets.AR_KEY_ALIAS }}
+          AR_KEY_PASSWORD: ${{ secrets.AR_KEY_PASSWORD }}
+        run: |
+          base=$(node -p "require('./package.json').version.split('.').slice(0,2).join('.')")
+          node scripts/android-apk.mjs --version "$base.${{ github.run_number }}"
+
+      - name: Check out the APK page
+        uses: actions/checkout@v4
+        with:
+          repository: rdudr/AR-Enterprise-APPS-Repo-
+          token: ${{ secrets.APK_REPO_TOKEN }}
+          path: apk-repo
+
+      - name: Publish
+        working-directory: apk-repo
+        env:
+          APK: ${{ steps.build.outputs.apk }}
+          VERSION: ${{ steps.build.outputs.version }}
+          CODE: ${{ steps.build.outputs.code }}
+          NAME: ${{ steps.build.outputs.name }}
+        run: |
+          git config user.name "ar-apk-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # Several apps may publish at the same moment. Each attempt starts from the latest page,
+          # adds this APK and pushes; if another app got in first, start again.
+          for i in 1 2 3 4 5; do
+            git fetch -q origin main && git reset -q --hard origin/main
+            node tools/publish.mjs --apk "$APK" --code "$CODE" --name "$NAME" --app-config ../lib/ares/app-config.ts \
+              --version "$VERSION" --icon ../public/icon-192.png --commit "${GITHUB_SHA::7}"
+            git add -A
+            git commit -qm "$NAME v$VERSION"
+            git push -q origin HEAD:main && exit 0
+            sleep $((i * 5))
+          done
+          echo "::error::Could not publish after 5 attempts"
+          exit 1

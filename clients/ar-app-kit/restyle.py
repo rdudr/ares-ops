@@ -41,6 +41,8 @@ def coloured(m):
     if kind == 'text':
         return f'text-{fam}-800' if shade <= 600 else f'text-{fam}-{shade}'
     if kind == 'bg':
+        if alpha and shade <= 100:  # already a light-theme tint
+            return m.group(0)
         if alpha:  # tinted panel
             return f'bg-{fam}-50' if a <= 20 else f'bg-{fam}-100' if a <= 40 else f'bg-{fam}-700'
         if shade in (500, 600):  # solid buttons and chips: dark enough for white text
@@ -54,8 +56,8 @@ def coloured(m):
         if not alpha:  # solid: light ones are already light-theme borders; mid ones become the strong accent
             return f'border-{fam}-{shade}' if shade <= 300 or shade >= 600 else f'border-{fam}-600'
         return f'border-{fam}-200' if a < 40 else f'border-{fam}-300'
-    if kind == 'ring':
-        return f'ring-{fam}-600/40'
+    if kind == 'ring':  # solid rings are already light-theme focus rings
+        return m.group(0) if not alpha and shade >= 600 else f'ring-{fam}-600/40'
     return m.group(0)
 
 
@@ -70,6 +72,9 @@ def restyle_string(s):
                  lambda m: m.group(1) + neutral_bg(m.group(2), m.group(3)), out)
     out = re.sub(rf'(?<![\w/-])({VARIANTS})((?:text|bg|border|ring)-(?:{COLOURS})-\d{{2,3}}(?:/\d+)?)(?![\w-])',
                  lambda m: m.group(1) + re.sub(rf'^(text|bg|border|ring)-({COLOURS})-(\d{{2,3}})(?:/(\d+))?$', coloured, m.group(2)), out)
+    # Focus rings must stay clearly visible (WCAG 2.4.7): solid accent, not a faint tint.
+    out = re.sub(rf'(?<![\w/-])((?:focus|focus-visible|focus-within):)ring-({COLOURS})-\d{{2,3}}/\d+(?![\w-])',
+                 lambda m: f'{m.group(1)}ring-{m.group(2)}-700', out)
     # White text stays only on a solid coloured background in the same class list; elsewhere it was
     # a heading on the dark theme and becomes dark ink.
     if re.search(r'(?<![\w/-])text-white(?![\w/-])', out) and not SOLID_BG.search(out):
@@ -104,17 +109,45 @@ def drop_literal_placeholders(src):
         tag_start = src.rfind('<', 0, m.start())
         labelled = re.search(r'\b(id|aria-label|aria-labelledby)=', src[tag_start:m.start()])
         out.append(src[last:m.start()])
-        if not labelled:
+        # An "e.g." example is never a name; other text names a field nothing else labels.
+        if not labelled and not re.match(r'["{`]*e\.g\.', m.group(1)):
             out.append(' aria-label=' + m.group(1))
         last = m.end()
     out.append(src[last:])
     return ''.join(out)
 
 
+# A <Label> directly followed by the field it names (label text may hold the required-mark span).
+LABEL_INPUT = re.compile(
+    r'<Label>(?P<text>[^<]*(?:<span[^>]*>[^<]*</span>[^<]*)?)</Label>(?P<gap>\s*)'
+    r'<(?P<tag>Input|Textarea) (?P<attrs>[^<>]*?)(?P<end>/?>)')
+
+
+def link_labels(src):
+    """<Label>X</Label><Input value={form.key} …> -> the label names the field for screen readers."""
+    def repl(m):
+        attrs = m.group('attrs')
+        key = re.search(r'value=\{\w+\.(\w+)\}', attrs)
+        if not key or re.search(r'\bid=', attrs):
+            return m.group(0)
+        fid = f'f-{key.group(1)}'
+        return (f'<Label htmlFor="{fid}">{m.group("text")}</Label>{m.group("gap")}'
+                f'<{m.group("tag")} id="{fid}" {attrs}{m.group("end")}')
+    return LABEL_INPUT.sub(repl, src)
+
+
+def repair(src):
+    """Undoes damage from an earlier version of this script: repeated ids, and an "e.g." example
+    used as a field's accessible name."""
+    src = re.sub(r'(\bid="[^"]+")(?:\s+\1)+', r'\1', src)
+    return re.sub(r'\s+aria-label="e\.g\.[^"]*"', '', src)
+
+
 def process(path):
     src = open(path, encoding='utf-8', newline='').read()
     new = STRING.sub(lambda m: restyle_string(m.group(0)), src)
     # No example placeholders ("e.g. RISHABH", "Shree Textiles…"): labels and hints carry the meaning.
+    new = link_labels(repair(new))
     new = drop_placeholders(new)
     if new != src:
         open(path, 'w', encoding='utf-8', newline='').write(new)
@@ -125,7 +158,8 @@ def process(path):
 changed = 0
 for root_dir in ('app', 'components'):
     for dp, dn, fn in os.walk(os.path.join(APP, root_dir)):
-        if os.path.normpath(dp).endswith(os.path.normpath('components/ui')):
+        # The kit's own files (ui components, ARES screens, picker, privacy page) are light already.
+        if any(os.path.normpath(dp).endswith(os.path.normpath(k)) for k in ('components/ui', 'components/ares', 'app/privacy')):
             continue
         for f in fn:
             if f.endswith('.tsx'):
