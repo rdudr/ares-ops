@@ -1,16 +1,16 @@
 {
-  "$comment": "Put this file in the KISEM repo root as ar-logic.json. 'copy' = pure calculation files the AR app reuses byte-for-byte. 'watch' = pages/graphs where logic sits inside the UI; changes are flagged for porting by hand. Replace the notify entry with the AR app repo once its name is decided.",
+  "$comment": "Put this file in the KISEM repo root as ar-logic.json. 'copy' = pure formula files the AR app reuses byte-for-byte. 'watch' = files whose changes are flagged for porting by hand.",
   "app": "A-CMP",
   "notify": [
-    "rdudr/REPLACE-WITH-AR-APP-REPO"
+    "rdudr/ares-air"
   ],
   "copy": [
-    "lib/compressor-calc.ts",
-    "lib/compressor-excel.ts"
+    "lib/compressor-calc.ts"
   ],
   "watch": [
-    "lib/store.ts",
+    "lib/compressor-excel.ts",
     "lib/pdf-generator.ts",
+    "lib/store.ts",
     "app/(console)/**",
     "components/**"
   ]

@@ -1,5 +1,5 @@
 {
-  "$comment": "Put this file in the AR app repo root as kisem-logic.lock.json. Tracks which commit of rdudr/-thermo-X the AR app's calculations match. Updated by scripts/kisem-sync.mjs; do not edit 'files' or 'synced_commit' by hand.",
+  "$comment": "Tracks which commit of rdudr/-thermo-X this AR app's calculations match. Updated by scripts/kisem-sync.mjs; do not edit 'files' or 'synced_commit' by hand.",
   "sources": [
     {
       "repo": "rdudr/-thermo-X",
@@ -20,15 +20,12 @@
         {
           "from": "lib/instrument-parser.ts",
           "to": "vendor/kisem/thermo-X/lib/instrument-parser.ts"
-        },
-        {
-          "from": "lib/data-exchange.ts",
-          "to": "vendor/kisem/thermo-X/lib/data-exchange.ts"
         }
       ],
       "watch": [
-        "lib/store.ts",
+        "lib/data-exchange.ts",
         "lib/pdf-generator.ts",
+        "lib/store.ts",
         "components/boiler/**",
         "app/(console)/**"
       ],

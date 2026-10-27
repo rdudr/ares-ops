@@ -13,7 +13,7 @@ import { useAresSession, pendingCount } from "@/lib/ares/session";
 import { AresError } from "@/lib/ares/api";
 import { finishWork, resolveConflict, retryRefused, switchAudit, syncNow } from "@/lib/ares/sync";
 import { appBinding } from "@/lib/ares-binding";
-import { useIsClient, useOnline } from "@/lib/use-client-state";
+import { useIsClient, useOnline } from "@/lib/ares/client-state";
 import { cn } from "@/lib/utils";
 
 function Frame({ children }: { children: React.ReactNode }) {

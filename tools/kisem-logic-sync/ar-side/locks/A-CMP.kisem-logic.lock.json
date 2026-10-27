@@ -1,5 +1,5 @@
 {
-  "$comment": "Put this file in the AR app repo root as kisem-logic.lock.json. Tracks which commit of rdudr/A-CMP the AR app's calculations match. Updated by scripts/kisem-sync.mjs; do not edit 'files' or 'synced_commit' by hand.",
+  "$comment": "Tracks which commit of rdudr/A-CMP this AR app's calculations match. Updated by scripts/kisem-sync.mjs; do not edit 'files' or 'synced_commit' by hand.",
   "sources": [
     {
       "repo": "rdudr/A-CMP",
@@ -8,15 +8,12 @@
         {
           "from": "lib/compressor-calc.ts",
           "to": "vendor/kisem/A-CMP/lib/compressor-calc.ts"
-        },
-        {
-          "from": "lib/compressor-excel.ts",
-          "to": "vendor/kisem/A-CMP/lib/compressor-excel.ts"
         }
       ],
       "watch": [
-        "lib/store.ts",
+        "lib/compressor-excel.ts",
         "lib/pdf-generator.ts",
+        "lib/store.ts",
         "app/(console)/**",
         "components/**"
       ],

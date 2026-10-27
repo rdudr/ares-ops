@@ -1,19 +1,19 @@
 {
-  "$comment": "Put this file in the KISEM repo root as ar-logic.json. 'copy' = pure calculation files the AR app reuses byte-for-byte. 'watch' = pages/graphs where logic sits inside the UI; changes are flagged for porting by hand. Replace the notify entry with the AR app repo once its name is decided.",
+  "$comment": "Put this file in the KISEM repo root as ar-logic.json. 'copy' = pure formula files the AR app reuses byte-for-byte. 'watch' = files whose changes are flagged for porting by hand.",
   "app": "thermo-X",
   "notify": [
-    "rdudr/REPLACE-WITH-AR-APP-REPO"
+    "rdudr/ares-boiler"
   ],
   "copy": [
     "lib/boiler.ts",
     "lib/steam-table.ts",
     "lib/fuel-types.ts",
-    "lib/instrument-parser.ts",
-    "lib/data-exchange.ts"
+    "lib/instrument-parser.ts"
   ],
   "watch": [
-    "lib/store.ts",
+    "lib/data-exchange.ts",
     "lib/pdf-generator.ts",
+    "lib/store.ts",
     "components/boiler/**",
     "app/(console)/**"
   ]
