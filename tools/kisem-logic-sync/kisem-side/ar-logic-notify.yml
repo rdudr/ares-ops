@@ -1,0 +1,72 @@
+# Add to a KISEM app repo as .github/workflows/ar-logic-notify.yml (together with ar-logic.json in
+# the repo root). On every push to main it checks whether a formula / calculation / graph file
+# listed in ar-logic.json changed. If so it:
+#   1. writes the list in this run's summary (always, so the change is visible in Actions), and
+#   2. tells each AR app repo in "notify" (needs the AR_SYNC_TOKEN secret), which then opens a pull
+#      request copying the changed calculation files and listing what needs porting by hand.
+# It never changes anything in this repo.
+name: Notify AR apps of logic changes
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Find changed logic files and notify AR repos
+        env:
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.sha }}
+          SOURCE_REPO: ${{ github.repository }}
+          AR_SYNC_TOKEN: ${{ secrets.AR_SYNC_TOKEN }}
+        run: |
+          node --input-type=module <<'JS'
+          import { execSync } from 'node:child_process';
+          import { readFileSync, appendFileSync } from 'node:fs';
+
+          const manifest = JSON.parse(readFileSync('ar-logic.json', 'utf8'));
+          const toRegex = g => new RegExp('^' + g.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*\*/g, '\u0000').replace(/\*/g, '[^/]*').replace(/\u0000/g, '.*') + '$');
+          const copy = (manifest.copy || []).map(toRegex);
+          const watch = (manifest.watch || []).map(toRegex);
+
+          const { BEFORE, AFTER, SOURCE_REPO, AR_SYNC_TOKEN } = process.env;
+          const range = /^0+$/.test(BEFORE || '') ? `${AFTER}~1..${AFTER}` : `${BEFORE}..${AFTER}`;
+          let changed = [];
+          try { changed = execSync(`git diff --name-only ${range}`, { encoding: 'utf8' }).split('\n').filter(Boolean); } catch { /* first commit */ }
+          const copied = changed.filter(f => copy.some(r => r.test(f)));
+          const review = changed.filter(f => !copied.includes(f) && watch.some(r => r.test(f)));
+
+          const summary = process.env.GITHUB_STEP_SUMMARY;
+          if (!copied.length && !review.length) {
+            appendFileSync(summary, 'No formula, calculation or graph files changed. AR apps need no update.\n');
+            process.exit(0);
+          }
+          const lines = ['## AR apps need this update', '',
+            copied.length ? `**Calculation files (copied to AR automatically):**\n${copied.map(f => `- \`${f}\``).join('\n')}\n` : '',
+            review.length ? `**Pages / graphs to port by hand (logic inside UI):**\n${review.map(f => `- \`${f}\``).join('\n')}\n` : '',
+            `Commit: https://github.com/${SOURCE_REPO}/commit/${AFTER}`];
+          appendFileSync(summary, lines.join('\n') + '\n');
+
+          if (!AR_SYNC_TOKEN) {
+            console.log('::warning::AR_SYNC_TOKEN is not set, so the AR repos were not notified automatically. Their daily check will still pick this up.');
+            process.exit(0);
+          }
+          for (const target of manifest.notify || []) {
+            const res = await fetch(`https://api.github.com/repos/${target}/dispatches`, {
+              method: 'POST',
+              headers: { Authorization: `Bearer ${AR_SYNC_TOKEN}`, Accept: 'application/vnd.github+json', 'Content-Type': 'application/json' },
+              body: JSON.stringify({ event_type: 'kisem-logic-update', client_payload: { source_repo: SOURCE_REPO, commit: AFTER, copied, review } }),
+            });
+            console.log(`${target}: ${res.ok ? 'notified' : `failed (${res.status})`}`);
+            if (!res.ok) console.log(`::warning::Could not notify ${target} (HTTP ${res.status}). Check AR_SYNC_TOKEN has access to it.`);
+          }
+          JS

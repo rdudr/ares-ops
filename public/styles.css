@@ -260,3 +260,10 @@ fieldset legend{font-size:13px;font-weight:600;color:var(--label-2);margin:14px 
   .head .seg{width:100%}
   h1{font-size:26px}
 }
+
+/* ---------- audit page: photo grid ---------- */
+.photos{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px}
+.photos figure{margin:0;background:var(--fill-2);border-radius:10px;overflow:hidden}
+.photos img{display:block;width:100%;aspect-ratio:4/3;object-fit:cover;background:var(--fill)}
+.photos figcaption{padding:8px 10px;font-size:13px;display:grid;gap:2px}
+.photos figcaption span{color:var(--label-2);font-size:12px}

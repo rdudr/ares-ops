@@ -1,0 +1,27 @@
+{
+  "$comment": "Put this file in the AR app repo root as kisem-logic.lock.json. Tracks which commit of rdudr/Jet-EFF the AR app's calculations match. Updated by scripts/kisem-sync.mjs; do not edit 'files' or 'synced_commit' by hand.",
+  "sources": [
+    {
+      "repo": "rdudr/Jet-EFF",
+      "branch": "main",
+      "copy": [
+        {
+          "from": "lib/jet-excel.ts",
+          "to": "vendor/kisem/Jet-EFF/lib/jet-excel.ts"
+        },
+        {
+          "from": "lib/export-offline.ts",
+          "to": "vendor/kisem/Jet-EFF/lib/export-offline.ts"
+        }
+      ],
+      "watch": [
+        "lib/store.ts",
+        "lib/export-pdf.ts",
+        "app/(console)/**",
+        "components/dashboard/**"
+      ],
+      "synced_commit": null,
+      "files": {}
+    }
+  ]
+}

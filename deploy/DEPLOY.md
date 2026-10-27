@@ -53,5 +53,39 @@ by an update.
 
 ## Backups
 
-`/etc/cron.daily/ares-backup` keeps 14 daily copies in `/var/backups/ares`. Also copy them **off the
-server** regularly (a free-tier server can be reclaimed).
+**On the server:** `/etc/cron.daily/ares-backup` keeps 14 daily copies of the database (checked with
+SQLite's integrity check) and of the uploaded files (hard-link snapshots, so unchanged files take no
+extra space) in `/var/backups/ares`.
+
+**Off the server** (a free-tier server can be reclaimed — this is the copy that matters):
+
+```bash
+bash deploy/pull-backup.sh                  # saves to ~/ares-backups, keeps 30
+bash deploy/pull-backup.sh ar "G:/My Drive/ARES backups"   # or into a Google Drive folder
+```
+
+It downloads the newest backup and runs a **restore test** each time: it unpacks the copy and opens the
+database ("Restore test passed: … people, … audits, … records, … files"). Run it daily, for example
+with Windows Task Scheduler:
+
+```
+schtasks /Create /SC DAILY /ST 21:00 /TN "ARES backup" /TR "\"C:\Program Files\Git\bin\bash.exe\" -lc 'cd /c/Users/risha/Desktop/process/ares-ops && bash deploy/pull-backup.sh'"
+```
+
+**Restoring:** stop the service, put the backup database in place, put the files back, start it:
+
+```bash
+ssh ar 'sudo systemctl stop ares-ops'
+# copy ares-<date>.db (gunzipped) to /var/lib/ares/ares.db and files-<date>/ to /var/lib/ares/files/
+ssh ar 'sudo chown -R ares:ares /var/lib/ares && sudo systemctl start ares-ops'
+```
+
+## Super Admin locked out
+
+Run on the server (only possible with the SSH key):
+
+```bash
+ssh ar 'sudo -u ares DB_FILE=/var/lib/ares/ares.db node /opt/ares-ops/scripts/recover-admin.mjs <login_id> && sudo systemctl restart ares-ops'
+```
+
+It prints a one-time password, reactivates the account and ends its sessions.

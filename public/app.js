@@ -299,10 +299,11 @@ async function route() {
     }
   }
   if (state.me.must_change_pw) return changePasswordScreen();
-  const page = (location.hash.replace('#/', '') || 'overview').split('?')[0];
-  const fn = { overview, team, audits, tasks, activity, account }[page] || overview;
+  const [page, param] = (location.hash.replace('#/', '') || 'overview').split('?')[0].split('/');
+  const fn = page === 'audit' && param ? h2 => auditPage(h2, decodeURIComponent(param))
+    : ({ overview, team, audits, tasks, activity, account }[page] || overview);
   const holder = h('div', {}, h('p', { class: 'muted' }, 'Loading…'));
-  shell(PAGES.some(p => p.id === page) ? page : 'overview', holder);
+  shell(page === 'audit' ? 'audits' : PAGES.some(p => p.id === page) ? page : 'overview', holder);
   try {
     await fn(holder);
   } catch (ex) {
@@ -619,7 +620,8 @@ async function audits(holder) {
     }, h('option', { value: '' }, '+ Add person'), engineers.filter(u => !a.team.some(t => t.id === u.id)).map(u => h('option', { value: u.id }, u.name)));
     return h('tr', {},
       h('td', {}, h('span', { class: 'pill tag' }, a.industry_tag), h('div', { class: 'small muted', style: 'margin-top:4px' }, a.id, ' · ', a.fy)),
-      h('td', {}, h('b', {}, a.title), h('div', { class: 'small muted' }, a.client_name, ' — ', a.site_name)),
+      h('td', {}, h('a', { href: `#/audit/${encodeURIComponent(a.id)}` }, h('b', {}, a.title)),
+        h('div', { class: 'small muted' }, a.client_name, ' — ', a.site_name)),
       h('td', {}, h('select', {
         'aria-label': 'Audit status', onchange: async e => {
           try { await api('POST', `/api/audits/${a.id}/status`, { status: e.target.value }); toast('Status updated'); } catch (ex) { toast(ex.message); route(); }
@@ -680,6 +682,77 @@ async function newAudit() {
     toast(`Audit ${r.id} created`);
     route();
   }, { submitLabel: 'Create audit' });
+}
+
+// ---------- one audit: what has been collected ----------
+async function auditPage(holder, id) {
+  const [data, { tasks: allTasks }] = await Promise.all([api('GET', `/api/audits/${encodeURIComponent(id)}/data`), api('GET', '/api/tasks')]);
+  const a = data.audit;
+  const tasksHere = allTasks.filter(t => t.audit_id === a.id);
+  const open = tasksHere.filter(t => t.status !== 'done');
+  const apps = Object.entries(data.apps);
+
+  // Per app: count per equipment kind, and who collected how much and when.
+  const appCards = apps.map(([code, recs]) => {
+    const byKind = new Map(), byPerson = new Map();
+    for (const r of recs) {
+      byKind.set(r.kind || '—', (byKind.get(r.kind || '—') || 0) + 1);
+      const p = byPerson.get(r.recorded_by) || { n: 0, last: 0 };
+      byPerson.set(r.recorded_by, { n: p.n + 1, last: Math.max(p.last, r.taken_at) });
+    }
+    const appOpen = open.filter(t => t.app === code);
+    return h('section', { class: 'card', style: 'margin-top:16px' },
+      h('div', { class: 'cap' }, h('h2', {}, appName(code)), h('span', { class: 'small muted' }, `${recs.length} records`)),
+      h('div', { class: 'grid2' },
+        h('div', {}, h('div', { class: 'section-title', style: 'margin-top:0' }, 'Equipment recorded'),
+          h('div', { class: 'ilist' }, [...byKind].map(([k, n]) => h('div', { class: 'it' }, h('div', { class: 'main-t' }, h('b', {}, k)), h('div', { class: 'trail' }, String(n)))))),
+        h('div', {}, h('div', { class: 'section-title', style: 'margin-top:0' }, 'Collected by'),
+          h('div', { class: 'ilist' }, [...byPerson].map(([who, v]) => h('div', { class: 'it' },
+            h('span', { class: 'av' }, initials(who)), h('div', { class: 'main-t' }, h('b', {}, who), h('span', {}, `last on ${fmtDate(v.last)}`)),
+            h('div', { class: 'trail' }, `${v.n} records`)))))),
+      appOpen.length ? h('p', { class: 'small', style: 'margin-top:10px' }, h('span', { class: 'pill warn' }, `${appOpen.length} task${appOpen.length > 1 ? 's' : ''} still open`), ' ',
+        appOpen.map(t => t.title).join(' · ')) : null);
+  });
+
+  const photos = data.files.filter(f => f.mime.startsWith('image/'));
+  const others = data.files.filter(f => !f.mime.startsWith('image/'));
+  // Wrapped in h(): it skips empty (null) sections and flattens lists; replaceChildren would print them.
+  holder.replaceChildren(h('div', {},
+    h('div', { class: 'head' },
+      h('div', {},
+        h('p', { class: 'small' }, h('a', { href: '#/audits' }, '‹ All audits')),
+        h('h1', {}, a.title),
+        h('p', { class: 'muted small' }, h('span', { class: 'pill tag' }, a.industry_tag), ` ${a.id} · ${a.fy} · ${AUDIT_STATUS[a.status] || a.status}`,
+          a.client_name ? ` · ${a.client_name} — ${a.site_name}` : ''))),
+
+    h('section', { class: 'metrics' },
+      h('div', { class: 'metric' }, h('div', { class: 'top' }, icon('doc'), 'Records'), h('div', { class: 'v' }, apps.reduce((n, [, r]) => n + r.length, 0)),
+        h('div', { class: 'mnote' }, `across ${apps.length} app${apps.length === 1 ? '' : 's'}`)),
+      h('div', { class: 'metric' }, h('div', { class: 'top' }, icon('overview'), 'Photos & files'), h('div', { class: 'v' }, data.files.length),
+        h('div', { class: 'mnote' }, `${photos.length} images`)),
+      h('div', { class: 'metric' }, h('div', { class: 'top' }, icon('tasks'), 'Tasks still open'), h('div', { class: 'v' }, open.length),
+        h('div', { class: `mnote${open.some(t => t.due_at && t.due_at < Date.now()) ? ' bad' : ''}` },
+          open.some(t => t.due_at && t.due_at < Date.now()) ? 'some are overdue' : `${tasksHere.length - open.length} done`))),
+
+    open.length ? h('section', { class: 'card', style: 'margin-top:16px' }, h('h2', {}, 'Still to collect'),
+      h('p', { class: 'sub' }, 'Open tasks on this audit'),
+      h('div', { class: 'ilist' }, open.map(t => h('div', { class: 'it' },
+        h('div', { class: 'main-t' }, h('b', {}, t.title), h('span', {}, [t.assignee_name || 'Unassigned', t.app && appName(t.app)].filter(Boolean).join(' · '))),
+        h('div', { class: 'trail' }, t.due_at ? (t.due_at < Date.now() ? h('span', { class: 'pill bad' }, `overdue · ${fmtDay(t.due_at)}`) : `due ${fmtDay(t.due_at)}`) : (t.status === 'running' ? 'running' : 'to do')))))) : null,
+
+    apps.length ? appCards : h('section', { class: 'card', style: 'margin-top:16px' }, h('p', { class: 'empty' }, 'Nothing has been synced for this audit yet.')),
+
+    photos.length ? h('section', { class: 'card', style: 'margin-top:16px' }, h('h2', {}, 'Photos'),
+      h('p', { class: 'sub' }, 'With what each one shows. Thermal and normal photos of the same spot share a pair.'),
+      h('div', { class: 'photos' }, photos.map(f => h('figure', {},
+        h('a', { href: f.url, target: '_blank', rel: 'noopener' }, h('img', { src: f.url, alt: f.caption || 'Photo', loading: 'lazy' })),
+        h('figcaption', {}, h('b', {}, f.caption || 'No caption'),
+          h('span', {}, [f.kind === 'thermal' ? 'Thermal' : 'Photo', f.equipment_tag, appName(f.app), f.uploaded_by_name].filter(Boolean).join(' · '))))))) : null,
+
+    others.length ? h('section', { class: 'card', style: 'margin-top:16px' }, h('h2', {}, 'Other files'),
+      h('div', { class: 'ilist' }, others.map(f => h('div', { class: 'it' },
+        h('div', { class: 'main-t' }, h('a', { href: f.url }, h('b', {}, f.original_name || f.id)), h('span', {}, [f.caption, f.equipment_tag, appName(f.app)].filter(Boolean).join(' · '))),
+        h('div', { class: 'trail' }, `${Math.ceil(f.size / 1024)} KB`))))) : null));
 }
 
 // ---------- tasks ----------

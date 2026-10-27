@@ -1,0 +1,52 @@
+# Add to an AR app repo as .github/workflows/kisem-logic-sync.yml, with scripts/kisem-sync.mjs and
+# kisem-logic.lock.json. Runs when a KISEM repo reports a logic change, once a day as a safety net,
+# and on demand. If anything changed it opens a pull request for review: nothing reaches the AR app
+# without someone checking it.
+name: KISEM logic sync
+
+on:
+  repository_dispatch:
+    types: [kisem-logic-update]
+  schedule:
+    - cron: '30 3 * * *' # 09:00 IST
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: kisem-logic-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Copy changed KISEM calculation files
+        id: sync
+        env:
+          KISEM_READ_TOKEN: ${{ secrets.KISEM_READ_TOKEN }}
+        run: node scripts/kisem-sync.mjs
+
+      - name: Open a pull request
+        if: steps.sync.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPORT: ${{ steps.sync.outputs.report }}
+          BASE: ${{ github.event.repository.default_branch }}
+        run: |
+          branch="kisem-logic/$(date -u +%Y%m%d-%H%M%S)"
+          git config user.name "kisem-logic-sync"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$branch"
+          git add -A
+          git commit -m "KISEM logic update"
+          git push origin "$branch"
+          gh pr create --base "$BASE" --head "$branch" --title "KISEM logic update ($(date -u +'%d %b %Y'))" --body-file "$REPORT"

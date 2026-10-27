@@ -1,0 +1,22 @@
+{
+  "$comment": "Put this file in the AR app repo root as kisem-logic.lock.json. Tracks which commit of rdudr/fox-kisem the AR app's calculations match. Updated by scripts/kisem-sync.mjs; do not edit 'files' or 'synced_commit' by hand.",
+  "sources": [
+    {
+      "repo": "rdudr/fox-kisem",
+      "branch": "main",
+      "copy": [
+        {
+          "from": "lib/export-offline.ts",
+          "to": "vendor/kisem/fox-kisem/lib/export-offline.ts"
+        }
+      ],
+      "watch": [
+        "lib/store.ts",
+        "app/(console)/**",
+        "components/dashboard/**"
+      ],
+      "synced_commit": null,
+      "files": {}
+    }
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "$comment": "Put this file in the AR app repo root as kisem-logic.lock.json. Tracks which commit of rdudr/AI-PQA the AR app's calculations match. Updated by scripts/kisem-sync.mjs; do not edit 'files' or 'synced_commit' by hand.",
+  "sources": [
+    {
+      "repo": "rdudr/AI-PQA",
+      "branch": "main",
+      "copy": [
+        {
+          "from": "backend/analytics/engine.py",
+          "to": "vendor/kisem/AI-PQA/backend/analytics/engine.py"
+        },
+        {
+          "from": "backend/analytics/events.py",
+          "to": "vendor/kisem/AI-PQA/backend/analytics/events.py"
+        },
+        {
+          "from": "backend/analytics/summary.py",
+          "to": "vendor/kisem/AI-PQA/backend/analytics/summary.py"
+        }
+      ],
+      "watch": [
+        "backend/**",
+        "frontend/**"
+      ],
+      "synced_commit": null,
+      "files": {}
+    }
+  ]
+}

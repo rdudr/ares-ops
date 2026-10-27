@@ -1,0 +1,39 @@
+{
+  "$comment": "Put this file in the AR app repo root as kisem-logic.lock.json. Tracks which commit of rdudr/-thermo-X the AR app's calculations match. Updated by scripts/kisem-sync.mjs; do not edit 'files' or 'synced_commit' by hand.",
+  "sources": [
+    {
+      "repo": "rdudr/-thermo-X",
+      "branch": "main",
+      "copy": [
+        {
+          "from": "lib/boiler.ts",
+          "to": "vendor/kisem/thermo-X/lib/boiler.ts"
+        },
+        {
+          "from": "lib/steam-table.ts",
+          "to": "vendor/kisem/thermo-X/lib/steam-table.ts"
+        },
+        {
+          "from": "lib/fuel-types.ts",
+          "to": "vendor/kisem/thermo-X/lib/fuel-types.ts"
+        },
+        {
+          "from": "lib/instrument-parser.ts",
+          "to": "vendor/kisem/thermo-X/lib/instrument-parser.ts"
+        },
+        {
+          "from": "lib/data-exchange.ts",
+          "to": "vendor/kisem/thermo-X/lib/data-exchange.ts"
+        }
+      ],
+      "watch": [
+        "lib/store.ts",
+        "lib/pdf-generator.ts",
+        "components/boiler/**",
+        "app/(console)/**"
+      ],
+      "synced_commit": null,
+      "files": {}
+    }
+  ]
+}

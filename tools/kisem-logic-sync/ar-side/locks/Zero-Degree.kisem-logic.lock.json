@@ -1,0 +1,40 @@
+{
+  "$comment": "Put this file in the AR app repo root as kisem-logic.lock.json. Tracks which commit of rdudr/Zero-Degree the AR app's calculations match. Updated by scripts/kisem-sync.mjs; do not edit 'files' or 'synced_commit' by hand.",
+  "sources": [
+    {
+      "repo": "rdudr/Zero-Degree",
+      "branch": "main",
+      "copy": [
+        {
+          "from": "lib/calc.ts",
+          "to": "vendor/kisem/Zero-Degree/lib/calc.ts"
+        },
+        {
+          "from": "lib/formulas.ts",
+          "to": "vendor/kisem/Zero-Degree/lib/formulas.ts"
+        },
+        {
+          "from": "lib/types.ts",
+          "to": "vendor/kisem/Zero-Degree/lib/types.ts"
+        },
+        {
+          "from": "lib/excel.ts",
+          "to": "vendor/kisem/Zero-Degree/lib/excel.ts"
+        },
+        {
+          "from": "lib/merge.ts",
+          "to": "vendor/kisem/Zero-Degree/lib/merge.ts"
+        }
+      ],
+      "watch": [
+        "lib/store.ts",
+        "lib/pdf.ts",
+        "lib/server/report.ts",
+        "app/(console)/**",
+        "components/**"
+      ],
+      "synced_commit": null,
+      "files": {}
+    }
+  ]
+}

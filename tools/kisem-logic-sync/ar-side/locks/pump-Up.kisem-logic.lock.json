@@ -1,0 +1,30 @@
+{
+  "$comment": "Put this file in the AR app repo root as kisem-logic.lock.json. Tracks which commit of rdudr/pump-Up the AR app's calculations match. Updated by scripts/kisem-sync.mjs; do not edit 'files' or 'synced_commit' by hand.",
+  "sources": [
+    {
+      "repo": "rdudr/pump-Up",
+      "branch": "main",
+      "copy": [
+        {
+          "from": "lib/pump-calc.ts",
+          "to": "vendor/kisem/pump-Up/lib/pump-calc.ts"
+        },
+        {
+          "from": "lib/import-workbook.ts",
+          "to": "vendor/kisem/pump-Up/lib/import-workbook.ts"
+        },
+        {
+          "from": "lib/export-offline.ts",
+          "to": "vendor/kisem/pump-Up/lib/export-offline.ts"
+        }
+      ],
+      "watch": [
+        "lib/store.ts",
+        "app/**",
+        "components/**"
+      ],
+      "synced_commit": null,
+      "files": {}
+    }
+  ]
+}
