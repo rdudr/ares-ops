@@ -1,0 +1,80 @@
+/* ---- AR Enterprise app look (shared by every AR app; app accent comes from @theme above) ---- */
+
+:root {
+  color-scheme: light;
+  --background: #fbf9f4; /* website "paper" */
+  --foreground: #1d2219; /* website ink */
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background: linear-gradient(180deg, #fbf9f4 0%, #f4f0e6 100%) fixed;
+  color: var(--foreground);
+  font-family: var(--font-ar-sans), ui-sans-serif, system-ui, sans-serif;
+}
+
+h1,
+h2,
+.font-display {
+  font-family: var(--font-ar-display), Georgia, serif;
+  letter-spacing: -0.01em;
+}
+
+::selection {
+  background: var(--color-cyan-200);
+}
+
+/* Keyboard users always see where they are. Components with their own ring keep theirs. */
+:focus-visible {
+  outline: 2px solid var(--color-cyan-700);
+  outline-offset: 2px;
+}
+
+.skip-link {
+  position: absolute;
+  left: 0.75rem;
+  top: -3rem;
+  z-index: 200;
+  border-radius: 0.75rem;
+  background: var(--color-cyan-800);
+  color: #fff;
+  padding: 0.5rem 1rem;
+  font-weight: 600;
+  transition: top 0.15s;
+}
+.skip-link:focus {
+  top: 0.75rem;
+}
+
+/* Rows of data tables highlight under the pointer and when focused by keyboard. */
+tbody tr {
+  transition: background-color 0.15s;
+}
+tbody tr:hover,
+tbody tr:focus-within {
+  background: var(--color-slate-100);
+}
+
+/* Number inputs: hide spinners, they get in the way on phones */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

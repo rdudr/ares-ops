@@ -99,6 +99,30 @@ export const ares = {
   me: (token: string) => call<{ user: AresUser; app: AppCode; audits: AresAudit[] }>("GET", "/api/device/me", { token }),
   sync: (token: string, body: { since: number; records: PushRecord[]; sessions: WorkSession[] }) =>
     call<SyncResponse>("POST", "/api/sync", { token, body }),
+  /** Plant details already saved for this audit by any AR app (to reuse instead of retyping). */
+  companyProfiles: (token: string, auditId: string) =>
+    call<CompanyProfilesResponse>("GET", `/api/device/company-profiles?audit_id=${encodeURIComponent(auditId)}`, { token }),
+};
+
+export type SharedProfile = {
+  companyName: string;
+  area?: string;
+  district?: string;
+  state?: string;
+  pincode?: string;
+  overallConsumption?: string | number;
+};
+
+export type CompanyProfilesResponse = {
+  audit_id: string;
+  site: { name: string; client_name: string };
+  profiles: { app: AppCode; saved_at: number; saved_by: string | null; profile: SharedProfile }[];
+};
+
+/** Display names of the AR apps, by code. */
+export const APP_NAMES: Record<string, string> = {
+  survey: "BRIEF", textile: "JET", air: "Air Findings", pump: "Pump Testing", cool: "AHU & Cooling", heat: "Boiler & Fuel",
+  power: "Power Quality", bills: "Bills", solar: "Solar", report: "Report Studio",
 };
 
 export type UploadMeta = {

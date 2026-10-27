@@ -365,6 +365,21 @@ await step('AR apps on allowed origins may call the app API; other sites and Con
   assert.equal((await pre('/api/users', 'https://localhost')).headers.get('access-control-allow-origin'), null);
 });
 
+await step('plant details saved in one app are offered to other apps on the same audit', async () => {
+  const pumpApp = appClient((await appLogin('fl.one', p1.pw, 'pump')).data.token);
+  const now = Date.now();
+  await pumpApp('POST', '/api/sync', { records: [{ id: `company-${auditId}`, audit_id: auditId, kind: 'company_profile', tag: null, taken_at: now, saved_at: now,
+    payload: { id: 'x', companyName: 'Shree Textiles', area: 'Sachin GIDC', district: 'Surat', state: 'Gujarat', pincode: '394230', updatedAt: new Date(now).toISOString() } }] });
+  const other = appClient((await appLogin('fl.two', p2.pw, 'air')).data.token);
+  const r = await other('GET', `/api/device/company-profiles?audit_id=${auditId}`);
+  assert.equal(r.status, 200);
+  assert.equal(r.data.site.client_name, 'Shree Textiles');
+  const pump = r.data.profiles.find(p => p.app === 'pump');
+  assert.equal(pump.profile.district, 'Surat');
+  assert.equal(pump.saved_by, 'Freelancer One');
+  assert.equal((await other('GET', '/api/device/company-profiles?audit_id=AU-9999-0001')).status, 404);
+});
+
 await step('activity log cannot be edited or deleted', async () => {
   assert.throws(() => db.exec('DELETE FROM activity'), /append-only/);
   assert.throws(() => db.exec("UPDATE activity SET action = 'x'"), /append-only/);
