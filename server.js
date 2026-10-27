@@ -21,7 +21,20 @@ const config = {
   // Set both to 1 on the real server, behind HTTPS (e.g. Caddy or Nginx).
   secureCookies: process.env.SECURE_COOKIES === '1',
   trustProxy: process.env.TRUST_PROXY === '1',
+  // Web origins of the AR field apps allowed to call the app API from a browser or phone webview.
+  // Only routes that need an app (bearer) token answer them; Console cookie routes never do.
+  appOrigins: (process.env.APP_ORIGINS || 'https://localhost,capacitor://localhost,http://localhost:3000')
+    .split(',').map(o => o.trim()).filter(Boolean),
 };
+
+const APP_API = /^\/api\/(device\/|sync$|files(\/|$)|audits\/[^/]+\/data$)/;
+
+// Exact origins from APP_ORIGINS, plus any https://<name>.arenergyservices.in (where AR app web builds live).
+function allowedAppOrigin(origin) {
+  if (!origin) return false;
+  if (config.appOrigins.includes(origin)) return true;
+  return /^https:\/\/[a-z0-9-]+\.arenergyservices\.in$/.test(origin);
+}
 
 const COOKIE = config.secureCookies ? '__Host-ares' : 'ares';
 
@@ -52,6 +65,19 @@ export function createServer(db, { filesDir = config.filesDir } = {}) {
         if (!f) throw new HttpError(404, 'Not found.');
         res.writeHead(200, { 'Content-Type': f[1], 'Cache-Control': 'no-cache' });
         return res.end(readFileSync(path.join(here, 'public', f[0])));
+      }
+
+      if (APP_API.test(url.pathname) && allowedAppOrigin(req.headers.origin)) {
+        res.setHeader('Access-Control-Allow-Origin', req.headers.origin);
+        res.setHeader('Vary', 'Origin');
+        if (req.method === 'OPTIONS') {
+          res.writeHead(204, {
+            'Access-Control-Allow-Methods': 'GET, POST, PUT',
+            'Access-Control-Allow-Headers': 'Authorization, Content-Type',
+            'Access-Control-Max-Age': '600',
+          });
+          return res.end();
+        }
       }
 
       const match = router.match(req.method, url.pathname);

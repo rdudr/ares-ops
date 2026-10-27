@@ -329,10 +329,21 @@ await step('dashboard merges overlapping sessions and does not count an idle ope
   await fresh('POST', '/api/sync', { sessions: [
     { id: crypto.randomUUID(), audit_id: auditId, started_at: t, ended_at: t + 3600000, records: 0 },
     { id: crypto.randomUUID(), audit_id: auditId, started_at: t + 1800000, ended_at: t + 5400000, records: 0 }, // overlaps
-    { id: crypto.randomUUID(), audit_id: auditId, started_at: Date.now() - 600000, ended_at: null, records: 0 }, // open, nothing saved since
+    { id: 'stale-session-0001', audit_id: auditId, started_at: Date.now() - 1200000, ended_at: null, records: 0 }, // open, nothing saved since
   ] });
+  // The phone went silent (app killed): it last reported right when the session started.
+  db.prepare("UPDATE work_sessions SET last_seen_at = started_at WHERE id = 'stale-session-0001'").run();
   const r = await admin('GET', '/api/dashboard?days=30');
   assert.equal(r.data.people.find(x => x.login_id === 'fl.two').hours, 1.5);
+  assert.ok(!r.data.working_now.some(w => w.name === 'Freelancer Two'));
+});
+
+await step('an open session the phone keeps reporting shows as working now', async () => {
+  const live = appClient((await appLogin('fl.two', p2.pw, 'air')).data.token);
+  await live('POST', '/api/sync', { sessions: [{ id: crypto.randomUUID(), audit_id: auditId, started_at: Date.now() - 1800000, ended_at: null, records: 0 }] });
+  const r = await admin('GET', '/api/dashboard?days=30');
+  assert.ok(r.data.working_now.some(w => w.name === 'Freelancer Two'));
+  assert.equal(r.data.people.find(x => x.login_id === 'fl.two').hours, 2); // 1.5 h + the live 0.5 h
 });
 
 await step('a malformed request gets an error instead of crashing the server', async () => {
@@ -341,6 +352,17 @@ await step('a malformed request gets an error instead of crashing the server', a
     sock.on('data', () => {}).on('close', resolve).on('error', resolve);
   });
   assert.equal((await fetch(base + '/api/setup')).status, 200);
+});
+
+await step('AR apps on allowed origins may call the app API; other sites and Console routes may not', async () => {
+  const pre = (path, origin) => fetch(base + path, { method: 'OPTIONS', headers: { Origin: origin, 'Access-Control-Request-Method': 'POST' } });
+  const ok = await pre('/api/sync', 'https://localhost');
+  assert.equal(ok.status, 204);
+  assert.equal(ok.headers.get('access-control-allow-origin'), 'https://localhost');
+  assert.equal((await pre('/api/device/login', 'https://pump.arenergyservices.in')).headers.get('access-control-allow-origin'), 'https://pump.arenergyservices.in');
+  assert.equal((await pre('/api/sync', 'https://evil.example')).headers.get('access-control-allow-origin'), null);
+  assert.equal((await pre('/api/sync', 'https://arenergyservices.in.evil.example')).headers.get('access-control-allow-origin'), null);
+  assert.equal((await pre('/api/users', 'https://localhost')).headers.get('access-control-allow-origin'), null);
 });
 
 await step('activity log cannot be edited or deleted', async () => {
