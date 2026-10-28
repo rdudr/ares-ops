@@ -2,7 +2,7 @@
 // "Use existing company or start new": offers the plant details already saved for this audit in any
 // AR app, so engineers do not type the company name and address in every app.
 import { useEffect, useState } from "react";
-import { Building2, Check, Loader2, PlusCircle } from "lucide-react";
+import { Activity, Building2, Check, ExternalLink, Loader2, PlusCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ares, APP_NAMES, type CompanyProfilesResponse, type SharedProfile } from "@/lib/ares/api";
 import { useAresSession } from "@/lib/ares/session";
@@ -102,6 +102,29 @@ export function ExistingCompanyPicker({ hasDetails, onPick }: { hasDetails: bool
       )}
       <Button size="sm" variant="ghost" className="mt-3" onClick={() => setDismissed(true)}>
         <PlusCircle className="size-4" aria-hidden /> Start new company details
+      </Button>
+    </section>
+  );
+}
+
+// The AI power quality analyser runs on the AR server (not on the phone): this opens it, in the
+// browser, with this audit already chosen, so its findings are saved to the same company.
+const PQA_URL = (process.env.NEXT_PUBLIC_PQA_URL || "https://ops.arenergyservices.in/pqa/").replace(/\/?$/, "/");
+
+export function PowerQualityLink() {
+  const auditId = useAresSession((s) => s.auditId);
+  if (!auditId) return null;
+  return (
+    <section aria-labelledby="pq-check" className="mb-4 flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 sm:flex-row sm:items-center">
+      <Activity className="size-5 shrink-0 text-cyan-800" aria-hidden />
+      <div className="min-w-0 flex-1">
+        <h2 id="pq-check" className="text-sm font-semibold text-slate-900">Check power quality for this company</h2>
+        <p className="text-xs text-slate-600">Upload a power quality analyser export: harmonics, dips and swells, unbalance and compliance with IEEE 519, EN 50160 and IEC 61000. The results are saved to this audit.</p>
+      </div>
+      <Button size="sm" variant="secondary" asChild>
+        <a href={`${PQA_URL}?audit=${encodeURIComponent(auditId)}`} target="_blank" rel="noopener noreferrer">
+          <ExternalLink className="size-4" aria-hidden /> Open analyser<span className="sr-only"> (opens in the browser)</span>
+        </a>
       </Button>
     </section>
   );

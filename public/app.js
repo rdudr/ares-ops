@@ -248,6 +248,7 @@ const GROUPS = ['Monitor', 'Manage', 'Field apps', 'Resources'];
 const menuPages = () => PAGES.flatMap(p => p.id !== 'apps' ? [p]
   : [p, ...(state.apps || []).filter(a => a.field).map(a => ({ id: `apps/${a.code}`, label: a.name, group: 'Field apps', icon: 'phone', sub: true }))]);
 const EXTERNAL = [
+  { href: '/pqa/', label: 'Power Quality analyser' },
   { href: '/apps/', label: 'Download page' },
   { href: 'https://arenergyservices.in', label: 'Public website' },
 ];
@@ -733,6 +734,23 @@ async function auditPage(holder, id) {
         appOpen.map(t => t.title).join(' · ')) : null);
   });
 
+  // Power quality recordings saved here by the analyser (ops.arenergyservices.in/pqa/).
+  const pq = (data.apps.power || []).filter(r => r.kind === 'pq_recording');
+  const ROLE_AT = { main: 'Plant main input', pcc: 'PCC panel', mcc: 'MCC panel' };
+  const pqCard = h('section', { class: 'card', style: 'margin-top:16px' },
+    h('div', { class: 'cap' }, h('h2', {}, 'Power quality'),
+      h('a', { class: 'btn', href: `/pqa/?audit=${encodeURIComponent(a.id)}`, target: '_blank', rel: 'noopener' }, icon('live'), 'Open the analyser for this audit')),
+    h('p', { class: 'sub' }, 'AI power quality analysis to IEEE 519, EN 50160 and IEC 61000. Recordings saved from the analyser appear here and go into the report.'),
+    pq.length ? h('div', { class: 'ilist' }, pq.map(r => {
+      const p = r.payload, c = p.compliance?.summary, hl = p.health;
+      return h('div', { class: 'it' },
+        h('div', { class: 'main-t' }, h('b', {}, p.panel || r.tag || 'Recording'),
+          h('span', {}, [ROLE_AT[p.role] || p.role, p.instrument, p.start && `${p.start} to ${p.end}`, `${(p.samples || 0).toLocaleString('en-IN')} samples`, r.recorded_by].filter(Boolean).join(' · '))),
+        h('div', { class: 'trail' },
+          c ? h('span', { class: `pill ${c.fail ? 'bad' : c.warn ? 'warn' : 'ok'}` }, `${c.pass}/${c.total} checks pass`) : null, ' ',
+          hl?.overall != null ? h('span', { class: 'pill soft' }, `health ${Math.round(hl.overall)}`) : null));
+    })) : h('p', { class: 'empty' }, 'No power quality recording saved for this audit yet.'));
+
   const photos = data.files.filter(f => f.mime.startsWith('image/'));
   const others = data.files.filter(f => !f.mime.startsWith('image/'));
   // Wrapped in h(): it skips empty (null) sections and flattens lists; replaceChildren would print them.
@@ -758,6 +776,8 @@ async function auditPage(holder, id) {
       h('div', { class: 'ilist' }, open.map(t => h('div', { class: 'it' },
         h('div', { class: 'main-t' }, h('b', {}, t.title), h('span', {}, [t.assignee_name || 'Unassigned', t.app && appName(t.app)].filter(Boolean).join(' · '))),
         h('div', { class: 'trail' }, t.due_at ? (t.due_at < Date.now() ? h('span', { class: 'pill bad' }, `overdue · ${fmtDay(t.due_at)}`) : `due ${fmtDay(t.due_at)}`) : (t.status === 'running' ? 'running' : 'to do')))))) : null,
+
+    pqCard,
 
     apps.length ? appCards : h('section', { class: 'card', style: 'margin-top:16px' }, h('p', { class: 'empty' }, 'Nothing has been synced for this audit yet.')),
 
@@ -893,7 +913,8 @@ function appIcon(rel, size = 44) {
 async function appsPage(holder) {
   const [{ apps }, rel] = await Promise.all([api('GET', '/api/apps'), releases()]);
   const field = apps.filter(a => a.field);
-  const planned = apps.filter(a => !a.field);
+  const web = apps.filter(a => a.web);
+  const planned = apps.filter(a => !a.field && !a.web);
   holder.replaceChildren(
     h('div', { class: 'head' },
       h('div', {}, h('h1', {}, 'Field apps'),
@@ -910,6 +931,15 @@ async function appsPage(holder) {
           h('div', {}, h('span', { class: 'muted' }, 'People with access'), h('span', { class: 'num' }, a.people.filter(p => p.status === 'active').length)),
           h('div', {}, h('span', { class: 'muted' }, 'Last sync'), h('span', {}, a.last_sync ? ago(a.last_sync) : 'Nothing yet'))));
     })),
+    h('h2', { class: 'section-title' }, 'Web apps'),
+    h('div', { class: 'appgrid' }, web.map(a => h('a', { class: 'appcard', href: '/pqa/', target: '_blank', rel: 'noopener' },
+      h('div', { class: 'row' }, h('span', { class: 'appicon blank', style: 'width:44px;height:44px' }, icon('live')),
+        h('div', { style: 'min-width:0' }, h('b', {}, a.name), h('div', { class: 'small muted' }, a.tagline))),
+      h('div', { class: 'list' },
+        h('div', {}, h('span', { class: 'muted' }, 'Where'), h('span', {}, 'ops.arenergyservices.in/pqa')),
+        h('div', {}, h('span', { class: 'muted' }, 'Records'), h('span', { class: 'num' }, a.records.toLocaleString('en-IN'))),
+        h('div', {}, h('span', { class: 'muted' }, 'Audits with data'), h('span', { class: 'num' }, a.audits)),
+        h('div', {}, h('span', { class: 'muted' }, 'People with access'), h('span', { class: 'num' }, a.people.filter(p => p.status === 'active').length)))))),
     h('h2', { class: 'section-title' }, 'Planned'),
     h('div', { class: 'card' }, h('div', { class: 'chips' }, planned.map(a => h('span', { class: 'pill soft' }, a.name))),
       h('p', { class: 'small muted', style: 'margin-top:10px' }, 'These can already be ticked for people in Team & access; their apps are not built yet.')));
