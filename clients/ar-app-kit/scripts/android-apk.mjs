@@ -66,6 +66,8 @@ if (!signed) console.warn("No AR signing key found: making a DEBUG build for tes
 if (opt("publish") && !signed) throw new Error("Publishing needs the AR signing key (see the top of this script).");
 
 // --- 1. Static export with the version baked in.
+// Leftover dev-server type files (.next/dev) can be half-written and break the type check.
+fs.rmSync(path.join(root, ".next", "dev"), { recursive: true, force: true });
 if (opt("version")) {
   const pkg = JSON.parse(pkgText);
   pkg.version = version;
