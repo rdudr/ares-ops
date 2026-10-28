@@ -23,6 +23,16 @@ The token lasts 7 days.
 If `must_change_pw` is true, show a "set your password" screen and call
 `POST /api/device/change-password` with `{ "current": "…", "next": "…" }` before anything else.
 
+### Starting a new audit from the app
+
+`GET /api/device/audit-options` returns `{ "sectors": { "TX": "Textile", … }, "fy": "FY2026-27" }`.
+
+`POST /api/device/audits` with
+`{ "client_name": "…", "site_name": "…", "sector": "TX", "cluster": "SRT", "title": "optional" }`
+creates the audit with status `in_field` in the current financial year, assigns it to the caller and
+returns `{ "audit_id": "AU-2627-0007", "audits": [ … ] }` (the caller's updated list). A client and
+plant already registered under the same names (ignoring case) are reused.
+
 ## 2. Sync (push, then pull — one call)
 
 `POST /api/sync`

@@ -380,6 +380,33 @@ await step('plant details saved in one app are offered to other apps on the same
   assert.equal((await other('GET', '/api/device/company-profiles?audit_id=AU-9999-0001')).status, 404);
 });
 
+await step('an engineer starts a new audit from the app and is assigned to it', async () => {
+  const login = await appLogin('fl.two', p2.pw, 'air');
+  const app = appClient(login.data.token);
+  const opts = await app('GET', '/api/device/audit-options');
+  assert.equal(opts.status, 200);
+  assert.match(opts.data.fy, /^FY\d{4}-\d{2}$/);
+  assert.ok(opts.data.sectors.TX);
+  const body = { client_name: 'Navkar Dye House', site_name: 'Pandesara Unit', sector: 'TX', cluster: 'srt' };
+  const r = await app('POST', '/api/device/audits', body);
+  assert.equal(r.status, 200);
+  const made = r.data.audits.find(a => a.id === r.data.audit_id);
+  assert.equal(made.status, 'in_field');
+  assert.match(made.industry_tag, /^TX-SRT-\d{3}$/);
+  // The same company and plant again reuses them (one client, one industry tag), as a new audit.
+  const again = await app('POST', '/api/device/audits', { ...body, client_name: 'navkar dye house' });
+  assert.notEqual(again.data.audit_id, r.data.audit_id);
+  assert.equal(again.data.audits.find(a => a.id === again.data.audit_id).industry_tag, made.industry_tag);
+  assert.equal(db.prepare("SELECT COUNT(*) AS n FROM clients WHERE lower(name) = 'navkar dye house'").get().n, 1);
+  // It can record straight away.
+  const now = Date.now();
+  const s = await app('POST', '/api/sync', { since: 0, records: [{ id: `cp-${made.id}`, audit_id: made.id, kind: 'company_profile', tag: null, taken_at: now, saved_at: now, payload: { companyName: 'Navkar Dye House' } }] });
+  assert.equal(s.data.results[0].status, 'stored');
+  assert.equal((await app('POST', '/api/device/audits', { ...body, sector: 'XX' })).status, 400);
+  const log = await admin('GET', '/api/activity?limit=200');
+  assert.ok(log.data.activity.some(a => a.action === 'audit.created_in_app' && a.target === made.id));
+});
+
 await step('activity log cannot be edited or deleted', async () => {
   assert.throws(() => db.exec('DELETE FROM activity'), /append-only/);
   assert.throws(() => db.exec("UPDATE activity SET action = 'x'"), /append-only/);

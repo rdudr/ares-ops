@@ -42,8 +42,6 @@ export function ExistingCompanyPicker({ hasDetails, onPick }: { hasDetails: bool
     return () => { live = false; };
   }, [token, auditId, online]);
 
-  if (dismissed) return null;
-
   // One option per distinct company (newest first), plus the plant as registered in ARES.
   const options: { key: string; label: string; detail: string; profile: SharedProfile }[] = [];
   const seen = new Set<string>();
@@ -68,7 +66,14 @@ export function ExistingCompanyPicker({ hasDetails, onPick }: { hasDetails: bool
     });
   }
 
-  if (!loading && options.length === 0) return null;
+  // A brand-new audit (nothing saved by any app yet) with an empty form: fill in what the engineer
+  // typed when starting it, so the company name is never entered twice.
+  const only = options.length === 1 && options[0].key === "ares-site" ? options[0] : null;
+  useEffect(() => {
+    if (only && !hasDetails && !chosen) { onPick(only.profile); setChosen(only.key); }
+  }, [only, hasDetails, chosen, onPick]);
+
+  if (dismissed || (!loading && options.length === 0)) return null;
 
   return (
     <section aria-labelledby="existing-company" className="mb-4 rounded-2xl border border-cyan-200 bg-cyan-50/60 p-4">

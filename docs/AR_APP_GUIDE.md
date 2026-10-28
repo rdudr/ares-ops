@@ -182,6 +182,12 @@ phone never waits for the network and nothing typed is ever lost.**
 - **One login per person** for every AR app, created by an admin in the Console. Access is given
   **per app** and **per audit**: an engineer sees only the apps and audits they were given.
 - **First sign-in** uses a temporary password and must set their own before anything else.
+- **Starting work at a new plant:** the audit screen has **Start a new audit** (company, plant,
+  sector, 3-letter cluster code). ARES creates the audit "in field", assigns it to that engineer,
+  gives the plant its public industry tag and logs it (`audit.created_in_app`), so managers see it in
+  the Console and can add the rest of the team. The same company and plant typed again are reused,
+  not duplicated. The app then opens the plant details page with the company already filled in.
+  This needs internet once; everything after it works offline.
 - The app keeps the sign-in (a 7-day token, never the password) in the phone's storage, with a
   stable device id, so it opens straight into work offline.
 - **Access can be put on hold or removed** at any time in the Console. The next sync stops, the

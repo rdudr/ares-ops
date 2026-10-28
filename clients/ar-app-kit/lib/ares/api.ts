@@ -99,10 +99,17 @@ export const ares = {
   me: (token: string) => call<{ user: AresUser; app: AppCode; audits: AresAudit[] }>("GET", "/api/device/me", { token }),
   sync: (token: string, body: { since: number; records: PushRecord[]; sessions: WorkSession[] }) =>
     call<SyncResponse>("POST", "/api/sync", { token, body }),
+  /** Sectors and the current financial year, for the "Start a new audit" form. */
+  auditOptions: (token: string) => call<{ sectors: Record<string, string>; fy: string }>("GET", "/api/device/audit-options", { token }),
+  /** Starts an audit from the app; the server assigns it to this person and returns their audits. */
+  createAudit: (token: string, body: NewAudit) =>
+    call<{ audit_id: string; audits: AresAudit[] }>("POST", "/api/device/audits", { token, body }),
   /** Plant details already saved for this audit by any AR app (to reuse instead of retyping). */
   companyProfiles: (token: string, auditId: string) =>
     call<CompanyProfilesResponse>("GET", `/api/device/company-profiles?audit_id=${encodeURIComponent(auditId)}`, { token }),
 };
+
+export type NewAudit = { client_name: string; site_name: string; sector: string; cluster: string; title?: string };
 
 export type SharedProfile = {
   companyName: string;
