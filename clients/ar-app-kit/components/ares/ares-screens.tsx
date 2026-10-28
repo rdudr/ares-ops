@@ -15,6 +15,8 @@ import { finishWork, resolveConflict, retryRefused, switchAudit, syncNow } from 
 import { appBinding } from "@/lib/ares-binding";
 import { useIsClient, useOnline } from "@/lib/ares/client-state";
 import { cn } from "@/lib/utils";
+import { usePendingPhotoCount } from "@/components/ares/photo-ref";
+import { pendingPhotos } from "@/lib/ares/photos";
 
 function Frame({ children }: { children: React.ReactNode }) {
   return (
@@ -351,20 +353,23 @@ export function SyncStatus() {
     return () => { document.removeEventListener("keydown", onKey); document.removeEventListener("mousedown", onClick); };
   }, [open]);
   const pending = pendingCount(s);
+  const photos = usePendingPhotoCount();
   const refused = Object.entries(s.pending).filter(([, p]) => p.refused);
   const problems = s.conflicts.length + refused.length;
   const audit = s.currentAudit();
+  const photoNote = photos ? ` · ${photos} photo${photos > 1 ? "s" : ""} to upload` : "";
 
   const label =
     s.syncState === "blocked" ? "Access stopped"
       : s.syncState === "signed_out" ? "Sign in to sync"
         : s.syncState === "syncing" ? "Syncing…"
-          : s.syncState === "offline" ? `Offline · ${pending} waiting`
-            : pending ? `Waiting to sync: ${pending}`
-              : `Synced ${ago(s.lastSyncAt)}`;
+          : s.syncState === "offline" ? `Offline · ${pending} waiting${photoNote}`
+            : pending ? `Waiting to sync: ${pending}${photoNote}`
+              : photos ? `Uploading ${photos} photo${photos > 1 ? "s" : ""}`
+                : `Synced ${ago(s.lastSyncAt)}`;
   const tone =
     s.syncState === "blocked" || s.syncState === "error" || problems ? "border-red-300 bg-red-50 text-red-800"
-      : s.syncState === "offline" || pending ? "border-amber-300 bg-amber-50 text-amber-800"
+      : s.syncState === "offline" || pending || photos ? "border-amber-300 bg-amber-50 text-amber-800"
         : "border-emerald-300 bg-emerald-50 text-emerald-800";
   const Icon = s.syncState === "syncing" ? Loader2 : s.syncState === "offline" ? CloudOff : s.syncState === "blocked" ? ShieldAlert : problems ? AlertTriangle : CheckCircle2;
 
@@ -432,7 +437,9 @@ export function SignOutButton() {
     try {
       await finishWork();
       const left = pendingCount(useAresSession.getState());
-      if (left > 0 && !confirm(`${left} change${left > 1 ? "s have" : " has"} not reached the server yet. They stay saved on this phone and sync when you sign in again. Sign out anyway?`)) return;
+      const pics = pendingPhotos().length;
+      const what = [left && `${left} change${left > 1 ? "s" : ""}`, pics && `${pics} photo${pics > 1 ? "s" : ""}`].filter(Boolean).join(" and ");
+      if ((left > 0 || pics > 0) && !confirm(`${what} ${left + pics > 1 ? "have" : "has"} not reached the server yet. They stay saved on this phone and go up when you sign in again. Sign out anyway?`)) return;
       logout();
       router.replace("/login");
     } finally {

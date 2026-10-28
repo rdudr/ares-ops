@@ -87,6 +87,17 @@ run(`${npx} cap sync android`, root, env);
 fs.writeFileSync(path.join(android, "local.properties"), `sdk.dir=${sdk.replace(/\\/g, "/")}\n`);
 run("node scripts/generate-icons.mjs", root, env);
 
+// Photos record where they were taken: the app asks for location (once) when a photo is taken.
+const manifestPath = path.join(android, "app", "src", "main", "AndroidManifest.xml");
+let manifest = fs.readFileSync(manifestPath, "utf8");
+for (const perm of ["ACCESS_COARSE_LOCATION", "ACCESS_FINE_LOCATION"]) {
+  if (!manifest.includes(`android.permission.${perm}`)) {
+    manifest = manifest.replace("</manifest>", `    <uses-permission android:name="android.permission.${perm}" />
+</manifest>`);
+  }
+}
+fs.writeFileSync(manifestPath, manifest);
+
 // --- 3. Version and signing in Gradle. The key is read from the environment at build time.
 const gradlePath = path.join(android, "app", "build.gradle");
 let gradle = fs.readFileSync(gradlePath, "utf8");

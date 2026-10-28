@@ -172,8 +172,13 @@ phone never waits for the network and nothing typed is ever lost.**
 - **One audit at a time per phone**, per app.
 - **Uninstalling the app deletes what has not synced.** Installing an update over it keeps
   everything (all builds share one signing key, section 8).
-- **Photos currently stay on the phone.** The file-store upload (resumable, checksum-checked) exists
-  in ARES and in the kit (`uploadFile` in `lib/ares/api.ts`), but the apps do not call it yet. Remaining task.
+- **Photos go to the AR server.** A captured photo is resized (longest side 2048 px), kept on the
+  phone only until ARES confirms it has it, then deleted from the phone. The record stores
+  `ares-photo:<id>` in its photo field; ARES links the file to that record (app, record kind, field,
+  equipment tag) whichever arrives first, and keeps who took it, when, on which screen and where
+  (GPS, when the phone allows location; the Console shows a map link). Waiting photos show in the
+  sync badge and in the sign-out warning. Use `savePhotoLocally` / `queuePhoto` and show photos
+  with `<PhotoRef value={...} />`.
 
 ---
 
@@ -220,7 +225,6 @@ PostMan hand-off of the KISEM apps: **there is nothing to send.**
 - [ ] **Report design and letterhead**: to be defined later (or integrated from an existing design).
       Until then the apps' PDFs use the plain AR page frame; the KISEM letterhead is not used.
 - [ ] Build Report Studio itself on the read API (`READ_API.md` is draft v0 until agreed).
-- [ ] Photo upload from the apps (section 5), so photos appear in reports.
 
 ---
 

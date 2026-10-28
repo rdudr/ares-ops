@@ -782,11 +782,17 @@ async function auditPage(holder, id) {
     apps.length ? appCards : h('section', { class: 'card', style: 'margin-top:16px' }, h('p', { class: 'empty' }, 'Nothing has been synced for this audit yet.')),
 
     photos.length ? h('section', { class: 'card', style: 'margin-top:16px' }, h('h2', {}, 'Photos'),
-      h('p', { class: 'sub' }, 'With what each one shows. Thermal and normal photos of the same spot share a pair.'),
+      h('p', { class: 'sub' }, 'Every photo from the field apps is stored here, with what it shows, the record it belongs to, who took it, when, and where (when the phone allowed location).'),
       h('div', { class: 'photos' }, photos.map(f => h('figure', {},
         h('a', { href: f.url, target: '_blank', rel: 'noopener' }, h('img', { src: f.url, alt: f.caption || 'Photo', loading: 'lazy' })),
         h('figcaption', {}, h('b', {}, f.caption || 'No caption'),
-          h('span', {}, [f.kind === 'thermal' ? 'Thermal' : 'Photo', f.equipment_tag, appName(f.app), f.uploaded_by_name].filter(Boolean).join(' · '))))))) : null,
+          h('span', {}, [f.kind === 'thermal' ? 'Thermal' : 'Photo', f.equipment_tag, appName(f.app)].filter(Boolean).join(' · ')),
+          f.record_kind && h('span', {}, `For: ${f.record_kind.replace(/_/g, ' ')}${f.equipment_tag ? ` ${f.equipment_tag}` : ''}${f.field && !/^photo(Path)?$/.test(f.field) ? ` (${f.field})` : ''}`),
+          h('span', {}, `Taken ${f.taken_at ? fmtDate(f.taken_at) : '—'}${f.uploaded_by_name ? ` by ${f.uploaded_by_name}` : ''}`),
+          f.captured_in && h('span', {}, `On: ${f.captured_in}`),
+          f.location
+            ? h('a', { href: f.location.map_url, target: '_blank', rel: 'noopener' }, `Where it was taken (map)${f.location.accuracy_m != null ? `, within ${f.location.accuracy_m} m` : ''}`)
+            : h('span', { class: 'muted' }, 'No location recorded')))))) : null,
 
     others.length ? h('section', { class: 'card', style: 'margin-top:16px' }, h('h2', {}, 'Other files'),
       h('div', { class: 'ilist' }, others.map(f => h('div', { class: 'it' },

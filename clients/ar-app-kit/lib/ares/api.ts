@@ -141,6 +141,11 @@ export type UploadMeta = {
   caption: string;
   taken_at?: number;
   name?: string;
+  /** Where it was taken (GPS from the phone, when allowed) and on which app screen. */
+  lat?: number;
+  lng?: number;
+  accuracy_m?: number;
+  captured_in?: string;
 };
 
 const CHUNK = 2 * 1024 * 1024;

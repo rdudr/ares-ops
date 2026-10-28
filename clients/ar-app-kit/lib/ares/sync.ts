@@ -3,6 +3,7 @@
 // every few minutes. No buttons, no files. Each app provides a small binding (lib/ares-binding.ts).
 import { ares, AresError, type PulledRecord, type PushRecord, type WorkSession } from "./api";
 import { useAresSession, type Pending } from "./session";
+import { uploadPendingPhotos } from "@/lib/ares/photos";
 
 /** One piece of the app's data as ARES stores it. */
 export type LocalRecord = { id: string; kind: string; tag: string | null; takenAt: number; payload: Record<string, unknown> };
@@ -148,6 +149,7 @@ export async function syncNow(): Promise<void> {
       more = res.more || records.length === MAX_BATCH;
     }
     useAresSession.setState({ syncState: "idle", syncMessage: null, lastSyncAt: Date.now() });
+    void uploadPendingPhotos(); // photos follow the records they belong to
   } catch (e) {
     if (e instanceof AresError) {
       if (e.offline) useAresSession.setState({ syncState: "offline", syncMessage: "Offline — changes are saved on this phone and will sync automatically." });

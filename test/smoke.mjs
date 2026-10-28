@@ -380,6 +380,40 @@ await step('plant details saved in one app are offered to other apps on the same
   assert.equal((await other('GET', '/api/device/company-profiles?audit_id=AU-9999-0001')).status, 404);
 });
 
+await step('a photo is stored with its record, field, tag and where it was taken, in either order', async () => {
+  const tok = (await appLogin('fl.one', p1.pw, 'pump')).data.token;
+  const app = appClient(tok);
+  const now = Date.now();
+  const upload = async (id, extra = {}) => {
+    await app('POST', '/api/files', { id, audit_id: auditId, kind: 'photo', caption: 'Pump nameplate', mime: 'image/png', size: PNG.length,
+      sha256: sha(PNG), taken_at: now, lat: 21.1702, lng: 72.8311, accuracy_m: 12.4, captured_in: '/transit', ...extra });
+    await putChunk(tok, id, 0, PNG);
+  };
+  // Photo first, record after.
+  const p1id = crypto.randomUUID();
+  await upload(p1id);
+  await app('POST', '/api/sync', { records: [{ id: 'pump-photo-1', audit_id: auditId, kind: 'pump_test', tag: 'P-07', taken_at: now, saved_at: now,
+    payload: { pumpNo: 'P-07', photoPath: `ares-photo:${p1id}` } }] });
+  // Record first, photo after (a list of photos).
+  const p2id = crypto.randomUUID();
+  await app('POST', '/api/sync', { records: [{ id: 'pump-photo-2', audit_id: auditId, kind: 'pump_test', tag: 'P-08', taken_at: now, saved_at: now,
+    payload: { pumpNo: 'P-08', photos: ['ares-photo:00000000-0000-4000-8000-000000000000', `ares-photo:${p2id}`] } }] });
+  await upload(p2id, { lat: 'not a number' });
+  const data = await admin('GET', `/api/audits/${auditId}/data`);
+  const f1 = data.data.files.find(f => f.id === p1id), f2 = data.data.files.find(f => f.id === p2id);
+  assert.equal(f1.record_id, 'pump-photo-1');
+  assert.equal(f1.record_kind, 'pump_test');
+  assert.equal(f1.field, 'photoPath');
+  assert.equal(f1.equipment_tag, 'P-07');
+  assert.equal(f1.captured_in, '/transit');
+  assert.equal(f1.location.accuracy_m, 12);
+  assert.match(f1.location.map_url, /maps.*21\.1702,72\.8311/);
+  assert.equal(f2.record_id, 'pump-photo-2');
+  assert.equal(f2.field, 'photos[1]');
+  assert.equal(f2.equipment_tag, 'P-08');
+  assert.equal(f2.location, null); // a bad position is dropped, not stored
+});
+
 await step('an engineer starts a new audit from the app and is assigned to it', async () => {
   const login = await appLogin('fl.two', p2.pw, 'air');
   const app = appClient(login.data.token);
