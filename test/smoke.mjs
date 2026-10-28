@@ -407,6 +407,20 @@ await step('an engineer starts a new audit from the app and is assigned to it', 
   assert.ok(log.data.activity.some(a => a.action === 'audit.created_in_app' && a.target === made.id));
 });
 
+await step('the Console shows each field app with its people and the data it has sent', async () => {
+  const all = await admin('GET', '/api/apps');
+  assert.equal(all.status, 200);
+  const air = all.data.apps.find(a => a.code === 'air');
+  assert.equal(air.name, 'Air Findings');
+  assert.ok(air.field && air.records > 0 && air.audits > 0 && air.last_sync);
+  assert.ok(air.people.some(p => p.name === 'Freelancer Two'));
+  const one = await admin('GET', '/api/apps?app=air');
+  assert.ok(one.data.audits.length > 0 && one.data.audits[0].kinds.length > 0);
+  assert.equal(one.data.audits.reduce((n, a) => n + a.records, 0), air.records);
+  assert.equal((await admin('GET', '/api/apps?app=nope')).status, 404);
+  assert.equal((await fetch(base + '/api/apps')).status, 401);
+});
+
 await step('activity log cannot be edited or deleted', async () => {
   assert.throws(() => db.exec('DELETE FROM activity'), /append-only/);
   assert.throws(() => db.exec("UPDATE activity SET action = 'x'"), /append-only/);

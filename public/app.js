@@ -204,6 +204,11 @@ const ICONS = {
   doc: ['M7 3h7l4 4v14H7z', 'M14 3v4h4', 'M10 12h5M10 16h5'],
   play: ['M8 5.5v13l10-6.5z'],
   signout: ['M15 4h4v16h-4', 'M10 8l-4 4 4 4', 'M6 12h10'],
+  apps: ['M4 4h6v6H4z', 'M14 4h6v6h-6z', 'M4 14h6v6H4z', 'M14 14h6v6h-6z'],
+  phone: ['M7 2.5h10a1 1 0 0 1 1 1v17a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1v-17a1 1 0 0 1 1-1z', 'M10.5 18.5h3'],
+  download: ['M12 3v12', 'M7 10l5 5 5-5', 'M5 21h14'],
+  guide: ['M4 5a2 2 0 0 1 2-2h5v17H6a2 2 0 0 0-2 2z', 'M20 5a2 2 0 0 0-2-2h-5v17h5a2 2 0 0 1 2 2z'],
+  external: ['M14 4h6v6', 'M20 4l-9 9', 'M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5'],
 };
 const SVG_NS = 'http://www.w3.org/2000/svg';
 function icon(name) {
@@ -234,19 +239,31 @@ const PAGES = [
   { id: 'activity', label: 'Activity log', group: 'Monitor', icon: 'activity' },
   { id: 'team', label: 'Team & access', group: 'Manage', icon: 'team' },
   { id: 'audits', label: 'Audits', group: 'Manage', icon: 'audits' },
+  { id: 'apps', label: 'All apps', group: 'Field apps', icon: 'apps' },
+  { id: 'guide', label: 'Getting started', group: 'Resources', icon: 'guide' },
   { id: 'account', label: 'My account', group: null, icon: 'account' },
+];
+const GROUPS = ['Monitor', 'Manage', 'Field apps', 'Resources'];
+// Field apps get a sub-page each (from /api/me), listed under "All apps".
+const menuPages = () => PAGES.flatMap(p => p.id !== 'apps' ? [p]
+  : [p, ...(state.apps || []).filter(a => a.field).map(a => ({ id: `apps/${a.code}`, label: a.name, group: 'Field apps', icon: 'phone', sub: true }))]);
+const EXTERNAL = [
+  { href: '/apps/', label: 'Download page' },
+  { href: 'https://arenergyservices.in', label: 'Public website' },
 ];
 
 function shell(active, content) {
-  const navLink = p => h('a', { class: `nav${p.id === active ? ' on' : ''}`, href: `#/${p.id}`, 'aria-current': p.id === active ? 'page' : null }, icon(p.icon), p.label);
+  const navLink = p => h('a', { class: `nav${p.sub ? ' sub' : ''}${p.id === active ? ' on' : ''}`, href: `#/${p.id}`, 'aria-current': p.id === active ? 'page' : null }, icon(p.icon), p.label);
+  const extLink = x => h('a', { class: 'nav', href: x.href, target: '_blank', rel: 'noopener' }, icon('external'), x.label, h('span', { class: 'sr' }, ' (opens in a new tab)'));
   const side = h('nav', { class: 'side', 'aria-label': 'Sections' },
     h('a', { class: 'brand', href: '#/overview' }, h('img', { src: '/logo.png', alt: '' }),
       h('div', {}, h('b', {}, 'ARES Console'), h('small', {}, 'AR Energy Services'))),
-    ['Monitor', 'Manage'].map(g => [h('div', { class: 'group' }, g), PAGES.filter(p => p.group === g).map(navLink)]));
+    h('div', { class: 'side-scroll' },
+      GROUPS.map(g => [h('div', { class: 'group' }, g), menuPages().filter(p => p.group === g).map(navLink), g === 'Resources' && EXTERNAL.map(extLink)])));
 
   const tabbar = h('nav', { class: 'tabbar', 'aria-label': 'Sections' },
-    PAGES.filter(p => p.group).map(p => h('a', { class: p.id === active ? 'on' : '', href: `#/${p.id}`, 'aria-current': p.id === active ? 'page' : null },
-      icon(p.icon), p.label.replace(' & access', '').replace(' log', ''))));
+    PAGES.filter(p => p.group && p.group !== 'Resources').map(p => h('a', { class: p.id === active ? 'on' : '', href: `#/${p.id}`, 'aria-current': p.id === active ? 'page' : null },
+      icon(p.icon), p.label.replace(' & access', '').replace(' log', '').replace('All apps', 'Apps'))));
 
   const shellEl = h('div', { class: `shell${readPref('ares.sidebar', 'open') === 'closed' ? ' collapsed' : ''}` });
   const toggle = h('button', {
@@ -283,7 +300,7 @@ function shell(active, content) {
     },
   }, h('span', { class: 'av' }, initials(state.me.name)), state.me.name.split(' ')[0]);
   const toolbar = h('header', { class: 'toolbar' }, toggle,
-    h('span', { class: 'title' }, PAGES.find(p => p.id === active)?.label || ''), h('span', { class: 'spacer' }), menuBtn);
+    h('span', { class: 'title' }, menuPages().find(p => p.id === active)?.label || ''), h('span', { class: 'spacer' }), menuBtn);
   toolbar.addEventListener('keydown', e => { if (e.key === 'Escape') closePop(); });
 
   shellEl.append(side, h('div', { class: 'content' }, toolbar, h('main', { class: 'main' }, content)));
@@ -301,9 +318,11 @@ async function route() {
   if (state.me.must_change_pw) return changePasswordScreen();
   const [page, param] = (location.hash.replace('#/', '') || 'overview').split('?')[0].split('/');
   const fn = page === 'audit' && param ? h2 => auditPage(h2, decodeURIComponent(param))
-    : ({ overview, team, audits, tasks, activity, account }[page] || overview);
+    : page === 'apps' && param ? h2 => appPage(h2, decodeURIComponent(param))
+      : ({ overview, team, audits, tasks, activity, account, apps: appsPage, guide: guidePage }[page] || overview);
   const holder = h('div', {}, h('p', { class: 'muted' }, 'Loading…'));
-  shell(page === 'audit' ? 'audits' : PAGES.some(p => p.id === page) ? page : 'overview', holder);
+  const activeId = page === 'audit' ? 'audits' : page === 'apps' && param ? `apps/${param}` : page;
+  shell(menuPages().some(p => p.id === activeId) ? activeId : 'overview', holder);
   try {
     await fn(holder);
   } catch (ex) {
@@ -658,7 +677,7 @@ async function newAudit() {
         field('Sector', h('select', { name: 'sector' }, Object.entries(state.sectors).map(([k, v]) => h('option', { value: k }, `${v} (${k})`))))));
     const newSite = h('div', {}, h('div', { class: 'fgrid', style: 'margin-top:12px' },
       field('Plant / unit name (private)', h('input', { type: 'text', name: 'site_name' })),
-      field('Cluster code', h('input', { type: 'text', name: 'cluster', maxlength: 3, placeholder: 'SRT' }), '3 letters, e.g. SRT Surat, ANK Ankleshwar')));
+      field('Cluster code', h('input', { type: 'text', name: 'cluster', maxlength: 3 }), '3 letters for the town or cluster, such as SRT for Surat or ANK for Ankleshwar')));
     const siteSel = h('select', { name: 'site_id', onchange: e => { newSite.hidden = !!e.target.value; } });
     const fillSites = cid => {
       const c = clients.find(x => x.id === cid);
@@ -672,7 +691,7 @@ async function newAudit() {
     f.append(field('Client', clientSel), newClient, h('label', { class: 'f', style: 'margin-top:12px' }, 'Plant', siteSel), newSite,
       h('div', { class: 'fgrid', style: 'margin-top:12px' },
         field('Financial year', h('input', { type: 'text', name: 'fy', value: currentFy(), required: true })),
-        field('Audit title', h('input', { type: 'text', name: 'title', required: true, placeholder: 'Detailed energy audit' }))));
+        field('Audit title', h('input', { type: 'text', name: 'title', required: true, value: 'Energy audit' }))));
   }, async f => {
     const r = await api('POST', '/api/audits', {
       client_id: val(f, 'client_id') || null, client_name: val(f, 'client_name'), sector: val(f, 'sector'),
@@ -853,6 +872,120 @@ async function account(holder) {
     h('div', { class: 'head' }, h('div', {}, h('h1', {}, 'My account'),
       h('p', { class: 'muted small' }, `${state.me.name} · ${state.me.login_id} · ${ROLE[state.me.role]}`))),
     form);
+}
+
+// ---------- field apps ----------
+// The download page lives on this same server (/apps/); its apps.json has versions and history.
+async function releases() {
+  try {
+    const r = await fetch('/apps/apps.json', { cache: 'no-store' });
+    return r.ok ? (await r.json()).apps || {} : {};
+  } catch { return {}; }
+}
+const fmtSize = n => `${(n / 1e6).toFixed(1)} MB`;
+
+function appIcon(rel, size = 44) {
+  return rel?.icon
+    ? h('img', { class: 'appicon', src: `/apps/${rel.icon}`, alt: '', width: size, height: size })
+    : h('span', { class: 'appicon blank', style: `width:${size}px;height:${size}px` }, icon('phone'));
+}
+
+async function appsPage(holder) {
+  const [{ apps }, rel] = await Promise.all([api('GET', '/api/apps'), releases()]);
+  const field = apps.filter(a => a.field);
+  const planned = apps.filter(a => !a.field);
+  holder.replaceChildren(
+    h('div', { class: 'head' },
+      h('div', {}, h('h1', {}, 'Field apps'),
+        h('p', { class: 'muted small' }, 'The Android apps engineers use on site. Each sends its readings here by itself; open an app to see its data, people and versions.')),
+      h('a', { class: 'btn', href: '/apps/', target: '_blank', rel: 'noopener' }, icon('download'), 'Download page')),
+    h('div', { class: 'appgrid' }, field.map(a => {
+      const r = rel[a.code];
+      return h('a', { class: 'appcard', href: `#/apps/${a.code}` },
+        h('div', { class: 'row' }, appIcon(r), h('div', { style: 'min-width:0' }, h('b', {}, a.name), h('div', { class: 'small muted' }, a.tagline))),
+        h('div', { class: 'list' },
+          h('div', {}, h('span', { class: 'muted' }, 'Version'), r ? h('span', {}, `v${r.version} · ${fmtDay(Date.parse(r.released_at))}`) : h('span', { class: 'muted' }, 'Not published')),
+          h('div', {}, h('span', { class: 'muted' }, 'Records'), h('span', { class: 'num' }, a.records.toLocaleString('en-IN'))),
+          h('div', {}, h('span', { class: 'muted' }, 'Audits with data'), h('span', { class: 'num' }, a.audits)),
+          h('div', {}, h('span', { class: 'muted' }, 'People with access'), h('span', { class: 'num' }, a.people.filter(p => p.status === 'active').length)),
+          h('div', {}, h('span', { class: 'muted' }, 'Last sync'), h('span', {}, a.last_sync ? ago(a.last_sync) : 'Nothing yet'))));
+    })),
+    h('h2', { class: 'section-title' }, 'Planned'),
+    h('div', { class: 'card' }, h('div', { class: 'chips' }, planned.map(a => h('span', { class: 'pill soft' }, a.name))),
+      h('p', { class: 'small muted', style: 'margin-top:10px' }, 'These can already be ticked for people in Team & access; their apps are not built yet.')));
+}
+
+async function appPage(holder, code) {
+  const [d, rel] = await Promise.all([api('GET', `/api/apps?app=${encodeURIComponent(code)}`), releases()]);
+  const a = d.app, r = rel[code];
+  const metric = (ic, label, value, note) => h('div', { class: 'metric' }, h('div', { class: 'top' }, icon(ic), label), h('div', { class: 'v' }, value), note);
+  const active = a.people.filter(p => p.status === 'active');
+  holder.replaceChildren(
+    h('div', { class: 'head' },
+      h('div', { class: 'row' }, appIcon(r, 52),
+        h('div', {}, h('h1', {}, a.name), h('p', { class: 'muted small' }, a.tagline || 'Planned app'))),
+      r && h('a', { class: 'btn', href: r.apk_url, download: '' }, icon('download'), `Download v${r.version}`)),
+    h('section', { 'aria-label': 'At a glance', class: 'metrics' },
+      metric('doc', 'Records', a.records.toLocaleString('en-IN'), h('div', { class: 'mnote' }, `from ${a.recorders} ${a.recorders === 1 ? 'person' : 'people'}`)),
+      metric('audits', 'Audits with data', a.audits, h('div', { class: 'mnote' }, 'not counting deleted records')),
+      metric('team', 'People with access', active.length, h('div', { class: 'mnote' }, a.people.length > active.length ? `${a.people.length - active.length} on hold or removed` : 'all active')),
+      metric('clock', 'Last sync', a.last_sync ? ago(a.last_sync) : '—', h('div', { class: 'mnote' }, a.last_sync ? fmtDate(a.last_sync) : 'nothing received yet'))),
+
+    h('h2', { class: 'section-title' }, 'Audits with data from this app'),
+    h('div', { class: 'card scroll' }, d.audits.length ? h('table', {},
+      h('thead', {}, h('tr', {}, h('th', {}, 'Tag'), h('th', {}, 'Audit'), h('th', {}, 'Status'), h('th', {}, 'What was recorded'), h('th', { class: 'n' }, 'Records'), h('th', {}, 'Last sync'))),
+      h('tbody', {}, d.audits.map(x => h('tr', {},
+        h('td', {}, h('span', { class: 'pill tag' }, x.industry_tag)),
+        h('td', {}, h('a', { href: `#/audit/${encodeURIComponent(x.audit_id)}` }, x.title), h('div', { class: 'small muted' }, x.audit_id, ' · ', x.site_name)),
+        h('td', {}, AUDIT_STATUS[x.status] || x.status),
+        h('td', {}, h('div', { class: 'chips' }, x.kinds.map(k => h('span', { class: 'pill soft' }, `${k.kind.replace(/_/g, ' ')} ${k.n}`)))),
+        h('td', { class: 'n' }, x.records),
+        h('td', {}, ago(x.last_sync))))))
+      : h('p', { class: 'empty' }, 'Nothing has been synced from this app yet.')),
+
+    h('div', { class: 'grid2' },
+      h('div', {},
+        h('h2', { class: 'section-title' }, 'People with access'),
+        h('div', { class: 'card' }, a.people.length ? h('div', { class: 'list' }, a.people.map(p => h('div', {},
+          h('span', {}, p.name, h('span', { class: 'small muted' }, p.role === 'super_admin' ? ' · Super Admin' : p.employment === 'freelancer' ? ' · Freelancer' : ' · Staff')),
+          h('span', { class: `pill ${p.status}` }, p.status === 'active' ? 'Active' : p.status === 'hold' ? 'On hold' : 'Removed'))))
+          : h('p', { class: 'empty' }, 'Nobody yet.'),
+          h('p', { class: 'small muted', style: 'margin-top:10px' }, 'Give or remove access in ', h('a', { href: '#/team' }, 'Team & access'), '.'))),
+      h('div', {},
+        h('h2', { class: 'section-title' }, 'Versions'),
+        h('div', { class: 'card' }, r ? h('div', { class: 'list' }, (r.history || []).map(v => h('div', {},
+          v.hosted ? h('a', { href: v.apk_url, download: '' }, `v${v.version}`) : h('span', {}, `v${v.version}`),
+          h('span', { class: 'small muted' }, `${fmtDay(Date.parse(v.released_at))} · ${v.hosted ? fmtSize(v.size) : 'no longer hosted'}`))))
+          : h('p', { class: 'empty' }, 'No version published yet.'),
+          r && h('p', { class: 'small muted', style: 'margin-top:10px' }, 'Installed apps check for a newer version every few hours and offer it. File: ', r.file, '.')))));
+}
+
+// ---------- getting started ----------
+function guidePage(holder) {
+  const step = (n, title, ...body) => h('li', { class: 'gstep' }, h('span', { class: 'gnum', 'aria-hidden': 'true' }, n), h('div', {}, h('b', {}, title), h('p', { class: 'small muted' }, ...body)));
+  holder.replaceChildren(
+    h('div', { class: 'head' }, h('div', {}, h('h1', {}, 'Getting started'),
+      h('p', { class: 'muted small' }, 'How a new engineer goes from no account to recording on site.'))),
+    h('div', { class: 'grid2' },
+      h('div', {},
+        h('h2', { class: 'section-title' }, 'For the admin'),
+        h('ol', { class: 'card gsteps' },
+          step(1, 'Add the person', 'In ', h('a', { href: '#/team' }, 'Team & access'), ', add them, tick the apps they may use and pass on the Login ID and temporary password.'),
+          step(2, 'Add them to audits (optional)', 'Assign existing audits in ', h('a', { href: '#/audits' }, 'Audits'), '. Engineers can also start a new audit from the app at a new plant; it then appears here.'),
+          step(3, 'Hold or remove access', 'On hold or Removed takes effect at the person’s next sync. Their unsent work stays on the phone.'))),
+      h('div', {},
+        h('h2', { class: 'section-title' }, 'For the engineer'),
+        h('ol', { class: 'card gsteps' },
+          step(1, 'Install the app', 'Open ', h('a', { href: '/apps/', target: '_blank', rel: 'noopener' }, 'the download page'), ' on the phone, tap Download and allow the install.'),
+          step(2, 'Sign in', 'Use the Login ID and temporary password, then set your own password. One login works in every app you were given.'),
+          step(3, 'Choose or start an audit', 'Pick an audit you were added to, or tap Start a new audit and enter the company, plant, sector and cluster code.'),
+          step(4, 'Fill in the plant details', 'Details already saved for the audit in another app are offered, so nothing is typed twice.'),
+          step(5, 'Record, online or not', 'Everything saves on the phone first and syncs by itself. The header shows “Synced”, “Offline” or how many changes are waiting.')))),
+    h('h2', { class: 'section-title' }, 'More'),
+    h('div', { class: 'card list' },
+      h('div', {}, h('a', { href: '#/apps' }, 'Field apps'), h('span', { class: 'small muted' }, 'versions, people and data per app')),
+      h('div', {}, h('a', { href: '/apps/', target: '_blank', rel: 'noopener' }, 'Download page'), h('span', { class: 'small muted' }, 'ops.arenergyservices.in/apps')),
+      h('div', {}, h('a', { href: 'https://arenergyservices.in', target: '_blank', rel: 'noopener' }, 'Public website'), h('span', { class: 'small muted' }, 'arenergyservices.in'))));
 }
 
 route();
