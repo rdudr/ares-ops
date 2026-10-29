@@ -1,0 +1,29 @@
+{
+  "$comment": "Tracks which commit of rdudr/MLA-motor-load-analysis- this AR app's calculations match. Updated by scripts/kisem-sync.mjs; do not edit 'files' or 'synced_commit' by hand.",
+  "sources": [
+    {
+      "repo": "rdudr/MLA-motor-load-analysis-",
+      "branch": "main",
+      "copy": [
+        {
+          "from": "lib/motor-calc.ts",
+          "to": "vendor/kisem/MLA-motor-load-analysis-/lib/motor-calc.ts"
+        },
+        {
+          "from": "lib/pq-import.ts",
+          "to": "vendor/kisem/MLA-motor-load-analysis-/lib/pq-import.ts"
+        }
+      ],
+      "watch": [
+        "lib/pq-mappings/**",
+        "lib/motor-excel.ts",
+        "lib/motor-pdf.ts",
+        "lib/store.ts",
+        "app/(console)/**",
+        "components/**"
+      ],
+      "synced_commit": null,
+      "files": {}
+    }
+  ]
+}

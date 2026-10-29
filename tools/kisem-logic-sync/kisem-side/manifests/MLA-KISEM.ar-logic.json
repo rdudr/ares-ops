@@ -1,0 +1,19 @@
+{
+  "$comment": "Put this file in the KISEM repo root as ar-logic.json. 'copy' = pure formula files the AR app reuses byte-for-byte. 'watch' = files whose changes are flagged for porting by hand.",
+  "app": "MLA - KISEM",
+  "notify": [
+    "rdudr/ares-mla"
+  ],
+  "copy": [
+    "lib/motor-calc.ts",
+    "lib/pq-import.ts"
+  ],
+  "watch": [
+    "lib/pq-mappings/**",
+    "lib/motor-excel.ts",
+    "lib/motor-pdf.ts",
+    "lib/store.ts",
+    "app/(console)/**",
+    "components/**"
+  ]
+}

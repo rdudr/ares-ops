@@ -3,7 +3,7 @@
 
 export const ARES_API = (process.env.NEXT_PUBLIC_ARES_API || "https://api.arenergyservices.in").replace(/\/$/, "");
 
-export type AppCode = "survey" | "textile" | "air" | "pump" | "cool" | "heat" | "power" | "bills" | "solar" | "report";
+export type AppCode = "survey" | "textile" | "air" | "pump" | "cool" | "heat" | "motor" | "power" | "bills" | "solar" | "report";
 
 export type AresAudit = {
   id: string;
@@ -128,7 +128,7 @@ export type CompanyProfilesResponse = {
 
 /** Display names of the AR apps, by code. */
 export const APP_NAMES: Record<string, string> = {
-  survey: "BRIEF", textile: "JET", air: "Air Findings", pump: "Pump Testing", cool: "AHU & Cooling", heat: "Boiler & Fuel",
+  survey: "BRIEF", textile: "JET", air: "Air Findings", pump: "Pump Testing", cool: "AHU & Cooling", heat: "Boiler & Fuel", motor: "MLA",
   power: "Power Quality", bills: "Bills", solar: "Solar", report: "Report Studio",
 };
 

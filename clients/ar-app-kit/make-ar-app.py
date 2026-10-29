@@ -32,6 +32,7 @@ SCALES = {
     'green': ['#edfcf3', '#d3f8e1', '#aaf0c8', '#72e2a8', '#3acb83', '#1fb455', '#149245', '#12743a', '#135c31', '#124c2b', '#052a15'],
     'violet': ['#f5f3ff', '#ede9fe', '#ddd6fe', '#c4b5fd', '#a78bfa', '#8b5cf6', '#7c3aed', '#6d28d9', '#5b21b6', '#4c1d95', '#2e1065'],
     'brief': ['#eef4ff', '#d9e6ff', '#bcd3ff', '#8eb6ff', '#5a8dfb', '#3567f0', '#1f4fd6', '#1c40ad', '#1d388a', '#1d336f', '#152044'],
+    'copper': ['#fff7ed', '#ffedd5', '#fed7aa', '#fdba74', '#fb923c', '#f97316', '#d95f0e', '#b34a0c', '#8f3c10', '#743411', '#3f1806'],
     'teal': ['#effefb', '#c8fff4', '#91fee9', '#52f4dc', '#1edfc8', '#06c3af', '#019c8f', '#067d74', '#0a635d', '#0d524d', '#01322f'],
 }
 STEPS = [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950]
@@ -62,6 +63,13 @@ APPS = {
                    logo='BRIEF.png', accent='brief', app_id='com.arenterprise.brief', apk='ar-brief',
                    vendor=[],
                    watch=['lib/export-offline.ts', 'lib/store.ts', 'app/(console)/**', 'components/**']),
+    # Logo: AR Enterprise mark until the MLA logo is supplied (then point `logo` at it and re-run icons).
+    'motor': dict(src='process/MLA - KISEM', repo='rdudr/MLA-motor-load-analysis-', dest='ares-mla', code='motor', name='MLA',
+                  tagline='Motor load analysis: load factor, efficiency, unbalance, thermal loss and long-term monitoring',
+                  logo='C:/Users/risha/Desktop/process/AR entreprice Website/assets/logo-mark.png', accent='copper',
+                  app_id='com.arenterprise.mla', apk='ar-mla',
+                  vendor=['lib/motor-calc.ts', 'lib/pq-import.ts'],
+                  watch=['lib/pq-mappings/**', 'lib/motor-excel.ts', 'lib/motor-pdf.ts', 'lib/store.ts', 'app/(console)/**', 'components/**']),
 }
 
 # Never copied: server, logins, email, PostMan hand-off, KISEM docs/branding (public/ holds KISEM and
@@ -162,7 +170,7 @@ def main(key):
     # Icons from the AR logo.
     os.makedirs(os.path.join(dest, 'assets'), exist_ok=True)
     os.makedirs(os.path.join(dest, 'public'), exist_ok=True)
-    shutil.copy2(os.path.join(LOGOS, cfg['logo']), os.path.join(dest, 'assets/app-logo.png'))
+    shutil.copy2(cfg['logo'] if os.path.isabs(cfg['logo']) else os.path.join(LOGOS, cfg['logo']), os.path.join(dest, 'assets/app-logo.png'))
     im = Image.open(os.path.join(dest, 'assets/app-logo.png')).convert('RGB')
     for p, size in [('public/logo.png', 512), ('public/icon-512.png', 512), ('public/icon-192.png', 192),
                     ('public/favicon.png', 32), ('app/icon.png', 256)]:
@@ -226,7 +234,7 @@ def main(key):
         "$comment": "Put this file in the KISEM repo root as ar-logic.json. 'copy' = pure formula files the AR app reuses byte-for-byte. 'watch' = files whose changes are flagged for porting by hand.",
         "app": cfg['src'].split('/')[-1], "notify": [f"rdudr/{cfg['dest']}"], "copy": cfg['vendor'], "watch": cfg['watch'],
     }
-    mname = {'air': 'A-CMP', 'heat': 'thermo-X', 'cool': 'Zero-Degree', 'textile': 'Jet-EFF', 'survey': 'fox-kisem'}[key]
+    mname = {'air': 'A-CMP', 'heat': 'thermo-X', 'cool': 'Zero-Degree', 'textile': 'Jet-EFF', 'survey': 'fox-kisem', 'motor': 'MLA-KISEM'}[key]
     json.dump(manifest, open(os.path.join(SYNC_KIT, 'kisem-side/manifests', f'{mname}.ar-logic.json'), 'w', encoding='utf-8'), indent=2)
     json.dump(lock, open(os.path.join(SYNC_KIT, 'ar-side/locks', f'{mname}.kisem-logic.lock.json'), 'w', encoding='utf-8'), indent=2)
 
