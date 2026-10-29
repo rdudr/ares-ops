@@ -285,3 +285,6 @@ fieldset legend{font-size:13px;font-weight:600;color:var(--label-2);margin:14px 
 .photos figcaption a{color:var(--accent);font-weight:600}
 .appnav{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 16px}
 .appcard .btn{text-decoration:none}
+.card.company{margin-top:12px}
+.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+@media (max-width:900px){.grid3{grid-template-columns:1fr}}
