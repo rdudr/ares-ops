@@ -32,6 +32,7 @@ SCALES = {
     'green': ['#edfcf3', '#d3f8e1', '#aaf0c8', '#72e2a8', '#3acb83', '#1fb455', '#149245', '#12743a', '#135c31', '#124c2b', '#052a15'],
     'violet': ['#f5f3ff', '#ede9fe', '#ddd6fe', '#c4b5fd', '#a78bfa', '#8b5cf6', '#7c3aed', '#6d28d9', '#5b21b6', '#4c1d95', '#2e1065'],
     'brief': ['#eef4ff', '#d9e6ff', '#bcd3ff', '#8eb6ff', '#5a8dfb', '#3567f0', '#1f4fd6', '#1c40ad', '#1d388a', '#1d336f', '#152044'],
+    'navy': ['#eef2fb', '#dbe3f6', '#bccbee', '#8ea7e0', '#5b7dcf', '#3a5bbb', '#2a45a3', '#213885', '#1b2f6e', '#182a5c', '#0f1a3a'],
     'copper': ['#fff7ed', '#ffedd5', '#fed7aa', '#fdba74', '#fb923c', '#f97316', '#d95f0e', '#b34a0c', '#8f3c10', '#743411', '#3f1806'],
     'teal': ['#effefb', '#c8fff4', '#91fee9', '#52f4dc', '#1edfc8', '#06c3af', '#019c8f', '#067d74', '#0a635d', '#0d524d', '#01322f'],
 }
@@ -63,10 +64,9 @@ APPS = {
                    logo='BRIEF.png', accent='brief', app_id='com.arenterprise.brief', apk='ar-brief',
                    vendor=[],
                    watch=['lib/export-offline.ts', 'lib/store.ts', 'app/(console)/**', 'components/**']),
-    # Logo: AR Enterprise mark until the MLA logo is supplied (then point `logo` at it and re-run icons).
     'motor': dict(src='process/MLA - KISEM', repo='rdudr/MLA-motor-load-analysis-', dest='ares-mla', code='motor', name='MLA',
                   tagline='Motor load analysis: load factor, efficiency, unbalance, thermal loss and long-term monitoring',
-                  logo='C:/Users/risha/Desktop/process/AR entreprice Website/assets/logo-mark.png', accent='copper',
+                  logo='MLA.png', accent='navy',
                   app_id='com.arenterprise.mla', apk='ar-mla',
                   vendor=['lib/motor-calc.ts', 'lib/pq-import.ts'],
                   watch=['lib/pq-mappings/**', 'lib/motor-excel.ts', 'lib/motor-pdf.ts', 'lib/store.ts', 'app/(console)/**', 'components/**']),
