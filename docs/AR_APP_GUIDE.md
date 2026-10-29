@@ -20,6 +20,7 @@ them together.
 | Air Findings (compressed air) | `air` | `com.arenterprise.airfindings` | `ar-air-findings-v<version>.apk` | `ares-air` |
 | Boiler & Fuel | `heat` | `com.arenterprise.boilerfuel` | `ar-boiler-fuel-v<version>.apk` | `ares-boiler` |
 | AHU & Cooling | `cool` | `com.arenterprise.ahucooling` | `ar-ahu-cooling-v<version>.apk` | `ares-cooling` |
+| MLA (motor load analysis) | `motor` | `com.arenterprise.mla` | `ar-mla-v<version>.apk` | `ares-mla` |
 
 The **code** is how ARES files the app's data. It never changes once data exists under it. The
 Android id never changes either: a different id installs as a separate app and the old app's data
