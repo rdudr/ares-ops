@@ -7,6 +7,7 @@ import { Capacitor } from "@capacitor/core";
 import { Button } from "@/components/ui/button";
 import { APP } from "@/lib/ares/app-config";
 import { useIsClient } from "@/lib/ares/client-state";
+import { BASE_PATH, asset } from "@/lib/ares/base-path";
 import pkg from "@/package.json";
 
 const NOTICE_KEY = "ar-storage-notice-v1";
@@ -51,6 +52,15 @@ export function StorageNotice() {
       </div>
     </section>
   );
+}
+
+/** The web copy (under /field/<app>/): keeps the app's screens on the device so it opens offline. */
+export function PwaRegister() {
+  useEffect(() => {
+    if (!BASE_PATH || Capacitor.isNativePlatform() || !("serviceWorker" in navigator)) return;
+    navigator.serviceWorker.register(asset("/sw.js"), { scope: `${BASE_PATH}/` }).catch(() => { /* works online without it */ });
+  }, []);
+  return null;
 }
 
 type IndexEntry = { version: string; apk_url: string; released_at?: string };

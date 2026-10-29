@@ -2,6 +2,7 @@
 // Shared screens for AR field apps: sign in, set own password, pick audit, guard, sync status,
 // sign out. Uses the app's own ui components and its APP config (name, logo, accent).
 import { useEffect, useState } from "react";
+import { asset } from "@/lib/ares/base-path";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { AlertTriangle, Building2, CheckCircle2, CloudOff, Loader2, LogOut, PlusCircle, RefreshCw, ShieldAlert } from "lucide-react";
@@ -23,7 +24,7 @@ function Frame({ children }: { children: React.ReactNode }) {
     <main id="main" className="ar-auth flex min-h-screen items-center justify-center px-4 py-10">
       <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-7 shadow-2xl shadow-slate-900/15 backdrop-blur-xl">
         <div className="mb-6 flex flex-col items-center text-center">
-          <img src="/logo.png" alt={`${APP.name} logo`} className="mb-3 h-28 w-28 rounded-2xl bg-white object-contain" />
+          <img src={asset("/logo.png")} alt={`${APP.name} logo`} className="mb-3 h-28 w-28 rounded-2xl bg-white object-contain" />
           <h1 className="text-2xl font-semibold text-slate-900">{APP.name}</h1>
           <p className="mt-1 text-sm text-slate-600">{APP.tagline}</p>
           <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-cyan-800">AR Enterprise</p>

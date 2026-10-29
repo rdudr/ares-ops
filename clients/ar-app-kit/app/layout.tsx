@@ -2,7 +2,8 @@ import type { Metadata, Viewport } from "next";
 import { DM_Sans, Fraunces } from "next/font/google";
 import "./globals.css";
 import { AppProviders } from "@/components/providers/app-providers";
-import { StorageNotice, UpdateBanner } from "@/components/ares/app-chrome";
+import { PwaRegister, StorageNotice, UpdateBanner } from "@/components/ares/app-chrome";
+import { BASE_PATH, asset } from "@/lib/ares/base-path";
 import { APP } from "@/lib/ares/app-config";
 
 // The AR Enterprise website's type: DM Sans for text, Fraunces for headings. Bundled at build time,
@@ -13,6 +14,8 @@ const display = Fraunces({ variable: "--font-ar-display", subsets: ["latin"], di
 export const metadata: Metadata = {
   title: `${APP.name} — AR Enterprise`,
   description: APP.tagline,
+  // The web copy (under /field/<app>/) installs as an app from the browser.
+  ...(BASE_PATH ? { manifest: asset("/manifest.webmanifest"), appleWebApp: { capable: true, title: APP.name, statusBarStyle: "default" as const } } : {}),
 };
 
 export const viewport: Viewport = {
@@ -28,6 +31,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <a href="#main" className="skip-link">Skip to content</a>
         <AppProviders>
           <UpdateBanner />
+          <PwaRegister />
           {children}
           <StorageNotice />
         </AppProviders>

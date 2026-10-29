@@ -240,14 +240,15 @@ const PAGES = [
   { id: 'team', label: 'Team & access', group: 'Manage', icon: 'team' },
   { id: 'audits', label: 'Audits', group: 'Manage', icon: 'audits' },
   { id: 'reports', label: 'Previous reports', group: 'Manage', icon: 'doc' },
-  { id: 'apps', label: 'All apps', group: 'Field apps', icon: 'apps' },
+  { id: 'apps', label: 'App console', group: 'Field apps', icon: 'apps' },
   { id: 'guide', label: 'Getting started', group: 'Resources', icon: 'guide' },
   { id: 'account', label: 'My account', group: null, icon: 'account' },
 ];
 const GROUPS = ['Monitor', 'Manage', 'Field apps', 'Resources'];
 // Field apps get a sub-page each (from /api/me), listed under "All apps".
-const menuPages = () => PAGES.flatMap(p => p.id !== 'apps' ? [p]
-  : [p, ...(state.apps || []).filter(a => a.field).map(a => ({ id: `apps/${a.code}`, label: a.name, group: 'Field apps', icon: 'phone', sub: true }))]);
+const menuPages = () => PAGES;
+// The field apps as web apps (/field/<app>/), listed under App console in the menu.
+const fieldLinks = () => (state.apps || []).filter(a => a.field && a.web).map(a => ({ href: a.web, label: a.name }));
 const EXTERNAL = [
   { href: '/pqa/', label: 'Power Quality analyser' },
   { href: '/apps/', label: 'Download page' },
@@ -261,11 +262,13 @@ function shell(active, content) {
     h('a', { class: 'brand', href: '#/overview' }, h('img', { src: '/logo.png', alt: '' }),
       h('div', {}, h('b', {}, 'ARES Console'), h('small', {}, 'AR Energy Services'))),
     h('div', { class: 'side-scroll' },
-      GROUPS.map(g => [h('div', { class: 'group' }, g), menuPages().filter(p => p.group === g).map(navLink), g === 'Resources' && EXTERNAL.map(extLink)])));
+      GROUPS.map(g => [h('div', { class: 'group' }, g), menuPages().filter(p => p.group === g).map(navLink),
+        g === 'Field apps' && fieldLinks().map(x => h('a', { class: 'nav sub', href: x.href, target: '_blank', rel: 'noopener' }, icon('phone'), x.label, h('span', { class: 'sr' }, ' (opens the app in a new tab)'))),
+        g === 'Resources' && EXTERNAL.map(extLink)])));
 
   const tabbar = h('nav', { class: 'tabbar', 'aria-label': 'Sections' },
     PAGES.filter(p => p.group && p.group !== 'Resources').map(p => h('a', { class: p.id === active ? 'on' : '', href: `#/${p.id}`, 'aria-current': p.id === active ? 'page' : null },
-      icon(p.icon), p.label.replace(' & access', '').replace(' log', '').replace('All apps', 'Apps'))));
+      icon(p.icon), p.label.replace(' & access', '').replace(' log', '').replace('App console', 'Apps').replace('Previous reports', 'Reports'))));
 
   const shellEl = h('div', { class: `shell${readPref('ares.sidebar', 'open') === 'closed' ? ' collapsed' : ''}` });
   const toggle = h('button', {
@@ -324,7 +327,7 @@ async function route() {
     : page === 'apps' && param ? h2 => appPage(h2, decodeURIComponent(param))
       : ({ overview, team, audits, tasks, activity, account, apps: appsPage, guide: guidePage, reports: reportsPage }[page] || overview);
   const holder = h('div', {}, h('p', { class: 'muted' }, 'Loading…'));
-  const activeId = page === 'audit' ? 'audits' : page === 'apps' && param ? `apps/${param}` : page;
+  const activeId = page === 'audit' ? 'audits' : page;
   shell(menuPages().some(p => p.id === activeId) ? activeId : 'overview', holder);
   try {
     await fn(holder);
@@ -942,19 +945,24 @@ async function appsPage(holder) {
   const planned = apps.filter(a => !a.field && !a.web);
   holder.replaceChildren(
     h('div', { class: 'head' },
-      h('div', {}, h('h1', {}, 'Field apps'),
-        h('p', { class: 'muted small' }, 'The Android apps engineers use on site. Each sends its readings here by itself; open an app to see its data, people and versions.')),
-      h('a', { class: 'btn', href: '/apps/', target: '_blank', rel: 'noopener' }, icon('download'), 'Download page')),
+      h('div', {}, h('h1', {}, 'App console'),
+        h('p', { class: 'muted small' }, 'Manage every field app here. Open an app to see its data company by company, and to correct or remove records.')),
+    ),
+    h('p', { class: 'small muted', style: 'margin:0 4px 8px' }, 'Open an app to work in it from this computer (same login and data as on the phone; it can be installed from the browser):'),
+    h('nav', { class: 'appnav', 'aria-label': 'Open a field app' }, field.filter(a => a.web).map(a => h('a', { class: 'btn', href: a.web, target: '_blank', rel: 'noopener' }, a.name, ' ', icon('external')))),
     h('div', { class: 'appgrid' }, field.map(a => {
       const r = rel[a.code];
-      return h('a', { class: 'appcard', href: `#/apps/${a.code}` },
+      return h('div', { class: 'appcard' },
         h('div', { class: 'row' }, appIcon(r), h('div', { style: 'min-width:0' }, h('b', {}, a.name), h('div', { class: 'small muted' }, a.tagline))),
         h('div', { class: 'list' },
           h('div', {}, h('span', { class: 'muted' }, 'Version'), r ? h('span', {}, `v${r.version} · ${fmtDay(Date.parse(r.released_at))}`) : h('span', { class: 'muted' }, 'Not published')),
           h('div', {}, h('span', { class: 'muted' }, 'Records'), h('span', { class: 'num' }, a.records.toLocaleString('en-IN'))),
           h('div', {}, h('span', { class: 'muted' }, 'Audits with data'), h('span', { class: 'num' }, a.audits)),
           h('div', {}, h('span', { class: 'muted' }, 'People with access'), h('span', { class: 'num' }, a.people.filter(p => p.status === 'active').length)),
-          h('div', {}, h('span', { class: 'muted' }, 'Last sync'), h('span', {}, a.last_sync ? ago(a.last_sync) : 'Nothing yet'))));
+          h('div', {}, h('span', { class: 'muted' }, 'Last sync'), h('span', {}, a.last_sync ? ago(a.last_sync) : 'Nothing yet'))),
+        h('div', { class: 'row' },
+          a.web && h('a', { class: 'btn sm', href: a.web, target: '_blank', rel: 'noopener' }, `Open ${a.name}`),
+          h('a', { class: 'btn ghost sm', href: `#/apps/${a.code}` }, 'Data & records')));
     })),
     h('h2', { class: 'section-title' }, 'Web apps'),
     h('div', { class: 'appgrid' }, web.map(a => h('a', { class: 'appcard', href: '/pqa/', target: '_blank', rel: 'noopener' },
@@ -978,8 +986,10 @@ async function appPage(holder, code) {
   holder.replaceChildren(
     h('div', { class: 'head' },
       h('div', { class: 'row' }, appIcon(r, 52),
-        h('div', {}, h('h1', {}, a.name), h('p', { class: 'muted small' }, a.tagline || 'Planned app'))),
-      r && h('a', { class: 'btn', href: r.apk_url, download: '' }, icon('download'), `Download v${r.version}`)),
+        h('div', {}, h('p', { class: 'small' }, h('a', { href: '#/apps' }, '‹ App console')),
+          h('h1', {}, a.name), h('p', { class: 'muted small' }, a.tagline || 'Planned app'))),
+      a.web && h('a', { class: 'btn', href: a.web, target: '_blank', rel: 'noopener' }, `Open ${a.name}`, icon('external')),
+    ),
     h('section', { 'aria-label': 'At a glance', class: 'metrics' },
       metric('doc', 'Records', a.records.toLocaleString('en-IN'), h('div', { class: 'mnote' }, `from ${a.recorders} ${a.recorders === 1 ? 'person' : 'people'}`)),
       metric('audits', 'Audits with data', a.audits, h('div', { class: 'mnote' }, 'not counting deleted records')),
@@ -1011,7 +1021,7 @@ async function appPage(holder, code) {
       h('div', {},
         h('h2', { class: 'section-title' }, 'Versions'),
         h('div', { class: 'card' }, r ? h('div', { class: 'list' }, (r.history || []).map(v => h('div', {},
-          v.hosted ? h('a', { href: v.apk_url, download: '' }, `v${v.version}`) : h('span', {}, `v${v.version}`),
+          h('span', {}, `v${v.version}`),
           h('span', { class: 'small muted' }, `${fmtDay(Date.parse(v.released_at))} · ${v.hosted ? fmtSize(v.size) : 'no longer hosted'}`))))
           : h('p', { class: 'empty' }, 'No version published yet.'),
           r && h('p', { class: 'small muted', style: 'margin-top:10px' }, 'Installed apps check for a newer version every few hours and offer it. File: ', r.file, '.')))));
@@ -1095,8 +1105,8 @@ function editRecord(r, onSaved) {
 }
 
 async function appAuditPage(holder, code, auditId) {
-  const [d, { audits: all }, rel] = await Promise.all([
-    api('GET', `/api/audits/${encodeURIComponent(auditId)}/data?app=${encodeURIComponent(code)}`), api('GET', '/api/audits'), releases()]);
+  const [d, { audits: all }] = await Promise.all([
+    api('GET', `/api/audits/${encodeURIComponent(auditId)}/data?app=${encodeURIComponent(code)}`), api('GET', '/api/audits')]);
   const a = all.find(x => x.id === auditId) || d.audit;
   const locked = CLOSED.has(a.status);
   const app = (state.apps || []).find(x => x.code === code) || { name: code };
@@ -1117,12 +1127,11 @@ async function appAuditPage(holder, code, auditId) {
   holder.replaceChildren(h('div', {},
     h('div', { class: 'head' },
       h('div', {},
-        h('p', { class: 'small' }, h('a', { href: `#/apps/${code}` }, `‹ ${app.name}`)),
+        h('p', { class: 'small' }, h('a', { href: '#/apps' }, '‹ App console'), ' · ', h('a', { href: `#/apps/${code}` }, app.name)),
         h('h1', {}, a.client_name || d.audit.client_name || a.title),
         h('p', { class: 'muted small' }, h('span', { class: 'pill tag' }, a.industry_tag), ` ${a.site_name} · ${a.title} · ${a.id} · ${a.fy} · ${AUDIT_STATUS[a.status] || a.status}`)),
       h('div', { class: 'row' },
-        h('a', { class: 'btn ghost', href: `#/audit/${encodeURIComponent(a.id)}` }, 'Whole audit'),
-        rel[code] && h('a', { class: 'btn', href: rel[code].apk_url, download: '' }, icon('download'), `Download v${rel[code].version}`))),
+        h('a', { class: 'btn ghost', href: `#/audit/${encodeURIComponent(a.id)}` }, 'Whole audit'))),
     locked && h('div', { class: 'note', style: 'margin-top:12px' }, 'This audit is finalised: its data is kept as it was and cannot be changed. Reopen it from the audit page to make corrections.'),
 
     h('h2', { class: 'section-title' }, 'Company profile in this app'),
