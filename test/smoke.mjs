@@ -21,7 +21,7 @@ const step = async (name, fn) => { await fn(); passed++; console.log(`  ok  ${na
 // Console client: keeps the session cookie, sends the same-origin header.
 function consoleClient() {
   let cookie = '';
-  return async (method, path, body, extra = {}) => {
+  const client = async (method, path, body, extra = {}) => {
     const res = await fetch(base + path, {
       method,
       headers: { 'Content-Type': 'application/json', 'X-ARES': '1', Cookie: cookie, ...extra },
@@ -31,6 +31,8 @@ function consoleClient() {
     if (set) cookie = set.split(';')[0];
     return { status: res.status, data: await res.json() };
   };
+  client.cookie = () => cookie; // for raw downloads (the ZIP export)
+  return client;
 }
 
 // Field app client: bearer token.
@@ -453,6 +455,39 @@ await step('the Console shows each field app with its people and the data it has
   assert.equal(one.data.audits.reduce((n, a) => n + a.records, 0), air.records);
   assert.equal((await admin('GET', '/api/apps?app=nope')).status, 404);
   assert.equal((await fetch(base + '/api/apps')).status, 401);
+});
+
+await step('the Console edits and removes records, phones get the change; finalising locks and hides the audit; ZIP export', async () => {
+  const tok = (await appLogin('fl.one', p1.pw, 'pump')).data.token;
+  const app = appClient(tok);
+  const now = Date.now();
+  await app('POST', '/api/sync', { records: [
+    { id: 'edit-record-1', audit_id: auditId, kind: 'pump_test', tag: 'P-21', taken_at: now, saved_at: now, payload: { pumpNo: 'P-21', head: 30 } },
+    { id: 'remove-record-1', audit_id: auditId, kind: 'pump_test', tag: 'P-22', taken_at: now, saved_at: now, payload: { pumpNo: 'P-22', head: 28 } },
+  ] });
+  const since = (await app('POST', '/api/sync', { since: 0, records: [] })).data.next_since;
+  assert.equal((await admin('PUT', '/api/records/edit-record-1', { payload: { pumpNo: 'P-21', head: 32 } })).status, 200);
+  assert.equal((await admin('DELETE', '/api/records/remove-record-1')).status, 200);
+  assert.equal((await admin('PUT', '/api/records/edit-record-1', { payload: { pumpNo: 'P-21' }, tag: 'P-07' })).status, 409); // tag already used
+  const pulled = (await app('POST', '/api/sync', { since, records: [] })).data.records;
+  assert.equal(pulled.find(r => r.id === 'edit-record-1').payload.head, 32);
+  assert.equal(pulled.find(r => r.id === 'remove-record-1').payload._deleted, true);
+
+  const zipRes = await fetch(`${base}/api/audits/${auditId}/export.zip`, { headers: { Cookie: admin.cookie() } });
+  assert.equal(zipRes.status, 200);
+  const zip = Buffer.from(await zipRes.arrayBuffer());
+  assert.equal(zip.readUInt32LE(0), 0x04034b50);
+  const listing = zip.toString('latin1');
+  assert.ok(listing.includes('Company.json') && listing.includes('Apps/Pump Testing/pump_test.csv') && listing.includes('Files/index.csv'));
+
+  assert.equal((await admin('POST', `/api/audits/${auditId}/finalise`, {})).status, 200);
+  const me = await app('GET', '/api/device/me');
+  assert.ok(!me.data.audits.some(a => a.id === auditId)); // gone from the running list
+  assert.equal((await admin('PUT', '/api/records/edit-record-1', { payload: { head: 1 } })).status, 409); // locked
+  const list = await admin('GET', '/api/audits');
+  assert.ok(list.data.audits.find(a => a.id === auditId).finalized_at);
+  assert.equal((await admin('POST', `/api/audits/${auditId}/reopen`)).status, 200);
+  assert.ok((await app('GET', '/api/device/me')).data.audits.some(a => a.id === auditId));
 });
 
 await step('activity log cannot be edited or deleted', async () => {

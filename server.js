@@ -9,6 +9,7 @@ import { loadSession, isManager, WEB_MAX_MS } from './lib/auth.js';
 import { registerConsoleRoutes } from './lib/routes-console.js';
 import { registerDeviceRoutes } from './lib/routes-device.js';
 import { registerDataRoutes } from './lib/routes-data.js';
+import { registerRecordRoutes } from './lib/routes-records.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
@@ -44,6 +45,7 @@ export function createServer(db, { filesDir = config.filesDir } = {}) {
   registerConsoleRoutes(router, { setupCode });
   registerDeviceRoutes(router);
   registerDataRoutes(router, { filesDir });
+  registerRecordRoutes(router, { filesDir });
 
   const files = {
     '/': ['index.html', 'text/html; charset=utf-8'],

@@ -239,6 +239,7 @@ const PAGES = [
   { id: 'activity', label: 'Activity log', group: 'Monitor', icon: 'activity' },
   { id: 'team', label: 'Team & access', group: 'Manage', icon: 'team' },
   { id: 'audits', label: 'Audits', group: 'Manage', icon: 'audits' },
+  { id: 'reports', label: 'Previous reports', group: 'Manage', icon: 'doc' },
   { id: 'apps', label: 'All apps', group: 'Field apps', icon: 'apps' },
   { id: 'guide', label: 'Getting started', group: 'Resources', icon: 'guide' },
   { id: 'account', label: 'My account', group: null, icon: 'account' },
@@ -317,10 +318,11 @@ async function route() {
     }
   }
   if (state.me.must_change_pw) return changePasswordScreen();
-  const [page, param] = (location.hash.replace('#/', '') || 'overview').split('?')[0].split('/');
+  const [page, param, param2] = (location.hash.replace('#/', '') || 'overview').split('?')[0].split('/');
   const fn = page === 'audit' && param ? h2 => auditPage(h2, decodeURIComponent(param))
+    : page === 'apps' && param && param2 ? h2 => appAuditPage(h2, decodeURIComponent(param), decodeURIComponent(param2))
     : page === 'apps' && param ? h2 => appPage(h2, decodeURIComponent(param))
-      : ({ overview, team, audits, tasks, activity, account, apps: appsPage, guide: guidePage }[page] || overview);
+      : ({ overview, team, audits, tasks, activity, account, apps: appsPage, guide: guidePage, reports: reportsPage }[page] || overview);
   const holder = h('div', {}, h('p', { class: 'muted' }, 'Loading…'));
   const activeId = page === 'audit' ? 'audits' : page === 'apps' && param ? `apps/${param}` : page;
   shell(menuPages().some(p => p.id === activeId) ? activeId : 'overview', holder);
@@ -631,7 +633,8 @@ async function audits(holder) {
   const [{ audits: list }, { users }] = await Promise.all([api('GET', '/api/audits'), api('GET', '/api/users')]);
   const engineers = users.filter(u => u.role === 'engineer' && u.status === 'active');
 
-  const rows = list.map(a => {
+  const done = list.filter(a => CLOSED.has(a.status)).length;
+  const rows = list.filter(a => !CLOSED.has(a.status)).map(a => {
     const add = h('select', {
       'aria-label': 'Add person to audit', onchange: async e => {
         if (!e.target.value) return;
@@ -660,13 +663,13 @@ async function audits(holder) {
 
   holder.replaceChildren(
     h('div', { class: 'head' },
-      h('div', {}, h('h1', {}, 'Audits'), h('p', { class: 'muted small' }, 'Each plant gets a system-made industry tag; the public site shows only that tag, never the client name. ',
-        'Engineers see only the audits they are added to.')),
+      h('div', {}, h('h1', {}, 'Audits'), h('p', { class: 'muted small' }, 'Running audits. Each plant gets a system-made industry tag; the public site shows only that tag, never the client name. ',
+        'Engineers see only the audits they are added to. ', done ? h('a', { href: '#/reports' }, `${done} finalised in Previous reports`) : null)),
       h('button', { class: 'btn', onclick: newAudit }, 'New audit')),
     h('div', { class: 'card scroll' }, list.length ? h('table', {},
       h('thead', {}, h('tr', {}, h('th', {}, 'Tag'), h('th', {}, 'Audit'), h('th', {}, 'Status'), h('th', {}, 'Team'),
         h('th', { class: 'n' }, 'Records'), h('th', { class: 'n' }, 'Open tasks'), h('th', {}, 'Last sync'))),
-      h('tbody', {}, rows)) : h('p', { class: 'empty' }, 'No audits yet. Create the first one.')));
+      h('tbody', {}, rows)) : h('p', { class: 'empty' }, done ? 'No running audits. Finalised ones are in Previous reports.' : 'No audits yet. Create the first one.')));
 }
 
 async function newAudit() {
@@ -707,7 +710,12 @@ async function newAudit() {
 // ---------- one audit: what has been collected ----------
 async function auditPage(holder, id) {
   const [data, { tasks: allTasks }] = await Promise.all([api('GET', `/api/audits/${encodeURIComponent(id)}/data`), api('GET', '/api/tasks')]);
+  // Removed records stay on the server as versions; the audit page shows only current ones.
+  for (const k of Object.keys(data.apps)) data.apps[k] = data.apps[k].filter(r => !r.payload._deleted);
+  for (const k of Object.keys(data.apps)) if (!data.apps[k].length) delete data.apps[k];
   const a = data.audit;
+  const listed = (await api('GET', '/api/audits')).audits.find(x => x.id === a.id) || {};
+  const finalised = CLOSED.has(a.status);
   const tasksHere = allTasks.filter(t => t.audit_id === a.id);
   const open = tasksHere.filter(t => t.status !== 'done');
   const apps = Object.entries(data.apps);
@@ -760,7 +768,18 @@ async function auditPage(holder, id) {
         h('p', { class: 'small' }, h('a', { href: '#/audits' }, '‹ All audits')),
         h('h1', {}, a.title),
         h('p', { class: 'muted small' }, h('span', { class: 'pill tag' }, a.industry_tag), ` ${a.id} · ${a.fy} · ${AUDIT_STATUS[a.status] || a.status}`,
-          a.client_name ? ` · ${a.client_name} — ${a.site_name}` : ''))),
+          a.client_name ? ` · ${a.client_name} — ${a.site_name}` : '')),
+      h('div', { class: 'row' },
+        h('a', { class: 'btn ghost', href: `/api/audits/${encodeURIComponent(a.id)}/export.zip` }, icon('download'), 'Download all (ZIP)'),
+        finalised
+          ? h('button', { type: 'button', class: 'btn ghost', onclick: async () => {
+            if (!confirm('Reopen this audit? It returns to the running lists and its data can be changed again.')) return;
+            try { await api('POST', `/api/audits/${encodeURIComponent(a.id)}/reopen`); toast('Audit reopened'); route(); } catch (ex) { toast(ex.message); }
+          } }, 'Reopen')
+          : h('button', { type: 'button', class: 'btn', onclick: () => finaliseAudit({ ...listed, ...a }) }, 'Finalise audit'))),
+    finalised ? h('div', { class: 'note', style: 'margin-top:12px' },
+      `Finalised${listed.finalized_at ? ` on ${fmtDate(listed.finalized_at)}` : ''}${listed.finalized_by_name ? ` by ${listed.finalized_by_name}` : ''}. This is a previous report: its data is kept as it was. `,
+      listed.report_file_id ? h('a', { href: `/api/files/${listed.report_file_id}`, target: '_blank', rel: 'noopener' }, 'Open the final report') : 'No report file attached.') : null,
 
     h('section', { class: 'metrics' },
       h('div', { class: 'metric' }, h('div', { class: 'top' }, icon('doc'), 'Records'), h('div', { class: 'v' }, apps.reduce((n, [, r]) => n + r.length, 0)),
@@ -967,17 +986,19 @@ async function appPage(holder, code) {
       metric('team', 'People with access', active.length, h('div', { class: 'mnote' }, a.people.length > active.length ? `${a.people.length - active.length} on hold or removed` : 'all active')),
       metric('clock', 'Last sync', a.last_sync ? ago(a.last_sync) : '—', h('div', { class: 'mnote' }, a.last_sync ? fmtDate(a.last_sync) : 'nothing received yet'))),
 
-    h('h2', { class: 'section-title' }, 'Audits with data from this app'),
-    h('div', { class: 'card scroll' }, d.audits.length ? h('table', {},
+    h('h2', { class: 'section-title' }, 'Data by company (running audits)'),
+    h('div', { class: 'card scroll' }, d.audits.filter(x => !CLOSED.has(x.status)).length ? h('table', {},
       h('thead', {}, h('tr', {}, h('th', {}, 'Tag'), h('th', {}, 'Audit'), h('th', {}, 'Status'), h('th', {}, 'What was recorded'), h('th', { class: 'n' }, 'Records'), h('th', {}, 'Last sync'))),
-      h('tbody', {}, d.audits.map(x => h('tr', {},
+      h('tbody', {}, d.audits.filter(x => !CLOSED.has(x.status)).map(x => h('tr', {},
         h('td', {}, h('span', { class: 'pill tag' }, x.industry_tag)),
-        h('td', {}, h('a', { href: `#/audit/${encodeURIComponent(x.audit_id)}` }, x.title), h('div', { class: 'small muted' }, x.audit_id, ' · ', x.site_name)),
+        h('td', {}, h('a', { href: `#/apps/${code}/${encodeURIComponent(x.audit_id)}` }, h('b', {}, x.site_name), ' · ', x.title), h('div', { class: 'small muted' }, x.audit_id, ' · open to view, edit or remove records')),
         h('td', {}, AUDIT_STATUS[x.status] || x.status),
         h('td', {}, h('div', { class: 'chips' }, x.kinds.map(k => h('span', { class: 'pill soft' }, `${k.kind.replace(/_/g, ' ')} ${k.n}`)))),
         h('td', { class: 'n' }, x.records),
         h('td', {}, ago(x.last_sync))))))
-      : h('p', { class: 'empty' }, 'Nothing has been synced from this app yet.')),
+      : h('p', { class: 'empty' }, 'No running audit has data from this app yet.')),
+    d.audits.some(x => CLOSED.has(x.status)) ? h('p', { class: 'small muted', style: 'margin:8px 4px 0' },
+      `${d.audits.filter(x => CLOSED.has(x.status)).length} finalised audit(s) also have data from this app: see `, h('a', { href: '#/reports' }, 'Previous reports'), '.') : null,
 
     h('div', { class: 'grid2' },
       h('div', {},
@@ -1022,6 +1043,162 @@ function guidePage(holder) {
       h('div', {}, h('a', { href: '#/apps' }, 'Field apps'), h('span', { class: 'small muted' }, 'versions, people and data per app')),
       h('div', {}, h('a', { href: '/apps/', target: '_blank', rel: 'noopener' }, 'Download page'), h('span', { class: 'small muted' }, 'ops.arenergyservices.in/apps')),
       h('div', {}, h('a', { href: 'https://arenergyservices.in', target: '_blank', rel: 'noopener' }, 'Public website'), h('span', { class: 'small muted' }, 'arenergyservices.in'))));
+}
+
+// ---------- one app's data for one company audit: view, correct, remove ----------
+const CLOSED = new Set(['published', 'archived']);
+const hidden = k => k === 'id' || k.startsWith('_');
+const isPhoto = v => typeof v === 'string' && v.startsWith('ares-photo:');
+const showValue = v => v == null || v === '' ? '—' : typeof v === 'object' ? JSON.stringify(v) : String(v);
+
+function photoLink(v) {
+  const id = v.slice('ares-photo:'.length);
+  return h('a', { href: `/api/files/${encodeURIComponent(id)}`, target: '_blank', rel: 'noopener' }, 'Photo');
+}
+
+/** A record's first few readable values, for the list. */
+function summary(payload) {
+  return Object.entries(payload).filter(([k, v]) => !hidden(k) && v !== null && v !== '' && typeof v !== 'object' && !isPhoto(v))
+    .slice(0, 4).map(([k, v]) => `${k}: ${v}`).join(' · ');
+}
+
+function editRecord(r, onSaved) {
+  const entries = Object.entries(r.payload).filter(([k]) => !hidden(k));
+  openDialog(`Edit ${r.kind.replace(/_/g, ' ')}${r.tag ? ` · ${r.tag}` : ''}`, f => {
+    f.append(h('p', { class: 'small muted' }, 'Saved as a new version: the earlier one is kept, and phones on this audit get the change at their next sync.'),
+      h('div', { class: 'fgrid', style: 'margin-top:12px' },
+        field('Tag', h('input', { type: 'text', name: '__tag', value: r.tag || '' }), 'Unique in this audit for this app; leave empty if it has none'),
+        entries.map(([k, v]) => typeof v === 'object' && v !== null
+          ? field(k, h('textarea', { name: k, rows: 4, 'data-json': '1' }, JSON.stringify(v, null, 2)), 'JSON')
+          : field(k, h('input', { type: 'text', name: k, value: v == null ? '' : String(v), 'data-type': typeof v })))));
+  }, async f => {
+    const payload = { ...r.payload };
+    for (const [k, v] of entries) {
+      const el = f.elements[k];
+      if (!el) continue;
+      if (el.dataset.json) {
+        try { payload[k] = JSON.parse(el.value || 'null'); } catch { throw new Error(`"${k}" is not valid JSON.`); }
+      } else if (typeof v === 'number') {
+        const n = el.value.trim() === '' ? null : Number(el.value);
+        if (n !== null && !Number.isFinite(n)) throw new Error(`"${k}" must be a number.`);
+        payload[k] = n;
+      } else if (typeof v === 'boolean') {
+        payload[k] = /^(true|yes|1)$/i.test(el.value.trim());
+      } else {
+        payload[k] = el.value;
+      }
+    }
+    await api('PUT', `/api/records/${encodeURIComponent(r.id)}`, { payload, tag: val(f, '__tag') || null });
+    toast('Record saved');
+    onSaved();
+  }, { submitLabel: 'Save changes' });
+}
+
+async function appAuditPage(holder, code, auditId) {
+  const [d, { audits: all }, rel] = await Promise.all([
+    api('GET', `/api/audits/${encodeURIComponent(auditId)}/data?app=${encodeURIComponent(code)}`), api('GET', '/api/audits'), releases()]);
+  const a = all.find(x => x.id === auditId) || d.audit;
+  const locked = CLOSED.has(a.status);
+  const app = (state.apps || []).find(x => x.code === code) || { name: code };
+  const recs = (d.apps[code] || []).filter(r => !r.payload._deleted);
+  const profile = recs.find(r => r.kind === 'company_profile');
+  const items = recs.filter(r => r.kind !== 'company_profile');
+  const reload = () => appAuditPage(holder, code, auditId);
+  const photos = (d.files || []).filter(f => f.app === code && f.mime.startsWith('image/'));
+
+  const remove = r => async () => {
+    if (!confirm(`Remove ${r.kind.replace(/_/g, ' ')}${r.tag ? ` ${r.tag}` : ''}? Phones delete it at their next sync; the earlier versions stay on the server.`)) return;
+    try { await api('DELETE', `/api/records/${encodeURIComponent(r.id)}`); toast('Record removed'); reload(); } catch (ex) { toast(ex.message); }
+  };
+  const actions = r => locked ? null : h('div', { class: 'row', style: 'gap:6px;flex-wrap:nowrap' },
+    h('button', { type: 'button', class: 'btn ghost sm', onclick: () => editRecord(r, reload) }, 'Edit'),
+    h('button', { type: 'button', class: 'btn ghost sm danger', onclick: remove(r) }, 'Remove'));
+
+  holder.replaceChildren(h('div', {},
+    h('div', { class: 'head' },
+      h('div', {},
+        h('p', { class: 'small' }, h('a', { href: `#/apps/${code}` }, `‹ ${app.name}`)),
+        h('h1', {}, a.client_name || d.audit.client_name || a.title),
+        h('p', { class: 'muted small' }, h('span', { class: 'pill tag' }, a.industry_tag), ` ${a.site_name} · ${a.title} · ${a.id} · ${a.fy} · ${AUDIT_STATUS[a.status] || a.status}`)),
+      h('div', { class: 'row' },
+        h('a', { class: 'btn ghost', href: `#/audit/${encodeURIComponent(a.id)}` }, 'Whole audit'),
+        rel[code] && h('a', { class: 'btn', href: rel[code].apk_url, download: '' }, icon('download'), `Download v${rel[code].version}`))),
+    locked && h('div', { class: 'note', style: 'margin-top:12px' }, 'This audit is finalised: its data is kept as it was and cannot be changed. Reopen it from the audit page to make corrections.'),
+
+    h('h2', { class: 'section-title' }, 'Company profile in this app'),
+    h('div', { class: 'card' }, profile
+      ? h('div', {}, h('div', { class: 'list' }, Object.entries(profile.payload).filter(([k]) => !hidden(k)).map(([k, v]) => h('div', {}, h('span', { class: 'muted' }, k), h('span', {}, showValue(v))))),
+        h('div', { style: 'margin-top:10px' }, actions(profile)))
+      : h('p', { class: 'empty' }, 'Not saved in this app yet.')),
+
+    h('h2', { class: 'section-title' }, `Records (${items.length})`),
+    h('div', { class: 'card scroll' }, items.length ? h('table', {},
+      h('thead', {}, h('tr', {}, h('th', {}, 'Tag'), h('th', {}, 'What'), h('th', {}, 'Details'), h('th', {}, 'Recorded by'), h('th', {}, 'Last saved'), h('th', {}, ''))),
+      h('tbody', {}, items.map(r => h('tr', {},
+        h('td', {}, r.tag ? h('span', { class: 'pill tag' }, r.tag) : '—'),
+        h('td', {}, r.kind.replace(/_/g, ' '), Object.values(r.payload).some(isPhoto) ? [' · ', photoLink(Object.values(r.payload).find(isPhoto))] : null),
+        h('td', { class: 'small' }, summary(r.payload) || '—'),
+        h('td', { class: 'small' }, r.updated_by_name && r.updated_by_name !== r.recorded_by ? `${r.recorded_by} (edited by ${r.updated_by_name})` : r.recorded_by),
+        h('td', { class: 'small' }, fmtDate(r.saved_at)),
+        h('td', {}, actions(r))))))
+      : h('p', { class: 'empty' }, 'No records from this app for this company yet.')),
+
+    photos.length ? [h('h2', { class: 'section-title' }, `Photos (${photos.length})`),
+      h('div', { class: 'card' }, h('div', { class: 'photos' }, photos.map(f => h('figure', {},
+        h('a', { href: f.url, target: '_blank', rel: 'noopener' }, h('img', { src: f.url, alt: f.caption || 'Photo', loading: 'lazy' })),
+        h('figcaption', {}, h('b', {}, f.caption || 'Photo'),
+          h('span', {}, [f.equipment_tag, f.uploaded_by_name, f.taken_at && fmtDate(f.taken_at)].filter(Boolean).join(' · ')),
+          f.location ? h('a', { href: f.location.map_url, target: '_blank', rel: 'noopener' }, 'Where it was taken (map)') : null)))))] : null));
+}
+
+// ---------- finalising an audit, and previous reports ----------
+async function uploadReport(auditId, file) {
+  if (file.type !== 'application/pdf') throw new Error('The final report must be a PDF.');
+  if (file.size > 25 * 1024 * 1024) throw new Error('The report file must be 25 MB or smaller.');
+  const bytes = await file.arrayBuffer();
+  const sha = [...new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))].map(b => b.toString(16).padStart(2, '0')).join('');
+  const id = crypto.randomUUID();
+  await api('POST', '/api/files', { id, audit_id: auditId, app: 'report', kind: 'scan', caption: 'Final audit report',
+    mime: 'application/pdf', size: bytes.byteLength, sha256: sha, name: file.name, taken_at: Date.now() });
+  for (let off = 0; off < bytes.byteLength; off += 4 * 1024 * 1024) {
+    const r = await fetch(`/api/files/${id}/content?offset=${off}`, {
+      method: 'PUT', credentials: 'same-origin', headers: { 'X-ARES': '1', 'Content-Type': 'application/octet-stream' },
+      body: bytes.slice(off, off + 4 * 1024 * 1024),
+    });
+    if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || 'The report did not upload.');
+  }
+  return id;
+}
+
+function finaliseAudit(a) {
+  openDialog(`Finalise ${a.client_name || a.title}`, f => {
+    f.append(h('p', {}, 'Use this once the report is made. The audit then leaves the running lists in the Console and the field apps, and its data is kept as it is (it can be reopened if a correction is needed).'),
+      h('div', { style: 'margin-top:12px' }, field('Final report (PDF, optional)', h('input', { type: 'file', name: 'report', accept: 'application/pdf' }), 'Kept with the audit and included in its ZIP download')));
+  }, async f => {
+    const file = f.elements.report.files[0];
+    const reportId = file ? await uploadReport(a.id, file) : null;
+    await api('POST', `/api/audits/${encodeURIComponent(a.id)}/finalise`, { report_file_id: reportId });
+    toast('Audit finalised');
+    route();
+  }, { submitLabel: 'Finalise audit' });
+}
+
+async function reportsPage(holder) {
+  const { audits: list } = await api('GET', '/api/audits');
+  const done = list.filter(a => CLOSED.has(a.status)).sort((x, y) => (y.finalized_at || 0) - (x.finalized_at || 0));
+  holder.replaceChildren(
+    h('div', { class: 'head' }, h('div', {}, h('h1', {}, 'Previous reports'),
+      h('p', { class: 'muted small' }, 'Finalised audits. Their data is kept as it was; open one to see every record, photo and file, or download all of it as a ZIP.'))),
+    h('div', { class: 'card scroll' }, done.length ? h('table', {},
+      h('thead', {}, h('tr', {}, h('th', {}, 'Company'), h('th', {}, 'Audit'), h('th', {}, 'Finalised'), h('th', { class: 'n' }, 'Records'), h('th', {}, 'Report'), h('th', {}, ''))),
+      h('tbody', {}, done.map(a => h('tr', {},
+        h('td', {}, h('b', {}, a.client_name), h('div', { class: 'small muted' }, a.site_name, ' · ', h('span', { class: 'pill tag' }, a.industry_tag))),
+        h('td', {}, h('a', { href: `#/audit/${encodeURIComponent(a.id)}` }, a.title), h('div', { class: 'small muted' }, a.id, ' · ', a.fy)),
+        h('td', { class: 'small' }, a.finalized_at ? fmtDate(a.finalized_at) : '—', a.finalized_by_name ? h('div', { class: 'muted' }, `by ${a.finalized_by_name}`) : null),
+        h('td', { class: 'n' }, a.records),
+        h('td', {}, a.report_file_id ? h('a', { href: `/api/files/${a.report_file_id}`, target: '_blank', rel: 'noopener' }, 'Open report') : h('span', { class: 'muted small' }, 'None attached')),
+        h('td', {}, h('a', { class: 'btn ghost sm', href: `/api/audits/${encodeURIComponent(a.id)}/export.zip` }, icon('download'), 'ZIP'))))))
+      : h('p', { class: 'empty' }, 'No audit has been finalised yet. Finalise one from its audit page once the report is made.')));
 }
 
 route();
