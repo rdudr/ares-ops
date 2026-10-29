@@ -229,7 +229,20 @@ PostMan hand-off of the KISEM apps: **there is nothing to send.**
 
 ---
 
-## 8. Building and releasing the Android apps
+## 8. The same apps on the web (PWA)
+
+Every field app also runs in the browser at `https://ops.arenergyservices.in/field/<app>/`
+(brief, jet, pump, air, boiler, cooling, mla): the same screens, the same ARES login and the same
+data, for work from a laptop. Browsers offer to install it as an app; a service worker keeps its
+screens on the device so it opens offline, and data saves and syncs exactly as on the phone.
+The Console's App console opens them.
+
+- Build one: `node scripts/web-build.mjs --base field/<app>` (static export with that base path,
+  `manifest.webmanifest` and `sw.js` in `out/`). Plain image and fetch paths go through
+  `asset()` from `lib/ares/base-path.ts`; Next's links and routes add the base path themselves.
+- Put them all on the server: `bash deploy/field-web.sh` in ares-ops (or name some apps).
+
+## 9. Building and releasing the Android apps
 
 - **Build:** `node scripts/android-apk.mjs` (or `npm run android:apk`). It makes the static export,
   generates the Android project with Capacitor (never committed), sets icons, stamps the version, and
