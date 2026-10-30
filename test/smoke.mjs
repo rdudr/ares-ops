@@ -521,6 +521,69 @@ await step('GST Billing opens only through the ARES sign-in', async () => {
   assert.equal((await get('/api/billing/check', { Cookie: `ares-bills=${token}` })).status, 401);
 });
 
+await step('an Admin sees and manages only their own apps; the main Super Admin cannot be changed', async () => {
+  // The owner (the setup account) adds an Admin with BRIEF only, and a second Super Admin.
+  const ownerId = (await admin('GET', '/api/me')).data.user.id;
+  assert.equal((await admin('GET', '/api/me')).data.user.owner, true);
+  const signIn = async (login_id, temp) => {
+    const c = consoleClient();
+    assert.equal((await c('POST', '/api/login', { login_id, password: temp })).status, 200);
+    assert.equal((await c('POST', '/api/change-password', { current: temp, next: `${login_id}-Pass-2026` })).status, 200);
+    return c;
+  };
+  const a = await admin('POST', '/api/users', { name: 'Admin Brief', login_id: 'adm.brief', role: 'head', apps: ['survey'] });
+  const s2 = await admin('POST', '/api/users', { name: 'Second Super', login_id: 'super.two', role: 'super_admin' });
+  assert.equal(a.status, 200);
+  assert.equal(s2.status, 200);
+  const adm = await signIn('adm.brief', a.data.temp_password);
+  const sup2 = await signIn('super.two', s2.data.temp_password);
+
+  // What the Admin sees: BRIEF only, no audit without BRIEF data, nobody outside their team.
+  assert.deepEqual((await adm('GET', '/api/me')).data.my_apps, ['survey']);
+  assert.deepEqual((await adm('GET', '/api/apps')).data.apps.map(x => x.code), ['survey']);
+  assert.equal((await adm('GET', '/api/apps?app=pump')).status, 404);
+  assert.equal((await adm('GET', '/api/audits')).data.audits.length, 0);
+  assert.equal((await adm('GET', `/api/audits/${auditId}/data`)).status, 404);
+  assert.equal((await fetch(`${base}/api/audits/${auditId}/export.zip`, { headers: { Cookie: adm.cookie() } })).status, 404);
+  assert.equal((await adm('PUT', '/api/records/edit-record-1', { payload: { head: 1 } })).status, 404);
+  assert.equal((await adm('GET', '/api/tasks')).data.tasks.length, 0);
+  assert.deepEqual((await adm('GET', '/api/users')).data.users.map(u => u.login_id), ['adm.brief']);
+  const dash = (await adm('GET', '/api/dashboard')).data;
+  assert.deepEqual(dash.people.map(u => u.login_id), ['adm.brief']);
+  assert.equal(dash.totals.records, 0);
+  assert.ok(!(await adm('GET', '/api/activity')).data.activity.some(x => x.user_id !== a.data.user.id));
+
+  // What the Admin cannot change: themselves, other people's apps, Super Admins, roles.
+  assert.equal((await adm('POST', `/api/users/${a.data.user.id}/apps`, { app: 'pump', grant: true })).status, 403);
+  assert.equal((await adm('POST', `/api/users/${p1.id}/apps`, { app: 'survey', grant: true })).status, 403);
+  assert.equal((await adm('POST', `/api/users/${p1.id}/status`, { status: 'hold' })).status, 403);
+  assert.equal((await adm('POST', `/api/users/${ownerId}/status`, { status: 'revoked' })).status, 403);
+  assert.equal((await adm('POST', `/api/users/${s2.data.user.id}/reset-password`)).status, 403);
+  assert.equal((await adm('POST', '/api/users', { name: 'X', login_id: 'adm.x', role: 'head', apps: ['survey'] })).status, 403);
+  assert.equal((await adm('POST', '/api/users', { name: 'X', login_id: 'eng.x', apps: ['pump'] })).status, 403);
+  // Their own team: an Engineer on BRIEF, whom they can manage, but only with BRIEF.
+  const e = await adm('POST', '/api/users', { name: 'Brief Engineer', login_id: 'eng.brief', apps: ['survey'] });
+  assert.equal(e.status, 200);
+  assert.equal((await adm('POST', `/api/users/${e.data.user.id}/apps`, { app: 'air', grant: true })).status, 403);
+  assert.equal((await adm('POST', `/api/users/${e.data.user.id}/status`, { status: 'hold' })).status, 200);
+  assert.equal((await adm('POST', `/api/users/${e.data.user.id}/status`, { status: 'active' })).status, 200);
+  assert.equal((await adm('POST', `/api/audits/${auditId}/assign`, { user_id: e.data.user.id, assign: true })).status, 404);
+  // Once the Engineer also works on another app, only a Super Admin can hold them.
+  assert.equal((await admin('POST', `/api/users/${e.data.user.id}/apps`, { app: 'air', grant: true })).status, 200);
+  assert.equal((await adm('POST', `/api/users/${e.data.user.id}/status`, { status: 'hold' })).status, 403);
+  assert.deepEqual((await adm('GET', '/api/users')).data.users.find(u => u.login_id === 'eng.brief').apps, ['survey']);
+
+  // A second Super Admin cannot touch the owner or make Super Admins; the owner manages them.
+  assert.equal((await sup2('POST', `/api/users/${ownerId}/status`, { status: 'revoked' })).status, 403);
+  assert.equal((await sup2('PATCH', `/api/users/${ownerId}`, { role: 'engineer' })).status, 403);
+  assert.equal((await sup2('POST', '/api/users', { name: 'X', login_id: 'super.x', role: 'super_admin' })).status, 403);
+  assert.equal((await sup2('PATCH', `/api/users/${a.data.user.id}`, { role: 'super_admin' })).status, 403);
+  assert.equal((await sup2('POST', `/api/users/${a.data.user.id}/apps`, { app: 'air', grant: true })).status, 200);
+  assert.equal((await admin('POST', `/api/users/${s2.data.user.id}/status`, { status: 'hold' })).status, 200);
+  assert.equal((await admin('POST', `/api/users/${s2.data.user.id}/status`, { status: 'active' })).status, 200);
+  assert.equal((await admin('POST', `/api/users/${ownerId}/status`, { status: 'hold' })).status, 403); // not even themselves
+});
+
 await step('activity log cannot be edited or deleted', async () => {
   assert.throws(() => db.exec('DELETE FROM activity'), /append-only/);
   assert.throws(() => db.exec("UPDATE activity SET action = 'x'"), /append-only/);

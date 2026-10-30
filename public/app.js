@@ -63,7 +63,9 @@ function ago(ms) {
   return d < 30 ? `${d} day${d > 1 ? 's' : ''} ago` : fmtDay(ms);
 }
 const appName = code => state.apps.find(a => a.code === code)?.name || code || '—';
-const ROLE = { super_admin: 'Super Admin', head: 'Head Member', engineer: 'Engineer' };
+const ROLE = { super_admin: 'Super Admin', head: 'Admin', engineer: 'Engineer' };
+// The apps this person works with in the Console (all for a Super Admin, their own for an Admin).
+const mine = code => (state.myApps || []).includes(code);
 const STATUS = { active: 'Active', hold: 'On hold', revoked: 'Revoked' };
 const AUDIT_STATUS = { draft: 'Draft', in_field: 'In field', processing: 'Processing', review: 'Review', approved: 'Approved', published: 'Published', archived: 'Archived' };
 const statusPill = s => h('span', { class: `pill ${s}` }, STATUS[s] || s);
@@ -161,7 +163,7 @@ function setupScreen() {
 }
 
 function loginScreen() {
-  gate('Sign in', 'For Super Admins and Head Members. Field engineers sign in from their app.', [
+  gate('Sign in', 'For Super Admins and Admins. Field engineers sign in from their app.', [
     field('Login ID', h('input', { type: 'text', name: 'login_id', required: true, autocomplete: 'username' })),
     field('Password', h('input', { type: 'password', name: 'password', required: true, autocomplete: 'current-password' })),
   ], async f => {
@@ -187,6 +189,7 @@ async function loadMe() {
   const r = await api('GET', '/api/me');
   state.me = r.user;
   state.apps = r.apps;
+  state.myApps = r.my_apps;
   state.sectors = r.sectors;
 }
 
@@ -249,11 +252,12 @@ const GROUPS = ['Monitor', 'Manage', 'Field apps', 'Tools'];
 // Field apps get a sub-page each (from /api/me), listed under "All apps".
 const menuPages = () => PAGES;
 // Each field app's data in the Console, listed under App console in the menu.
-const fieldPages = () => (state.apps || []).filter(a => a.field).map(a => ({ id: `apps/${a.code}`, label: a.name, icon: 'phone', sub: true }));
-const TOOLS_EXTERNAL = [
-  { href: '/pqa/', label: 'Power Quality analyser' },
-  { href: 'https://billing.arenergyservices.in/', label: 'GST Billing' },
+const fieldPages = () => (state.apps || []).filter(a => a.field && mine(a.code)).map(a => ({ id: `apps/${a.code}`, label: a.name, icon: 'phone', sub: true }));
+const TOOLS = [
+  { href: '/pqa/', label: 'Power Quality analyser', app: 'power' },
+  { href: 'https://billing.arenergyservices.in/', label: 'GST Billing', app: 'bills' },
 ];
+const toolLinks = () => TOOLS.filter(t => mine(t.app));
 
 function shell(active, content) {
   const navLink = p => h('a', { class: `nav${p.sub ? ' sub' : ''}${p.id === active ? ' on' : ''}`, href: `#/${p.id}`, 'aria-current': p.id === active ? 'page' : null }, icon(p.icon), p.label);
@@ -262,7 +266,7 @@ function shell(active, content) {
     h('a', { class: 'brand', href: '#/overview' }, h('img', { src: '/logo.png', alt: '' }),
       h('div', {}, h('b', {}, 'ARES Console'), h('small', {}, 'AR Energy Services'))),
     h('div', { class: 'side-scroll' },
-      GROUPS.map(g => [h('div', { class: 'group' }, g), g === 'Tools' && TOOLS_EXTERNAL.map(extLink), menuPages().filter(p => p.group === g).map(navLink),
+      GROUPS.map(g => [h('div', { class: 'group' }, g), g === 'Tools' && toolLinks().map(extLink), menuPages().filter(p => p.group === g).map(navLink),
         g === 'Field apps' && fieldPages().map(navLink)])));
 
   const tabbar = h('nav', { class: 'tabbar', 'aria-label': 'Sections' },
@@ -504,13 +508,13 @@ async function overview(holder, { background = false } = {}) {
 async function team(holder) {
   const [{ users }, { audits: auditList }] = await Promise.all([api('GET', '/api/users'), api('GET', '/api/audits')]);
   const me = state.me;
-  const canManage = u => u.id !== me.id && (me.role === 'super_admin' || (me.role === 'head' && u.role === 'engineer'));
+  const canManage = u => u.can_manage;
 
-  const appChips = u => h('div', { class: 'chips' }, state.apps.map(a => {
+  const appChips = u => h('div', { class: 'chips' }, state.apps.filter(a => mine(a.code)).map(a => {
     const on = u.apps.includes(a.code);
     if (u.role === 'super_admin') return h('span', { class: 'chip on ro' }, a.name);
     const box = h('input', {
-      type: 'checkbox', checked: on, disabled: !canManage(u),
+      type: 'checkbox', checked: on, disabled: !u.can_change_apps.includes(a.code),
       onchange: async e => {
         try {
           await api('POST', `/api/users/${u.id}/apps`, { app: a.code, grant: e.target.checked });
@@ -538,17 +542,19 @@ async function team(holder) {
     return h('div', { class: 'person' },
       h('div', {},
         h('div', { class: 'row', style: 'gap:8px' }, h('span', { class: 'nm' }, u.name), statusPill(u.status),
+          u.owner && h('span', { class: 'pill soft' }, 'Main Super Admin'),
           u.locked && h('span', { class: 'pill bad' }, 'Locked: wrong passwords')),
         h('div', { class: 'small muted', style: 'margin-top:4px' }, `Login ID: ${u.login_id}`),
         h('div', { class: 'small muted' }, ROLE[u.role], ' · ', u.employment === 'freelancer' ? 'Freelancer' : 'Staff', u.phone ? ` · ${u.phone}` : ''),
         h('div', { class: 'small muted' }, `Last sign-in: ${ago(u.last_login_at)}`, u.must_change_pw ? ' · has not set own password yet' : '')),
       h('div', {},
-        h('div', { class: 'small muted', style: 'margin-bottom:6px' }, u.role === 'super_admin' ? 'Apps (all, as Super Admin)' : 'Apps this person can use'),
+        h('div', { class: 'small muted', style: 'margin-bottom:6px' }, u.role === 'super_admin' ? 'Apps (all, as Super Admin)'
+          : me.role === 'super_admin' ? 'Apps this person can use' : 'Your apps this person can use'),
         appChips(u),
         h('div', { class: 'small muted', style: 'margin:12px 0 6px' }, 'Assigned audits'),
         u.role === 'engineer'
           ? (u.audits.length ? h('div', { class: 'chips' }, u.audits.map(a => h('span', { class: 'pill tag', title: a.id }, a.tag))) : h('span', { class: 'small muted' }, 'None — assign in Audits'))
-          : h('span', { class: 'small muted' }, 'All audits (manager role)')),
+          : h('span', { class: 'small muted' }, u.role === 'head' ? 'The audits of their apps (Admin)' : 'All audits (Super Admin)')),
       h('div', { class: 'actions' },
         m && u.status !== 'active' && h('button', { class: 'btn small', onclick: () => setStatus(u, 'active') }, 'Reactivate'),
         m && u.status === 'active' && h('button', { class: 'btn small warn', onclick: () => setStatus(u, 'hold') }, 'Put on hold'),
@@ -572,7 +578,9 @@ async function team(holder) {
   holder.replaceChildren(
     h('div', { class: 'head' },
       h('div', {}, h('h1', {}, 'Team & access'),
-        h('p', { class: 'muted small' }, 'One Login ID for every app. Tick the apps each person may use; changes apply immediately.')),
+        h('p', { class: 'muted small' }, me.role === 'super_admin'
+          ? 'One Login ID for every app. Tick the apps each person may use; changes apply immediately.'
+          : 'Your team: Engineers who work on your apps. You can give or take only your own apps, and change only people who work on nothing else.')),
       h('button', { class: 'btn', onclick: () => addPerson(auditList) }, 'Add person')),
     h('div', { class: 'card' }, rows.length ? rows : h('p', { class: 'empty' }, 'No one yet.')));
 }
@@ -582,8 +590,8 @@ function addPerson(auditList) {
   openDialog('Add a person', f => {
     const role = h('select', { name: 'role' },
       h('option', { value: 'engineer' }, 'Engineer — collects data in apps'),
-      me.role === 'super_admin' && h('option', { value: 'head' }, 'Head Member — manages work and the team'),
-      me.role === 'super_admin' && h('option', { value: 'super_admin' }, 'Super Admin — full control'));
+      me.role === 'super_admin' && h('option', { value: 'head' }, 'Admin — sees the Console for the apps given to them'),
+      me.owner && h('option', { value: 'super_admin' }, 'Super Admin — full control'));
     const type = h('select', {
       name: 'employment', onchange: e => { if (e.target.value === 'freelancer') role.value = 'engineer'; role.disabled = e.target.value === 'freelancer'; },
     }, h('option', { value: 'staff' }, 'Staff'), h('option', { value: 'freelancer' }, 'Freelancer'));
@@ -596,7 +604,7 @@ function addPerson(auditList) {
         field('Type', type)),
       h('label', { class: 'f', style: 'margin-top:12px' }, 'Role', role),
       h('fieldset', {}, h('legend', {}, 'Apps they can use'),
-        h('div', { class: 'chips' }, state.apps.map(a => h('label', { class: 'chip' }, h('input', { type: 'checkbox', name: 'apps', value: a.code }), a.name)))),
+        h('div', { class: 'chips' }, state.apps.filter(a => mine(a.code)).map(a => h('label', { class: 'chip' }, h('input', { type: 'checkbox', name: 'apps', value: a.code }), a.name)))),
       h('fieldset', {}, h('legend', {}, 'Audits they work on (only these industries)'),
         auditList.length
           ? h('div', { class: 'chips' }, auditList.filter(a => !['published', 'archived'].includes(a.status)).map(a =>
@@ -623,7 +631,8 @@ function editPerson(u) {
       h('option', { value: 'staff', selected: u.employment === 'staff' }, 'Staff'),
       h('option', { value: 'freelancer', selected: u.employment === 'freelancer' }, 'Freelancer'))),
     me.role === 'super_admin' && field('Role', h('select', { name: 'role' },
-      Object.entries(ROLE).map(([k, v]) => h('option', { value: k, selected: u.role === k }, v))))), async f => {
+      Object.entries(ROLE).filter(([k]) => k !== 'super_admin' || me.owner || u.role === k)
+        .map(([k, v]) => h('option', { value: k, selected: u.role === k }, v))))), async f => {
     const body = { name: val(f, 'name'), phone: val(f, 'phone'), employment: val(f, 'employment') };
     if (f.elements.role) body.role = f.elements.role.value;
     await api('PATCH', `/api/users/${u.id}`, body);
@@ -942,7 +951,7 @@ function appIcon(rel, size = 44) {
 async function appsPage(holder) {
   const [{ apps }, rel] = await Promise.all([api('GET', '/api/apps'), releases()]);
   const field = apps.filter(a => a.field);
-  const web = apps.filter(a => a.web);
+  const web = apps.filter(a => a.web && !a.field);
   const planned = apps.filter(a => !a.field && !a.web);
   holder.replaceChildren(
     h('div', { class: 'head' },
@@ -964,20 +973,20 @@ async function appsPage(holder) {
           h('a', { class: 'btn sm', href: `#/apps/${a.code}` }, 'View data'),
           a.web && h('a', { class: 'btn ghost sm', href: a.web, target: '_blank', rel: 'noopener' }, `Open ${a.name}`, icon('external'))));
     })),
-    h('h2', { class: 'section-title' }, 'Web apps'),
+    ...(web.length ? [h('h2', { class: 'section-title' }, 'Web apps'),
     h('div', { class: 'appgrid' }, web.map(a => h('a', { class: 'appcard', href: a.url, target: '_blank', rel: 'noopener' },
       h('div', { class: 'row' }, h('span', { class: 'appicon blank', style: 'width:44px;height:44px' }, icon('live')),
         h('div', { style: 'min-width:0' }, h('b', {}, a.name), h('div', { class: 'small muted' }, a.tagline))),
       h('div', { class: 'list' },
         h('div', {}, h('span', { class: 'muted' }, 'Where'), h('span', {}, a.where)),
         a.managersOnly
-          ? h('div', {}, h('span', { class: 'muted' }, 'Who can open it'), h('span', {}, 'Super Admins and Heads'))
+          ? h('div', {}, h('span', { class: 'muted' }, 'Who can open it'), h('span', {}, 'Super Admins, and Admins given it'))
           : [h('div', {}, h('span', { class: 'muted' }, 'Records'), h('span', { class: 'num' }, a.records.toLocaleString('en-IN'))),
             h('div', {}, h('span', { class: 'muted' }, 'Audits with data'), h('span', { class: 'num' }, a.audits)),
-            h('div', {}, h('span', { class: 'muted' }, 'People with access'), h('span', { class: 'num' }, a.people.filter(p => p.status === 'active').length))])))),
-    h('h2', { class: 'section-title' }, 'Planned'),
+            h('div', {}, h('span', { class: 'muted' }, 'People with access'), h('span', { class: 'num' }, a.people.filter(p => p.status === 'active').length))]))))] : []),
+    ...(planned.length ? [h('h2', { class: 'section-title' }, 'Planned'),
     h('div', { class: 'card' }, h('div', { class: 'chips' }, planned.map(a => h('span', { class: 'pill soft' }, a.name))),
-      h('p', { class: 'small muted', style: 'margin-top:10px' }, 'These can already be ticked for people in Team & access; their apps are not built yet.')));
+      h('p', { class: 'small muted', style: 'margin-top:10px' }, 'These can already be ticked for people in Team & access; their apps are not built yet.'))] : []));
 }
 
 /** One company in one app: its profile, what was recorded, by whom, and links to the data and the app. */
