@@ -1,0 +1,68 @@
+# Deploys the ARES Console and sync API to the AR server whenever main changes, with the same
+# script as a manual deploy (deploy/deploy.sh): tests, upload, swap /opt/ares-ops, restart, and
+# a health check that puts the previous version back if the Console does not answer.
+#
+# Repository secrets (Settings > Secrets and variables > Actions):
+#   AR_DEPLOY_KEY     private half of the CI deploy key ("ares-cicd-deploy", ed25519)
+#   AR_KNOWN_HOSTS    the server's host key line: ssh-keyscan -t ed25519 130.210.60.79
+# Optional repository variable AR_HOST if the server's address ever changes.
+name: Deploy ARES
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - 'clients/**'
+      - 'tools/**'
+      - 'deploy/billing.sh'
+      - 'deploy/gst-billing.service'
+      - 'deploy/field-web.sh'
+      - '.github/workflows/deploy-billing.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One deploy at a time, and never cut one off half way.
+concurrency:
+  group: deploy-ares
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Check the deploy key is set
+        env:
+          AR_DEPLOY_KEY: ${{ secrets.AR_DEPLOY_KEY }}
+          AR_KNOWN_HOSTS: ${{ secrets.AR_KNOWN_HOSTS }}
+        run: |
+          if [ -z "$AR_DEPLOY_KEY" ] || [ -z "$AR_KNOWN_HOSTS" ]; then
+            echo "::error::Add the AR_DEPLOY_KEY and AR_KNOWN_HOSTS secrets first (see the top of this file)."
+            exit 1
+          fi
+
+      - run: npm test
+
+      - name: SSH to the AR server
+        env:
+          AR_DEPLOY_KEY: ${{ secrets.AR_DEPLOY_KEY }}
+          AR_KNOWN_HOSTS: ${{ secrets.AR_KNOWN_HOSTS }}
+          AR_HOST: ${{ vars.AR_HOST || '130.210.60.79' }}
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$AR_DEPLOY_KEY" > ~/.ssh/ar_deploy && chmod 600 ~/.ssh/ar_deploy
+          printf '%s\n' "$AR_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          printf 'Host ar\n  HostName %s\n  User ubuntu\n  IdentityFile ~/.ssh/ar_deploy\n  IdentitiesOnly yes\n  StrictHostKeyChecking yes\n' "$AR_HOST" > ~/.ssh/config
+
+      - name: Deploy
+        run: bash deploy/deploy.sh ar

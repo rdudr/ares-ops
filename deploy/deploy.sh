@@ -49,7 +49,26 @@ ssh "$HOST" 'set -e
     # First deploy: full setup.
     sudo bash /opt/ares-ops/deploy/setup.sh
   fi
-  sleep 2
-  echo "service: $(systemctl is-active ares-ops)"
-  curl -s -o /dev/null -w "console answers locally: HTTP %{http_code}\n" http://127.0.0.1:8080/'
+  # The Console must answer within 20 s; otherwise put the previous version back.
+  code=000
+  for i in $(seq 1 10); do
+    sleep 2
+    code=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8080/ || true)
+    if [ "$code" = 200 ]; then break; fi
+  done
+  echo "service: $(systemctl is-active ares-ops), console answers locally: HTTP $code"
+  if [ "$code" != 200 ] && [ -d /opt/ares-ops.old ]; then
+    echo "!! health check failed: putting the previous version back"
+    sudo rm -rf /opt/ares-ops.failed
+    sudo mv /opt/ares-ops /opt/ares-ops.failed
+    sudo mv /opt/ares-ops.old /opt/ares-ops
+    sudo install -m 644 /opt/ares-ops/deploy/ares-ops.service /etc/systemd/system/ares-ops.service
+    sudo install -m 644 /opt/ares-ops/deploy/Caddyfile /etc/caddy/Caddyfile
+    sudo systemctl daemon-reload
+    sudo systemctl restart ares-ops
+    sudo systemctl reload caddy
+    echo "!! rolled back; the failed version is in /opt/ares-ops.failed"
+    exit 1
+  fi
+  [ "$code" = 200 ]'
 echo "== done"

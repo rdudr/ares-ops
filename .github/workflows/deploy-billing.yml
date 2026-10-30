@@ -1,0 +1,64 @@
+# Installs or updates GST Billing on the AR server (deploy/billing.sh) when its script or service
+# file changes on main, i.e. when the tested upstream commit in billing.sh is moved on. Can also be
+# run by hand from the Actions tab with another upstream commit or tag (read its changes first).
+#
+# Same secrets as deploy.yml: AR_DEPLOY_KEY, AR_KNOWN_HOSTS (optional variable AR_HOST).
+# The Caddy part of billing comes with the ARES deploy (deploy.yml).
+name: Deploy GST Billing
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'deploy/billing.sh'
+      - 'deploy/gst-billing.service'
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Upstream commit or tag (empty = the one pinned in deploy/billing.sh)'
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-billing
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check the deploy key is set
+        env:
+          AR_DEPLOY_KEY: ${{ secrets.AR_DEPLOY_KEY }}
+          AR_KNOWN_HOSTS: ${{ secrets.AR_KNOWN_HOSTS }}
+        run: |
+          if [ -z "$AR_DEPLOY_KEY" ] || [ -z "$AR_KNOWN_HOSTS" ]; then
+            echo "::error::Add the AR_DEPLOY_KEY and AR_KNOWN_HOSTS secrets first (see deploy.yml)."
+            exit 1
+          fi
+
+      - name: SSH to the AR server
+        env:
+          AR_DEPLOY_KEY: ${{ secrets.AR_DEPLOY_KEY }}
+          AR_KNOWN_HOSTS: ${{ secrets.AR_KNOWN_HOSTS }}
+          AR_HOST: ${{ vars.AR_HOST || '130.210.60.79' }}
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$AR_DEPLOY_KEY" > ~/.ssh/ar_deploy && chmod 600 ~/.ssh/ar_deploy
+          printf '%s\n' "$AR_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          printf 'Host ar\n  HostName %s\n  User ubuntu\n  IdentityFile ~/.ssh/ar_deploy\n  IdentitiesOnly yes\n  StrictHostKeyChecking yes\n' "$AR_HOST" > ~/.ssh/config
+
+      - name: Deploy
+        env:
+          REF: ${{ inputs.ref }}
+        run: |
+          if [ -n "$REF" ] && ! [[ "$REF" =~ ^[0-9A-Za-z._-]+$ ]]; then
+            echo "::error::Not a commit or tag: $REF"; exit 1
+          fi
+          HOST=ar bash deploy/billing.sh ${REF:+"$REF"}

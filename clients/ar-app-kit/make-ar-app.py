@@ -90,7 +90,8 @@ SHARED_FROM_TEMPLATE = ['app/login/page.tsx', 'app/change-password/page.tsx', 'a
                         'components/auth-guard.tsx', 'lib/auth-store.ts', 'scripts/kisem-sync.mjs',
                         '.github/workflows/kisem-logic-sync.yml', '.gitattributes']
 KIT_FILES = ['lib/ares/api.ts', 'lib/ares/session.ts', 'lib/ares/sync.ts', 'lib/ares/collection-binding.ts', 'lib/ares/client-state.ts',
-             'components/ares/ares-screens.tsx', 'scripts/android-apk.mjs', '.github/workflows/android-apk.yml']
+             'components/ares/ares-screens.tsx', 'scripts/android-apk.mjs', 'scripts/web-build.mjs',
+             '.github/workflows/android-apk.yml', '.github/workflows/field-web.yml']
 
 
 def theme_css(scale, accent_name):

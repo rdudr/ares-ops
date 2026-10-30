@@ -51,6 +51,31 @@ first visit once DNS points at the server. Get the one-time setup code with
 Repeat step 3 — `setup.sh` is safe to run again, and the database in `/var/lib/ares` is never touched
 by an update.
 
+### Automatic deploys (GitHub Actions)
+
+Every part on the server has its own pipeline, run on a push to `main`:
+
+| Pipeline | Repo | Deploys | Same as |
+|---|---|---|---|
+| `Deploy ARES` (`.github/workflows/deploy.yml`) | ares-ops | Console, sync API, Caddyfile, cron jobs | `bash deploy/deploy.sh` |
+| `Deploy GST Billing` (`.github/workflows/deploy-billing.yml`) | ares-ops, only when `billing.sh` or `gst-billing.service` change; or run by hand with another upstream commit | GST Billing | `bash deploy/billing.sh` |
+| `Web app` (`.github/workflows/field-web.yml`, from the AR app kit) | each field app repo | that app at `/field/<app>/` | `bash deploy/field-web.sh <app>` |
+| `Android APK` (`.github/workflows/android-apk.yml`, from the AR app kit) | each field app repo | signed APK to the download page | `node scripts/android-apk.mjs` |
+
+ARES and the web apps are health-checked after the swap; if they don't answer, the previous version
+is put back (the failed one stays in `<folder>.failed`) and the run fails.
+
+Secrets, the same in every repo that deploys (Settings → Secrets and variables → Actions):
+
+- `AR_DEPLOY_KEY`: the private half of the CI key `ares-cicd-deploy` (ed25519). Its public half is in
+  `~ubuntu/.ssh/authorized_keys` on the server, with port, agent and X11 forwarding switched off.
+- `AR_KNOWN_HOSTS`: the server's host key, `ssh-keyscan -t ed25519 130.210.60.79` (fingerprint
+  `SHA256:/oe/CDTYOmtvNeiAI174EG1Nl3/YgeAM52HQe4M9UTs`; check it before saving).
+- Optional variable `AR_HOST` if the address changes.
+
+To pause automatic deploys, disable the workflow in the repo's Actions tab. Manual deploys with the
+scripts keep working. To revoke the key, remove its line from `~ubuntu/.ssh/authorized_keys`.
+
 ## GST Billing (billing.arenergyservices.in)
 
 The open-source Free GST Billing Software (MIT, github.com/IamRamgarhia/Free-GST-Billing-Software),

@@ -1,0 +1,98 @@
+# Builds this AR app as a web app (PWA) whenever main changes and puts it on the AR server at
+# https://ops.arenergyservices.in/field/<app>/, the same steps as ares-ops/deploy/field-web.sh.
+# <app> is the repository name without "ares-" (ares-brief -> brief, ares-mla -> mla).
+# If the new version does not answer, the previous one is put back.
+#
+# Repository secrets (Settings > Secrets and variables > Actions):
+#   AR_DEPLOY_KEY     private half of the CI deploy key ("ares-cicd-deploy", ed25519)
+#   AR_KNOWN_HOSTS    the server's host key line: ssh-keyscan -t ed25519 130.210.60.79
+# Optional repository variable AR_HOST if the server's address ever changes.
+name: Web app
+
+on:
+  push:
+    branches: [main]
+    paths-ignore: ['**.md', 'kisem-logic.lock.json', '.github/workflows/kisem-logic-sync.yml', '.github/workflows/android-apk.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: field-web
+  cancel-in-progress: false
+
+jobs:
+  web:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Check the deploy key is set
+        env:
+          AR_DEPLOY_KEY: ${{ secrets.AR_DEPLOY_KEY }}
+          AR_KNOWN_HOSTS: ${{ secrets.AR_KNOWN_HOSTS }}
+        run: |
+          if [ -z "$AR_DEPLOY_KEY" ] || [ -z "$AR_KNOWN_HOSTS" ]; then
+            echo "::error::Add the AR_DEPLOY_KEY and AR_KNOWN_HOSTS secrets first (see the top of this file)."
+            exit 1
+          fi
+
+      - run: npm ci
+
+      - name: Build the web app
+        id: build
+        run: |
+          slug="${GITHUB_REPOSITORY#*/}"; slug="${slug#ares-}"
+          if ! [[ "$slug" =~ ^[a-z0-9-]+$ ]]; then
+            echo "::error::Can't tell the app from the repository name ${GITHUB_REPOSITORY}"; exit 1
+          fi
+          echo "slug=$slug" >> "$GITHUB_OUTPUT"
+          rm -rf out
+          node scripts/web-build.mjs --base "field/$slug"
+          tar -czf "$RUNNER_TEMP/web.tgz" -C out .
+
+      - name: SSH to the AR server
+        env:
+          AR_DEPLOY_KEY: ${{ secrets.AR_DEPLOY_KEY }}
+          AR_KNOWN_HOSTS: ${{ secrets.AR_KNOWN_HOSTS }}
+          AR_HOST: ${{ vars.AR_HOST || '130.210.60.79' }}
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$AR_DEPLOY_KEY" > ~/.ssh/ar_deploy && chmod 600 ~/.ssh/ar_deploy
+          printf '%s\n' "$AR_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          printf 'Host ar\n  HostName %s\n  User ubuntu\n  IdentityFile ~/.ssh/ar_deploy\n  IdentitiesOnly yes\n  StrictHostKeyChecking yes\n' "$AR_HOST" > ~/.ssh/config
+
+      - name: Deploy
+        env:
+          SLUG: ${{ steps.build.outputs.slug }}
+        run: |
+          scp -q "$RUNNER_TEMP/web.tgz" "ar:/tmp/field-$SLUG.tgz"
+          ssh ar "SLUG=$SLUG bash -s" <<'REMOTE'
+          set -euo pipefail
+          d=/opt/ar-field/$SLUG
+          sudo install -d /opt/ar-field
+          sudo rm -rf "$d.new" && sudo mkdir -p "$d.new"
+          sudo tar -xzf "/tmp/field-$SLUG.tgz" -C "$d.new" && rm -f "/tmp/field-$SLUG.tgz"
+          sudo chmod -R a+rX "$d.new"
+          sudo rm -rf "$d.old"
+          if [ -d "$d" ]; then sudo mv "$d" "$d.old"; fi
+          sudo mv "$d.new" "$d"
+          url="https://ops.arenergyservices.in/field/$SLUG/"
+          code=$(curl -s -o /dev/null -w '%{http_code}' --resolve ops.arenergyservices.in:443:127.0.0.1 "$url" || true)
+          if [ "$code" != 200 ]; then
+            echo "!! $url answered HTTP $code"
+            if [ -d "$d.old" ]; then
+              echo "!! putting the previous version back"
+              sudo rm -rf "$d.failed" && sudo mv "$d" "$d.failed" && sudo mv "$d.old" "$d"
+            fi
+            exit 1
+          fi
+          echo "live: $url"
+          REMOTE

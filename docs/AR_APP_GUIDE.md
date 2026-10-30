@@ -241,6 +241,8 @@ The Console's App console opens them.
   `manifest.webmanifest` and `sw.js` in `out/`). Plain image and fetch paths go through
   `asset()` from `lib/ares/base-path.ts`; Next's links and routes add the base path themselves.
 - Put them all on the server: `bash deploy/field-web.sh` in ares-ops (or name some apps).
+- Automatically: each app's `.github/workflows/field-web.yml` (from the kit) builds and deploys it on
+  every push to `main`; it needs the `AR_DEPLOY_KEY` and `AR_KNOWN_HOSTS` secrets (`deploy/DEPLOY.md`).
 
 ## 9. Building and releasing the Android apps
 
