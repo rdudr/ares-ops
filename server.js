@@ -10,6 +10,7 @@ import { registerConsoleRoutes } from './lib/routes-console.js';
 import { registerDeviceRoutes } from './lib/routes-device.js';
 import { registerDataRoutes } from './lib/routes-data.js';
 import { registerRecordRoutes } from './lib/routes-records.js';
+import { registerBillingRoutes } from './lib/routes-billing.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
@@ -26,6 +27,9 @@ const config = {
   // Only routes that need an app (bearer) token answer them; Console cookie routes never do.
   appOrigins: (process.env.APP_ORIGINS || 'https://localhost,capacitor://localhost,http://localhost:3000')
     .split(',').map(o => o.trim()).filter(Boolean),
+  // GST Billing site (see lib/routes-billing.js) and the Console address it sends people to.
+  billingHost: process.env.BILLING_HOST || 'billing.arenergyservices.in',
+  consoleUrl: process.env.CONSOLE_URL || 'https://ops.arenergyservices.in',
 };
 
 const APP_API = /^\/api\/(device\/|sync$|files(\/|$)|audits\/[^/]+\/data$)/;
@@ -46,6 +50,7 @@ export function createServer(db, { filesDir = config.filesDir } = {}) {
   registerDeviceRoutes(router);
   registerDataRoutes(router, { filesDir });
   registerRecordRoutes(router, { filesDir });
+  registerBillingRoutes(router, { consoleCookie: COOKIE, secureCookies: config.secureCookies, billingHost: config.billingHost, consoleUrl: config.consoleUrl });
 
   const files = {
     '/': ['index.html', 'text/html; charset=utf-8'],
@@ -105,7 +110,8 @@ export function createServer(db, { filesDir = config.filesDir } = {}) {
         // X-ARES-Background and do not count as activity for the 30-minute idle timeout.
         if (req.method !== 'GET') checkSameOrigin(req);
         const a = loadSession(db, parseCookies(req.headers.cookie)[COOKIE], 'web', { touch: req.headers['x-ares-background'] !== '1' });
-        if (!a) throw new HttpError(401, 'Please sign in.', 'signed_out');
+        // A GST Billing session (app 'bills') is not a Console session.
+        if (!a || a.session.app) throw new HttpError(401, 'Please sign in.', 'signed_out');
         if (!isManager(a.user)) throw new HttpError(403, 'Not allowed.');
         if (a.user.must_change_pw && !opts.allowPasswordChange) {
           throw new HttpError(403, 'Please set your own password first.', 'password_change_required');

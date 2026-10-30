@@ -1,0 +1,30 @@
+# GST Billing (Free GST Billing Software) on 127.0.0.1:47371, behind Caddy and the ARES sign-in.
+# Installed by deploy/billing.sh. Invoices, clients and saved PDFs live in /opt/gst-billing
+# (data/, Saved Invoices/, Trash/), backed up daily by deploy/backup.sh.
+[Unit]
+Description=GST Billing (Free GST Billing Software)
+After=network.target
+
+[Service]
+User=gstbill
+Group=gstbill
+WorkingDirectory=/opt/gst-billing
+Environment=NODE_ENV=production HOME=/opt/gst-billing/home
+ExecStart=/usr/bin/node server.js
+Restart=always
+RestartSec=3
+MemoryMax=1G
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/gst-billing
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+
+[Install]
+WantedBy=multi-user.target

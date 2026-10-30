@@ -490,6 +490,37 @@ await step('the Console edits and removes records, phones get the change; finali
   assert.ok((await app('GET', '/api/device/me')).data.audits.some(a => a.id === auditId));
 });
 
+await step('GST Billing opens only through the ARES sign-in', async () => {
+  const get = (p, headers = {}) => fetch(`${base}${p}`, { redirect: 'manual', headers });
+  const BILLING = { 'X-Forwarded-Host': 'billing.arenergyservices.in' };
+  // Not signed in to billing: a page goes to the Console, an API call gets 401.
+  let r = await get('/api/billing/check', { Accept: 'text/html', 'X-Forwarded-Uri': '/invoices' });
+  assert.equal(r.status, 302);
+  assert.equal(r.headers.get('location'), 'https://ops.arenergyservices.in/api/billing/sso?next=%2Finvoices');
+  assert.equal((await get('/api/billing/check', { 'X-Forwarded-Uri': '/api/bills' })).status, 401);
+  // Not signed in to the Console either: its sign-in, then on to billing.
+  assert.equal((await get('/api/billing/sso')).headers.get('location'), '/#/billing');
+  // Signed in to the Console: a one-time code, which becomes a billing session.
+  r = await get('/api/billing/sso?next=%2Finvoices', { Cookie: admin.cookie() });
+  const to = new URL(r.headers.get('location'));
+  assert.equal(to.host, 'billing.arenergyservices.in');
+  const enter = `/api/billing/enter?code=${to.searchParams.get('code')}`;
+  assert.equal((await get(enter)).status, 404); // only on the billing host
+  r = await get(enter, BILLING);
+  assert.equal(r.headers.get('location'), '/invoices');
+  const token = /ares-bills=([^;]+)/.exec(r.headers.get('set-cookie'))[1];
+  assert.equal((await get('/api/billing/check', { Cookie: `ares-bills=${token}` })).status, 204);
+  assert.match((await get(enter, BILLING)).headers.get('location'), /\/api\/billing\/sso$/); // code works once
+  // The billing session is not a Console session, and an open redirect is refused.
+  assert.equal((await get('/api/me', { Cookie: `ares=${token}` })).status, 401);
+  r = await get('/api/billing/sso?next=%2F%2Fevil.example', { Cookie: admin.cookie() });
+  const code2 = new URL(r.headers.get('location')).searchParams.get('code');
+  assert.equal((await get(`/api/billing/enter?code=${code2}`, BILLING)).headers.get('location'), '/');
+  // Signing out of billing ends that session.
+  await get('/api/billing/signout', { ...BILLING, Cookie: `ares-bills=${token}` });
+  assert.equal((await get('/api/billing/check', { Cookie: `ares-bills=${token}` })).status, 401);
+});
+
 await step('activity log cannot be edited or deleted', async () => {
   assert.throws(() => db.exec('DELETE FROM activity'), /append-only/);
   assert.throws(() => db.exec("UPDATE activity SET action = 'x'"), /append-only/);

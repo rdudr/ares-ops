@@ -24,5 +24,16 @@ if [ -d "$DATA/files" ]; then
   rm -rf "$DEST/files-$STAMP/.uploading"
 fi
 
+# GST Billing (deploy/billing.sh): invoices, clients and settings, and the saved invoice PDFs.
+BILL=/opt/gst-billing
+if [ -d "$BILL/data" ]; then
+  if [ -d "$BILL/Saved Invoices" ]; then
+    tar -czf "$DEST/billing-$STAMP.tar.gz" -C "$BILL" --exclude=data/backups data "Saved Invoices"
+  else
+    tar -czf "$DEST/billing-$STAMP.tar.gz" -C "$BILL" --exclude=data/backups data
+  fi
+fi
+
 find "$DEST" -maxdepth 1 -name 'ares-*.db.gz' -mtime +14 -delete
+find "$DEST" -maxdepth 1 -name 'billing-*.tar.gz' -mtime +14 -delete
 find "$DEST" -maxdepth 1 -type d -name 'files-*' -mtime +14 -exec rm -rf {} +

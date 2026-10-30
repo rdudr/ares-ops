@@ -63,3 +63,52 @@ ops.arenergyservices.in, api.arenergyservices.in {
 		}
 	}
 }
+
+# GST Billing: Free GST Billing Software (MIT, github.com/IamRamgarhia/Free-GST-Billing-Software),
+# installed by deploy/billing.sh. Every request is checked by ARES first (lib/routes-billing.js):
+# only Super Admins and Heads signed in to the Console get through.
+billing.arenergyservices.in {
+	encode gzip
+	header {
+		X-Content-Type-Options nosniff
+		X-Frame-Options SAMEORIGIN
+		Referrer-Policy no-referrer
+		X-Robots-Tag "noindex, nofollow"
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+	}
+	# Sign-in handoff from the Console, and signing out of billing.
+	handle /_ares/* {
+		rewrite /_ares/enter /api/billing/enter
+		rewrite /_ares/signout /api/billing/signout
+		reverse_proxy 127.0.0.1:8080
+	}
+	handle {
+		route {
+			# The app's icons and manifest can load before sign-in (browsers fetch them without cookies).
+			@private not path /manifest.webmanifest /favicon.svg /icons/*
+			forward_auth @private 127.0.0.1:8080 {
+				uri /api/billing/check
+			}
+			# Parts meant for a desktop install: running update/restore scripts, opening folders,
+			# backups to any folder. Off here; the server backs the data up (deploy/backup.sh).
+			@desktop path /api/control-panel/launch-script /api/control-panel/backup /api/control-panel/open-* /api/backup-folder
+			respond @desktop "Not available on the AR server." 403
+			# No offline service worker: a cached copy would skip the sign-in check.
+			@sw path /sw.js /registerSW.js /workbox-*.js
+			respond @sw 404
+			# The app accepts only localhost origins; requests from its own site are made to look local.
+			@self header Origin https://billing.arenergyservices.in
+			request_header @self -Origin
+			request_body {
+				max_size 60MB
+			}
+			reverse_proxy 127.0.0.1:47371
+		}
+	}
+	log {
+		output file /var/log/caddy/billing-access.log {
+			roll_size 20MiB
+			roll_keep 5
+		}
+	}
+}

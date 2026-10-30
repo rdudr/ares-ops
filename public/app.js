@@ -167,7 +167,7 @@ function loginScreen() {
   ], async f => {
     await api('POST', '/api/login', { login_id: val(f, 'login_id'), password: f.elements.password.value });
     await loadMe();
-    location.hash = '#/overview';
+    if (location.hash !== '#/billing') location.hash = '#/overview';
     route();
   }, 'Sign in');
 }
@@ -252,6 +252,7 @@ const menuPages = () => PAGES;
 const fieldPages = () => (state.apps || []).filter(a => a.field).map(a => ({ id: `apps/${a.code}`, label: a.name, icon: 'phone', sub: true }));
 const TOOLS_EXTERNAL = [
   { href: '/pqa/', label: 'Power Quality analyser' },
+  { href: 'https://billing.arenergyservices.in/', label: 'GST Billing' },
 ];
 
 function shell(active, content) {
@@ -319,6 +320,8 @@ async function route() {
     }
   }
   if (state.me.must_change_pw) return changePasswordScreen();
+  // Signed in on the way to GST Billing: carry on there.
+  if (location.hash === '#/billing') { history.replaceState(null, '', '/#/overview'); return location.replace('/api/billing/sso'); }
   const [page, param, param2] = (location.hash.replace('#/', '') || 'overview').split('?')[0].split('/');
   const fn = page === 'audit' && param ? h2 => auditPage(h2, decodeURIComponent(param))
     : page === 'apps' && param && param2 ? h2 => appAuditPage(h2, decodeURIComponent(param), decodeURIComponent(param2))
@@ -962,14 +965,16 @@ async function appsPage(holder) {
           a.web && h('a', { class: 'btn ghost sm', href: a.web, target: '_blank', rel: 'noopener' }, `Open ${a.name}`, icon('external'))));
     })),
     h('h2', { class: 'section-title' }, 'Web apps'),
-    h('div', { class: 'appgrid' }, web.map(a => h('a', { class: 'appcard', href: '/pqa/', target: '_blank', rel: 'noopener' },
+    h('div', { class: 'appgrid' }, web.map(a => h('a', { class: 'appcard', href: a.url, target: '_blank', rel: 'noopener' },
       h('div', { class: 'row' }, h('span', { class: 'appicon blank', style: 'width:44px;height:44px' }, icon('live')),
         h('div', { style: 'min-width:0' }, h('b', {}, a.name), h('div', { class: 'small muted' }, a.tagline))),
       h('div', { class: 'list' },
-        h('div', {}, h('span', { class: 'muted' }, 'Where'), h('span', {}, 'ops.arenergyservices.in/pqa')),
-        h('div', {}, h('span', { class: 'muted' }, 'Records'), h('span', { class: 'num' }, a.records.toLocaleString('en-IN'))),
-        h('div', {}, h('span', { class: 'muted' }, 'Audits with data'), h('span', { class: 'num' }, a.audits)),
-        h('div', {}, h('span', { class: 'muted' }, 'People with access'), h('span', { class: 'num' }, a.people.filter(p => p.status === 'active').length)))))),
+        h('div', {}, h('span', { class: 'muted' }, 'Where'), h('span', {}, a.where)),
+        a.managersOnly
+          ? h('div', {}, h('span', { class: 'muted' }, 'Who can open it'), h('span', {}, 'Super Admins and Heads'))
+          : [h('div', {}, h('span', { class: 'muted' }, 'Records'), h('span', { class: 'num' }, a.records.toLocaleString('en-IN'))),
+            h('div', {}, h('span', { class: 'muted' }, 'Audits with data'), h('span', { class: 'num' }, a.audits)),
+            h('div', {}, h('span', { class: 'muted' }, 'People with access'), h('span', { class: 'num' }, a.people.filter(p => p.status === 'active').length))])))),
     h('h2', { class: 'section-title' }, 'Planned'),
     h('div', { class: 'card' }, h('div', { class: 'chips' }, planned.map(a => h('span', { class: 'pill soft' }, a.name))),
       h('p', { class: 'small muted', style: 'margin-top:10px' }, 'These can already be ticked for people in Team & access; their apps are not built yet.')));

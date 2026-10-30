@@ -26,8 +26,8 @@ one Linux server (Oracle Cloud Free Tier or any VPS) under two addresses:
 
 ## 2. Point the addresses (Hostinger hPanel)
 
-Domains → arenergyservices.in → **DNS records** → add two **A** records to the server's public IP:
-`ops` and `api`. Do not change the nameservers or the existing website records.
+Domains → arenergyservices.in → **DNS records** → add **A** records to the server's public IP:
+`ops`, `api` and `billing` (GST Billing). Do not change the nameservers or the existing website records.
 
 ## 3. Install
 
@@ -50,6 +50,17 @@ first visit once DNS points at the server. Get the one-time setup code with
 
 Repeat step 3 — `setup.sh` is safe to run again, and the database in `/var/lib/ares` is never touched
 by an update.
+
+## GST Billing (billing.arenergyservices.in)
+
+The open-source Free GST Billing Software (MIT, github.com/IamRamgarhia/Free-GST-Billing-Software),
+installed and updated with `bash deploy/billing.sh` (a tested upstream commit; pass another commit to
+move on, after reading its changes). It runs as the `gst-billing` service (user `gstbill`, only
+`/opt/gst-billing` writable) on 127.0.0.1:47371. Caddy checks every request with ARES first
+(`lib/routes-billing.js`): only Super Admins and Heads signed in to the Console get in, through a
+one-time code that gives the billing site its own session. The app's desktop parts (update, restore
+and move scripts, opening folders) and its offline service worker are switched off. Its data
+(`data/`, `Saved Invoices/`) is in the daily backup as `billing-<date>.tar.gz`.
 
 ## Backups
 

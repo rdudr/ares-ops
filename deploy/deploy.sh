@@ -40,6 +40,8 @@ ssh "$HOST" 'set -e
     sudo install -m 644 /opt/ares-ops/deploy/ar-apps.cron /etc/cron.d/ar-apps
     sudo /opt/ares-ops/deploy/ar-apps-sync.sh
     sudo caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile >/dev/null
+    # validate runs as root and may create new log files: they must stay writable by caddy.
+    sudo chown -R caddy:caddy /var/log/caddy
     sudo systemctl daemon-reload
     sudo systemctl restart ares-ops
     sudo systemctl reload caddy
