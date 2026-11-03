@@ -159,7 +159,7 @@ function gate(title, sub, formKids, onSubmit, btnLabel, note) {
         h('div', { class: 'gate-copy' },
           h('span', { class: 'kicker' }, 'Ops workspace'),
           h('h1', {}, 'Your team, audits and ', h('em', {}, 'field data'), ' in one place.'),
-          h('p', {}, 'The private side of AR Energy Services: who is in the field, every audit and what it has collected, and who may use which app.'),
+          h('p', {}, 'The private side of AR Energy Services', h('span', { class: 'd-only' }, ': who is in the field, every audit and what it has collected, and who may use which app'), '.'),
           h('ul', { class: 'gate-points' },
             point('team', 'One login', 'One Login ID for every field app.'),
             point('shield', 'Private by default', 'Client names and readings stay behind this sign-in.'),
@@ -238,6 +238,8 @@ const ICONS = {
   account: ['M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z', 'M12 12.5a3 3 0 1 0 0-6 3 3 0 0 0 0 6z', 'M6.5 18.5a6 6 0 0 1 11 0'],
   arrow: ['M5 12h14', 'M13 6l6 6-6 6'],
   plus: ['M12 5v14', 'M5 12h14'],
+  'chevron-r': ['M9 6l6 6-6 6'],
+  'chevron-up': ['M6 15l6-6 6 6'],
   warn: ['M12 4 2.5 20h19z', 'M12 10v4.5', 'M12 17.5h.01'],
   back: ['M19 12H5', 'M11 6l-6 6 6 6'],
   tick: ['M5 12.5l4.5 4.5L19 7.5'],
@@ -381,7 +383,11 @@ function shell(active, content) {
   const tasksLink = h('a', { href: '#/tasks', ...cur('tasks') }, 'Tasks', badge);
   api('GET', '/api/tasks', null, { background: true }).then(({ tasks }) => {
     const n = tasks.filter(t => t.status !== 'done' && t.due_at && t.due_at < Date.now()).length;
-    if (n) { badge.replaceChildren(h('span', { class: 'sr' }, 'overdue: '), String(n)); badge.hidden = false; }
+    if (n) {
+      badge.replaceChildren(h('span', { class: 'sr' }, 'overdue: '), String(n)); badge.hidden = false;
+      const db = document.querySelector('.dock .dbadge');
+      if (db) { db.textContent = String(n); db.hidden = false; }
+    }
   }).catch(() => {});
   const ddBtn = (label, isOn) => h('button', { type: 'button', class: isOn ? 'on' : null }, label, icon('chevron'));
 
@@ -412,7 +418,7 @@ function shell(active, content) {
   const inDock = ['overview', 'audits', 'tasks', 'team'].includes(active);
   const dock = h('nav', { class: 'dock', 'aria-label': 'Sections' },
     dockLink('overview', 'overview', 'Overview'), dockLink('audits', 'audits', 'Audits'),
-    dockLink('tasks', 'tasks', 'Tasks'), dockLink('team', 'team', 'Team'),
+    h('a', { href: '#/tasks', ...cur('tasks') }, icon('tasks'), 'Tasks', h('span', { class: 'dbadge', hidden: true, 'aria-hidden': 'true' })), dockLink('team', 'team', 'Team'),
     h('a', { href: '#/more', class: inDock ? null : 'on', 'aria-current': active === 'more' ? 'page' : null }, icon('more'), 'More'));
 
   root.replaceChildren(h('div', { class: 'shell' }, h('header', { class: 'hero' }, nav, heroSlot), h('main', { class: 'main' }, content)), dock);
@@ -594,6 +600,28 @@ function peopleTable(people) {
   return wrap;
 }
 
+// Phones: the team as cards, sorted by a picker.
+function teamCardsM(people) {
+  const list = h('div', {});
+  const SORTS = [['hours', 'hours'], ['records', 'records'], ['records_per_hour', 'records per hour'], ['on_time_pct', 'on time'], ['overdue', 'overdue'], ['last_active', 'last active']];
+  let key = 'hours';
+  const draw = () => {
+    const rows = [...people].sort((a, b) => ((b[key] ?? -1) > (a[key] ?? -1) ? 1 : (b[key] ?? -1) < (a[key] ?? -1) ? -1 : 0));
+    list.replaceChildren(...rows.slice(0, 6).map(p => h('div', { class: 'tm' },
+      h('span', { class: 'tm-top' }, h('span', { class: `av s40${p.status !== 'active' ? ' dim' : ''}`, 'aria-hidden': 'true' }, initials(p.name)),
+        h('span', { class: 'tm-n' }, h('b', {}, p.name), h('span', {}, `${p.employment === 'freelancer' ? 'Freelancer' : 'Staff'} · ${ROLE[p.role]}`,
+          p.working_now ? [' · ', h('span', { class: 'ok' }, 'in the field')] : p.status !== 'active' ? [' · ', h('span', { class: 'warn' }, STATUS[p.status].toLowerCase())] : null)),
+        h('span', { class: 'tm-h' }, h('b', {}, String(p.hours)), h('span', {}, 'hours'))),
+      h('span', { class: 'tm-s' }, [`${p.records} records`, p.records_per_hour != null && `${p.records_per_hour} / h`, p.on_time_pct != null && `${p.on_time_pct}% on time`].filter(Boolean).join(' · '),
+        p.overdue ? h('span', { class: 'due bad' }, `${p.overdue} overdue`) : null))));
+  };
+  draw();
+  return h('div', { class: 'm-only' },
+    h('label', { class: 'fsel full' }, h('span', { class: 'sr' }, 'Sort people by'),
+      h('select', { onchange: e => { key = e.target.value; draw(); } }, SORTS.map(([k, l]) => h('option', { value: k }, `Sorted by ${l}`))), icon('chevron')),
+    list, h('a', { class: 'tm-all', href: '#/team' }, `All ${people.length} people`));
+}
+
 const dur = ms => { const m = Math.round(ms / 60000); return m < 60 ? `${m} m` : `${Math.floor(m / 60)} h ${m % 60} m`; };
 const hourLabel = hr => hr === 12 ? '12 pm' : hr === 0 || hr === 24 ? '12 am' : hr < 12 ? `${hr} am` : `${hr - 12} pm`;
 
@@ -629,15 +657,16 @@ async function overview(holder, { background = false } = {}) {
   const onSchedule = open.length - overdue.length;
   const sub = (sentence.length ? `${sentence.join(' and ').replace(/^./, c => c.toUpperCase())}. ` : '')
     + (open.length ? `${sentence.length ? 'The other' : 'All'} ${inWords(onSchedule, true)} open task${onSchedule === 1 ? ' is' : 's are'} on schedule.` : 'No open tasks.');
-  const kpi = (ic, v, b, note, bad) => h('div', { class: `okpi${bad ? ' bad' : ''}` }, h('span', { class: 'ok-ic', 'aria-hidden': 'true' }, icon(ic)),
-    h('span', { class: 'ok-v' }, v), h('span', { class: 'ok-t' }, h('b', {}, b), h('span', {}, note)));
+  const kpi = (ic, v, b, note, bad, k, mb, mnote) => h('div', { class: `okpi ${k}${bad ? ' bad' : ''}` }, h('span', { class: 'ok-ic', 'aria-hidden': 'true' }, icon(ic)),
+    h('span', { class: 'ok-v' }, v), h('span', { class: 'ok-t' }, h('b', {}, h('span', { class: 'd-only' }, b), h('span', { class: 'm-only' }, mb || b)),
+      h('span', { class: 'd-only' }, note), h('span', { class: 'm-only' }, mnote || note)));
   const stageCount = s => running.filter(a => a.status === s).length;
   const last14 = d.records_per_day.reduce((s, x) => s + x.n, 0);
   const opening = heroHead(h('div', { class: 'ov-top' },
     h('div', { class: 'ov-greet' },
       h('span', { class: 'livechip' }, `Live · ${new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })}, ${timeOf(now)}`),
       h('h1', {}, `${greet}, ${first}. `, working.length
-        ? [h('em', {}, `${inWords(working.length)} ${working.length === 1 ? 'engineer' : 'engineers'}`), ` ${working.length === 1 ? 'is' : 'are'} in the field right now.`]
+        ? [h('em', {}, `${inWords(working.length)} ${working.length === 1 ? 'engineer' : 'engineers'}`), ` ${working.length === 1 ? 'is' : 'are'} in the field`, h('span', { class: 'd-only' }, ' right now'), '.']
         : 'Nobody is in the field right now.'),
       h('p', {}, sub),
       h('div', { class: 'ov-acts' },
@@ -645,11 +674,13 @@ async function overview(holder, { background = false } = {}) {
         h('button', { type: 'button', class: 'ghostw', onclick: newAudit }, icon('plus'), 'New audit'))),
     seg),
   h('div', { class: 'ov-kpis-wrap' }, h('section', { class: 'ov-kpis', 'aria-label': `At a glance, this ${periodName}` },
-    kpi('live', String(working.length), 'Working now', working.length ? working.map(w => `${firstName(w.name)} in ${appName(w.app)}`).join(', ') : 'nobody in an app'),
-    kpi('doc', t.records.toLocaleString('en-IN'), `Records this ${periodName}`, `${last14.toLocaleString('en-IN')} in the last 14 days`),
-    kpi('clock', `${t.hours} h`, 'Hours logged', `in field apps this ${periodName}`),
-    kpi('audits', String(running.length), 'Running audits', [stageCount('in_field') && `${stageCount('in_field')} in the field`, stageCount('review') && `${stageCount('review')} in review`].filter(Boolean).join(', ') || 'none in the field'),
-    kpi('warn', String(overdue.length), 'Overdue tasks', overdue.length ? `oldest was due ${fmtDay(overdue[0].due_at)}` : 'nothing overdue', overdue.length > 0))));
+    kpi('live', String(working.length), 'Working now', working.length ? working.map(w => `${firstName(w.name)} in ${appName(w.app)}`).join(', ') : 'nobody in an app', false, 'k1', null,
+      working.length ? working.map(w => firstName(w.name)).join(', ') : 'nobody'),
+    kpi('doc', t.records.toLocaleString('en-IN'), `Records this ${periodName}`, `${last14.toLocaleString('en-IN')} in the last 14 days`, false, 'k2', 'Records', `this ${periodName}`),
+    kpi('clock', `${t.hours} h`, 'Hours logged', `in field apps this ${periodName}`, false, 'k3', null, 'in field apps'),
+    kpi('audits', String(running.length), 'Running audits', [stageCount('in_field') && `${stageCount('in_field')} in the field`, stageCount('review') && `${stageCount('review')} in review`].filter(Boolean).join(', ') || 'none in the field', false, 'k5'),
+    kpi('warn', String(overdue.length), 'Overdue tasks', overdue.length ? `oldest was due ${fmtDay(overdue[0].due_at)}` : 'nothing overdue', overdue.length > 0, 'k4', null,
+      overdue.length ? `oldest ${fmtDay(overdue[0].due_at)}` : 'none'))));
 
   // ---- In the field today ----
   const sess = d.sessions_today || d.working_now.map(w => ({ ...w, open: true }));
@@ -689,6 +720,24 @@ async function overview(holder, { background = false } = {}) {
       }),
       quiet.map(p => tlRow(p.id, p.name, 'no session today', h('span', { class: 'tl-quiet' }, p.last_active ? `Last active ${ago(p.last_active)}` : 'Not active yet'))),
       !peopleIds.length && !quiet.length ? h('p', { class: 'empty' }, 'Nobody has opened a field app today.') : null)),
+    h('div', { class: 'tlm m-only' },
+      h('div', { class: 'tlm-axis', 'aria-hidden': 'true' }, h('span', { style: 'left:0' }, hourLabel(from)), h('span', { class: 'mid', style: 'left:50%' }, hourLabel((from + to) / 2)),
+        h('span', { class: 'now', style: `left:${nowPct}` }, 'Now'), h('span', { style: 'right:0' }, hourLabel(to))),
+      peopleIds.map(uid => {
+        const ss = sess.filter(s => s.user_id === uid);
+        const ms = ss.reduce((n, s) => n + (sessEnd(s) - s.started_at), 0);
+        const op = ss.find(s => s.open);
+        const lastS = ss[ss.length - 1];
+        return h('div', { class: 'tlm-row' }, h('span', { class: 'av s38', 'aria-hidden': 'true' }, initials(ss[0].name)),
+          h('span', { class: 'tlm-t' }, h('span', { class: 'tlm-n' }, h('b', {}, ss[0].name), h('span', {}, dur(ms))),
+            op ? h('span', { class: 'tlm-s live' }, [`In ${appName(op.app)} now`, op.industry_tag, `since ${timeOf(op.started_at)}`].filter(Boolean).join(' · '))
+              : h('span', { class: 'tlm-s' }, [`Last in ${appName(lastS.app)}`, lastS.industry_tag].filter(Boolean).join(' · ')),
+            h('span', { class: 'tlm-track', 'aria-hidden': 'true' }, ss.map(s => h('span', { class: s.open ? 'open' : null, style: `left:${pct(s.started_at)};width:calc(${pct(sessEnd(s))} - ${pct(s.started_at)})` })),
+              h('span', { class: 'tlm-now', style: `left:${nowPct}` }))));
+      }),
+      quiet.map(p => h('div', { class: 'tlm-row' }, h('span', { class: 'av s38 dim', 'aria-hidden': 'true' }, initials(p.name)),
+        h('span', { class: 'tlm-t' }, h('span', { class: 'tlm-n' }, h('b', {}, p.name), h('span', {}, '0 h')),
+          h('span', { class: 'tlm-s q' }, p.last_active ? `No session today · active ${ago(p.last_active)}` : 'No session today'))))),
     h('p', { class: 'tl-note' }, 'Bars are the work sessions each field app logs. Select a bar to open that audit.'));
 
   // ---- Needs attention ----
@@ -696,14 +745,19 @@ async function overview(holder, { background = false } = {}) {
   const attn = [
     overdue.length && h('div', { class: 'at' }, h('span', { class: 'at-ic bad', 'aria-hidden': 'true' }, icon('clock')),
       h('span', { class: 'at-t' }, h('b', {}, `${overdue.length} task${overdue.length === 1 ? '' : 's'} overdue`),
-        h('span', {}, overdue.slice(0, 4).map(x => `${x.title} (${fmtDay(x.due_at)})`).join(', ')),
-        h('a', { href: '#/tasks' }, 'Open tasks', icon('arrow')))),
+        h('span', { class: 'd-only' }, overdue.slice(0, 4).map(x => `${x.title} (${fmtDay(x.due_at)})`).join(', ')),
+        h('span', { class: 'm-only' }, overdue.length > 1 ? `${overdue[0].title} and ${overdue.length - 1} more` : overdue[0].title),
+        h('a', { href: '#/tasks', class: 'd-only' }, 'Open tasks', icon('arrow'))),
+      h('a', { href: '#/tasks', class: 'at-go m-only', 'aria-label': 'Open tasks' }, icon('chevron-r'))),
     ...locked.map(u => h('div', { class: 'at' }, h('span', { class: 'at-ic bad', 'aria-hidden': 'true' }, icon('lock')),
-      h('span', { class: 'at-t' }, h('b', {}, `${u.name} is locked out`), h('span', {}, 'Too many wrong passwords. The lock lifts by itself after 15 minutes, or unlock now.')),
+      h('span', { class: 'at-t' }, h('b', {}, `${u.name} is locked out`), h('span', { class: 'd-only' }, 'Too many wrong passwords. The lock lifts by itself after 15 minutes, or unlock now.'),
+        h('span', { class: 'm-only' }, 'Lifts by itself after 15 minutes')),
       u.can_manage && h('button', { type: 'button', class: 'tbtn dark at-btn', onclick: () => unlock(u) }, 'Unlock'))),
     ...tempPw.map(u => h('div', { class: 'at' }, h('span', { class: 'at-ic warn', 'aria-hidden': 'true' }, icon('warn')),
-      h('span', { class: 'at-t' }, h('b', {}, `${u.name} can’t sync yet`), h('span', {}, 'The temporary password hasn’t been replaced, so nothing they record can arrive.'),
-        h('a', { href: `#/team?p=${u.id}` }, 'Open in Team', icon('arrow'))))),
+      h('span', { class: 'at-t' }, h('b', {}, `${u.name} can’t sync yet`), h('span', { class: 'd-only' }, 'The temporary password hasn’t been replaced, so nothing they record can arrive.'),
+        h('span', { class: 'm-only' }, 'Temporary password not replaced'),
+        h('a', { href: `#/team?p=${u.id}`, class: 'd-only' }, 'Open in Team', icon('arrow'))),
+      h('a', { href: `#/team?p=${u.id}`, class: 'at-go m-only', 'aria-label': `Open ${u.name} in Team` }, icon('chevron-r')))),
   ].filter(Boolean);
   const attention = h('section', { class: 'ov-card attn', 'aria-labelledby': 'h-attn' },
     h('span', { class: 'kicker red' }, 'Needs attention'),
@@ -728,14 +782,24 @@ async function overview(holder, { background = false } = {}) {
             h('span', { class: 'p-sub' }, a.records ? `${a.records} records · ${a.open_tasks} open task${a.open_tasks === 1 ? '' : 's'}` : `${a.title} · no data yet`));
         }) : h('p', { class: 'p-none' }, k === 'approved' ? 'Nothing is waiting to be published.' : 'No audit at this stage.'));
     })),
-    (() => { const n = auditList.length - running.length; return n ? h('p', { class: 'pipe-foot' }, `${inWords(n)} finalised audit${n === 1 ? ' is' : 's are'} kept as ${n === 1 ? 'it was' : 'they were'} in `, h('a', { href: '#/reports' }, 'Previous reports'), '.') : null; })());
+    h('ol', { class: 'pipe-m m-only' }, STAGES.map(([k, label], i) => {
+      const xs = running.filter(a => a.status === k);
+      return h('li', {}, h('span', { class: 'pm-h' }, h('span', { class: 'p-n' }, String(i + 1).padStart(2, '0')), h('h3', {}, label), h('span', {}, String(xs.length))),
+        xs.length ? h('span', { class: 'pm-tags' }, xs.map(a => {
+          const lt = taskList.filter(x => x.audit_id === a.id && isLate(x)).length;
+          return h('a', { href: `#/audit/${encodeURIComponent(a.id)}` }, a.industry_tag, lt ? h('span', {}, `${lt} late`) : null);
+        })) : h('span', { class: 'p-none' }, k === 'approved' ? 'Nothing waiting to be published.' : 'No audit at this stage.'));
+    })),
+    (() => { const n = auditList.length - running.length; return n ? h('p', { class: 'pipe-foot' }, `${inWords(n)} finalised audit${n === 1 ? ' is' : 's are'} kept as ${n === 1 ? 'it was' : 'they were'} in `, h('a', { href: '#/reports' }, 'Previous reports'), '.') : null; })(),
+    h('a', { class: 'pm-all m-only', href: '#/audits' }, 'All audits', icon('arrow')));
 
   // ---- How the team is doing ----
   const people = d.people.filter(p => p.role !== 'super_admin' || p.records || p.hours);
   const teamSec = h('section', { class: 'tdo', 'aria-labelledby': 'h-team' },
     h('div', { class: 'tdo-h' }, h('div', {}, h('span', { class: 'kicker' }, `This ${periodName}`), h('h2', { id: 'h-team' }, 'How the team is doing')),
       h('p', {}, 'Hours come from the work sessions each app logs; records are readings saved by that person. Select a column heading to sort.')),
-    h('div', { class: 'tcard' }, peopleTable(people)));
+    h('div', { class: 'tcard d-only' }, peopleTable(people)),
+    teamCardsM(people));
 
   // ---- Records collected + Latest changes ----
   const chart = h('section', { class: 'ov-card rec', 'aria-labelledby': 'h-rec' }, h('span', { class: 'kicker' }, 'Last 14 days'),
@@ -809,7 +873,7 @@ async function team(holder) {
   const counts = h('div', { class: 'fpills', role: 'group', 'aria-label': 'Show' });
   const drawFilters = () => counts.replaceChildren(...FILTERS.map(([k, label, fn]) => {
     const n = users.filter(fn).length;
-    return h('button', { type: 'button', 'aria-pressed': String(filter === k), onclick: () => { filter = k; drawFilters(); drawRows(); } },
+    return h('button', { type: 'button', 'aria-pressed': String(filter === k), onclick: () => { filter = k; drawFilters(); drawRows(); drawPanel(); } },
       label, h('span', { class: k === 'action' && n ? 'cnt alert' : 'cnt' }, String(n)));
   }));
   const drawRows = () => {
@@ -831,11 +895,10 @@ async function team(holder) {
     }) : [h('tr', {}, h('td', { colspan: 5, class: 'empty' }, 'No one here.'))]));
   };
 
-  // ---- the person panel ----
-  const panel = h('aside', { class: 'ppanel', 'aria-labelledby': 'p-name' });
-  const drawPanel = () => {
-    const u = sel;
-    if (!u) return panel.replaceChildren(h('p', { class: 'empty' }, 'Select a person.'));
+  // ---- the person panel (desktop: beside the table; phones: opens under the person) ----
+  const panel = h('aside', { class: 'ppanel d-only', 'aria-labelledby': 'p-name' });
+  const acc = h('div', { class: 'tacc m-only' });
+  const parts = u => {
     const m = u.can_manage;
     const w = live(u.id);
     const fn = firstName(u.name);
@@ -858,32 +921,35 @@ async function team(holder) {
         h('span', { class: 'an' }, a.name), !a.field && h('span', { class: 'anote' }, 'web app'));
     };
     const audits = u.audits.map(x => ({ ...x, a: auditList.find(a => a.id === x.id) }));
-    panel.replaceChildren(
-      h('div', { class: 'pp-top' },
+    const edit = m && h('button', { type: 'button', class: 'obtn sm', onclick: () => editPerson(u) }, 'Edit');
+    const liveLine = w && h('span', { class: 'livedot' }, `In ${appName(w.app)} since ${timeOf(w.started_at)}`);
+    const dl = h('dl', { class: 'pp-dl' },
+      h('div', {}, h('dt', {}, 'Last sign-in'), h('dd', {}, dayTime(u.last_login_at))),
+      h('div', {}, h('dt', {}, 'Password'), h('dd', {}, u.must_change_pw ? 'Temporary, not changed yet' : 'Own password set')),
+      h('div', {}, h('dt', {}, 'Phone'), h('dd', { class: u.phone ? null : 'mutedcell' }, u.phone || 'Not added')));
+    return {
+      top: () => h('div', { class: 'pp-top' },
         h('div', { class: 'pp-id' }, h('span', { class: 'av xl', 'aria-hidden': 'true' }, initials(u.name)),
           h('span', { class: 'pp-nm' }, h('h2', { id: 'p-name' }, u.name),
             h('span', { class: 'pp-role' }, `${ROLE[u.role]} · ${u.employment === 'freelancer' ? 'Freelancer' : 'Staff'}`),
             h('span', { class: 'pp-login' }, `Login ID ${u.login_id}`)),
-          m && h('button', { type: 'button', class: 'obtn sm', onclick: () => editPerson(u) }, 'Edit')),
-        h('div', { class: 'pp-state' }, statusCell(u, false),
-          w && h('span', { class: 'livedot' }, `In ${appName(w.app)} since ${timeOf(w.started_at)}`)),
-        h('dl', { class: 'pp-dl' },
-          h('div', {}, h('dt', {}, 'Last sign-in'), h('dd', {}, dayTime(u.last_login_at))),
-          h('div', {}, h('dt', {}, 'Password'), h('dd', {}, u.must_change_pw ? 'Temporary, not changed yet' : 'Own password set')),
-          h('div', {}, h('dt', {}, 'Phone'), h('dd', { class: u.phone ? null : 'mutedcell' }, u.phone || 'Not added')))),
-      h('fieldset', { class: 'pp-sec' }, h('legend', {}, u.role === 'super_admin' ? 'Apps (all, as Super Admin)' : `Apps ${fn} can use`),
+          edit),
+        h('div', { class: 'pp-state' }, statusCell(u, false), liveLine), dl),
+      topM: () => h('div', { class: 'pp-topm' }, h('div', { class: 'pp-state' }, liveLine || h('span', { class: 'pp-login' }, `Login ID ${u.login_id}`), edit), dl),
+      apps: () => h('fieldset', { class: 'pp-sec' }, h('legend', {}, u.role === 'super_admin' ? 'Apps (all, as Super Admin)' : `Apps ${fn} can use`),
         h('div', { class: 'arows' }, apps.map(appRow)),
-        h('p', { class: 'pp-note' }, `Changes reach ${fn}’s phone at the next sync.`)),
-      h('div', { class: 'pp-sec' },
+        h('p', { class: 'pp-note d-only' }, `Changes reach ${fn}’s phone at the next sync.`)),
+      audits: () => h('div', { class: 'pp-sec' },
         h('div', { class: 'pp-h' }, h('h3', {}, u.role === 'engineer' ? `Audits ${fn} works on` : 'Audits'),
-          u.role === 'engineer' && m && h('button', { type: 'button', class: 'linkbtn', onclick: () => addToAudit(u, auditList) }, '+ Add to an audit')),
+          u.role === 'engineer' && m && h('button', { type: 'button', class: 'linkbtn', onclick: () => addToAudit(u, auditList) },
+            h('span', { class: 'd-only' }, '+ Add to an audit'), h('span', { class: 'm-only' }, '+ Add'))),
         u.role === 'engineer'
           ? (audits.length ? audits.map(x => h('a', { class: 'aud', href: `#/audit/${encodeURIComponent(x.id)}` },
-            h('span', { class: 'tagpill' }, x.tag), h('span', { class: 'at' }, x.a?.title || x.id), x.a && stagePill(x.a.status)))
+            h('span', { class: 'tagpill' }, x.tag), h('span', { class: 'aud-t' }, x.a?.title || x.id), x.a && stagePill(x.a.status)))
             : h('p', { class: 'pp-note' }, 'Not on any audit yet.'))
           : h('p', { class: 'pp-note' }, u.role === 'head' ? 'Admins see the audits of their apps.' : 'Super Admins see every audit.'),
-        u.role === 'engineer' && h('p', { class: 'pp-note' }, 'Engineers see and add data only for these industries.')),
-      m && h('div', { class: 'pp-sec last' }, h('h3', {}, 'Sign-in and access'),
+        u.role === 'engineer' && h('p', { class: 'pp-note d-only' }, 'Engineers see and add data only for these industries.')),
+      access: () => m && h('div', { class: 'pp-sec last' }, h('h3', { class: 'd-only' }, 'Sign-in and access'),
         h('div', { class: 'pp-btns' },
           u.locked && h('button', {
             type: 'button', class: 'obtn dark', onclick: async () => {
@@ -899,24 +965,46 @@ async function team(holder) {
           u.status !== 'active' && h('button', { type: 'button', class: 'obtn dark', onclick: () => setStatus(u, 'active') }, 'Reactivate'),
           u.status === 'active' && h('button', { type: 'button', class: 'obtn warn', onclick: () => setStatus(u, 'hold') }, 'Put on hold'),
           u.status !== 'revoked' && h('button', { type: 'button', class: 'obtn bad', onclick: () => setStatus(u, 'revoked') }, 'Revoke')),
-        h('p', { class: 'pp-note' }, `Hold or Revoke signs ${fn} out of every app now. Work not yet synced stays on the phone.`)));
+        h('p', { class: 'pp-note' }, `Hold or Revoke signs ${fn} out of every app now. Work not yet synced stays on the phone.`)),
+    };
+  };
+  const shortStatus = u => u.locked ? h('span', { class: 'spill bad' }, icon('lock'), 'Locked') : u.status === 'hold' ? h('span', { class: 'spill warn' }, 'On hold')
+    : u.status === 'revoked' ? h('span', { class: 'spill bad' }, 'Revoked') : u.must_change_pw ? h('span', { class: 'spill warn' }, 'Temp. password') : h('span', { class: 'spill ok' }, 'Active');
+  const appsLine = u => u.role === 'super_admin' ? 'all apps' : u.apps.length ? u.apps.filter(c => APP_SHORT[c]).map(c => APP_SHORT[c]).join(', ') : 'no apps';
+  const drawPanel = () => {
+    if (!sel) panel.replaceChildren(h('p', { class: 'empty' }, 'Select a person.'));
+    else { const pt = parts(sel); panel.replaceChildren(...[pt.top(), pt.apps(), pt.audits(), pt.access()].filter(Boolean)); }
+    // Phones: one list, the selected person opens in place.
+    const fnf = FILTERS.find(f => f[0] === filter)[2];
+    const list = users.filter(fnf).filter(u => !q || `${u.name} ${u.login_id}`.toLowerCase().includes(q));
+    acc.replaceChildren(...list.map(u => {
+      const open = sel && u.id === sel.id;
+      const head = h('button', { type: 'button', class: 'acc-h', 'aria-expanded': String(open), onclick: () => { sel = open ? null : u; state.teamSel = sel?.id; drawRows(); drawPanel(); } },
+        h('span', { class: `av s40${open ? ' deep' : avTone(u)}`, 'aria-hidden': 'true' }, initials(u.name)),
+        h('span', { class: 'acc-n' }, h('b', {}, u.name), h('span', {}, open ? `${ROLE[u.role]} · ${u.employment === 'freelancer' ? 'Freelancer' : 'Staff'} · ${u.login_id}` : `${ROLE[u.role]} · ${appsLine(u)}`)),
+        shortStatus(u), icon(open ? 'chevron-up' : 'chevron'));
+      if (!open) return h('div', { class: 'acc-i' }, head);
+      const pt = parts(u);
+      return h('div', { class: 'acc-i open' }, head, h('div', { class: 'acc-b' }, ...[pt.topM(), pt.apps(), pt.audits(), pt.access()].filter(Boolean)));
+    }));
   };
 
-  const search = h('input', { type: 'search', placeholder: 'Name or Login ID', oninput: e => { q = e.target.value.trim().toLowerCase(); drawRows(); } });
+  const search = h('input', { type: 'search', placeholder: 'Name or Login ID', oninput: e => { q = e.target.value.trim().toLowerCase(); drawRows(); drawPanel(); } });
   drawFilters(); drawRows(); drawPanel();
   holder.replaceChildren(
     pageTitle({
       kicker: 'Manage', title: 'Team & ', em: 'access',
       sub: me.role === 'super_admin'
-        ? 'One Login ID for every app. Choose the apps each person may use; hold, revoke or app changes reach their phone at the next sync.'
+        ? h('span', {}, 'One Login ID for every app. ', h('span', { class: 'd-only' }, 'Choose the apps each person may use; hold, revoke or app changes reach their phone at the next sync.'), h('span', { class: 'm-only' }, 'Changes reach phones at the next sync.'))
         : 'Your team: Engineers who work on your apps. You can give or take only your own apps, and change only people who work on nothing else.',
       action: goBtn('Add person', 'plus', { onclick: () => addPerson(auditList) }),
     }),
     h('div', { class: 'fbar' }, counts, h('label', { class: 'fsearch' }, icon('search'), h('span', { class: 'sr' }, 'Find a person'), search)),
-    h('div', { class: 'tgrid' },
+    h('div', { class: 'tgrid d-only' },
       h('section', { class: 'tcard', 'aria-label': 'People' }, h('div', { class: 'scroll' },
         h('table', { class: 'ptable' }, h('thead', {}, h('tr', {}, ['Person', 'Role', 'Apps', 'Status', 'Last sign-in'].map(c => h('th', { scope: 'col' }, c)))), tbody))),
-      panel));
+      panel),
+    acc);
 }
 
 // Put an Engineer on one more audit.
@@ -1014,7 +1102,9 @@ async function audits(holder) {
   };
 
   const tbody = h('tbody');
-  const strip = h('div', { class: 'stagebar', role: 'group', 'aria-label': 'Filter by stage' });
+  const cardsM = h('div', { class: 'acards m-only' });
+  const pillsM = h('div', { class: 'fpills m-only', role: 'group', 'aria-label': 'Filter by stage' });
+  const strip = h('div', { class: 'stagebar d-only', role: 'group', 'aria-label': 'Filter by stage' });
   const drawStrip = () => strip.replaceChildren(
     h('button', { type: 'button', class: 'all', 'aria-pressed': String(!stage), onclick: () => { stage = ''; drawStrip(); drawRows(); } },
       h('span', { class: 'sn' }, String(running.length)), h('span', { class: 'sl' }, 'All running')),
@@ -1024,6 +1114,10 @@ async function audits(holder) {
         h('span', { class: `sn${n ? '' : ' zero'}` }, String(n)), h('span', { class: 'sl' }, h('span', { class: 'snum' }, String(i + 1).padStart(2, '0')), ` · ${label}`));
     }),
     h('a', { class: 'fin', href: '#/reports' }, h('span', { class: 'sn' }, String(done)), h('span', { class: 'sl' }, 'Finalised · Previous reports', icon('arrow'))));
+  const drawPills = () => pillsM.replaceChildren(
+    h('button', { type: 'button', 'aria-pressed': String(!stage), onclick: () => { stage = ''; drawStrip(); drawPills(); drawRows(); } }, 'All running', h('span', { class: 'cnt' }, String(running.length))),
+    ...STAGES.map(([k, label]) => h('button', { type: 'button', 'aria-pressed': String(stage === k), onclick: () => { stage = stage === k ? '' : k; drawStrip(); drawPills(); drawRows(); } },
+      label, h('span', { class: 'cnt' }, String(running.filter(a => a.status === k).length)))));
   const drawRows = () => {
     const rows = running.filter(a => !stage || a.status === stage);
     tbody.replaceChildren(...(rows.length ? rows.map(a => {
@@ -1040,21 +1134,35 @@ async function audits(holder) {
         h('td', { class: 'sync' }, ago(a.last_sync)),
         h('td', { class: 'go' }, h('a', { class: 'rgo', href, 'aria-label': `Open ${a.industry_tag}` }, icon('arrow'))));
     }) : [h('tr', {}, h('td', { colspan: 8, class: 'empty' }, running.length ? 'No audit at this stage.' : done ? 'No running audits. Finalised ones are in Previous reports.' : 'No audits yet. Create the first one.'))]));
+    // Phones: one card per audit.
+    cardsM.replaceChildren(...(rows.length ? rows.map(a => {
+      const late = tasks.filter(t => t.audit_id === a.id && isLate(t)).length;
+      const href = `#/audit/${encodeURIComponent(a.id)}`;
+      return h('article', { class: `acm${a.status === 'draft' ? ' draft' : ''}` },
+        h('span', { class: 'acm-top' }, h('span', { class: 'tagpill bd' }, a.industry_tag), h('span', { class: 'aid' }, a.id), h('span', { class: `spill ${STAGE_TONE[a.status] || 'soft'}` }, stageLabel(a.status))),
+        h('a', { class: 'atitle', href }, a.title), h('span', { class: 'asub' }, `${a.client_name} — ${a.site_name}`),
+        h('span', { class: 'acm-st' }, h('span', { class: 'avstack' }, a.team.map((t, i) => h('span', { class: `av sm${i % 2 ? ' alt' : ''}`, title: t.name }, initials(t.name)))),
+          h('span', {}, a.records ? [h('b', {}, String(a.records)), ' records'] : 'No records yet', ` · ${a.open_tasks ? `${a.open_tasks} open` : 'nothing open'}`, late ? h('span', { class: 'late' }, ` · ${late} late`) : null)),
+        h('span', { class: 'acm-foot' }, h('span', {}, a.last_sync ? `Synced ${ago(a.last_sync)}` : 'Not synced yet'), h('a', { class: 'rgo', href, 'aria-label': `Open ${a.industry_tag}` }, icon('arrow'))));
+    }) : [h('p', { class: 'empty' }, running.length ? 'No audit at this stage.' : 'No running audits.')]));
   };
-  drawStrip(); drawRows();
+  drawStrip(); drawPills(); drawRows();
   holder.replaceChildren(
     pageTitle({
       kicker: 'Manage', title: 'Running ', em: 'audits',
-      sub: 'Each plant gets a system-made industry tag; the public site shows only the tag, never the client. Engineers see only the audits they are added to.',
+      sub: h('span', {}, h('span', { class: 'd-only' }, 'Each plant gets a system-made industry tag; the public site shows only the tag, never the client. Engineers see only the audits they are added to.'),
+        h('span', { class: 'm-only' }, 'The public site shows only the tag, never the client.')),
       action: goBtn('New audit', 'plus', { onclick: newAudit }),
     }),
-    strip,
-    h('section', { class: 'tcard wide', 'aria-label': 'Running audits' }, h('div', { class: 'scroll' },
+    strip, pillsM,
+    h('a', { class: 'finm m-only', href: '#/reports' }, h('span', {}, h('b', {}, String(done)), ' finalised · Previous reports'), icon('arrow')),
+    cardsM,
+    h('section', { class: 'tcard wide d-only', 'aria-label': 'Running audits' }, h('div', { class: 'scroll' },
       h('table', { class: 'atable' }, h('thead', {}, h('tr', {},
         h('th', { scope: 'col' }, 'Tag'), h('th', { scope: 'col' }, 'Audit'), h('th', { scope: 'col' }, 'Stage'), h('th', { scope: 'col' }, 'Team'),
         h('th', { scope: 'col', class: 'n' }, 'Records'), h('th', { scope: 'col', class: 'n' }, 'Open tasks'), h('th', { scope: 'col' }, 'Last sync'),
         h('th', { scope: 'col', class: 'go' }, h('span', { class: 'sr' }, 'Open')))), tbody))),
-    h('p', { class: 'foot-note' }, 'Move an audit to its next stage, finalise it or download its data from the audit page.'));
+    h('p', { class: 'foot-note d-only' }, 'Move an audit to its next stage, finalise it or download its data from the audit page.'));
 }
 
 async function newAudit() {
@@ -1144,6 +1252,8 @@ async function auditPage(holder, id) {
             done ? icon('tick') : now ? h('span', { class: 'st-now' }, 'Now') : null),
           h('span', { class: 'st-l' }, label, done ? h('span', { class: 'sr' }, ', done') : null));
       })),
+      h('div', { class: 'ah-prog m-only' }, h('span', { class: 'ap-l' }, `Stage ${String(stepIdx + 1).padStart(2, '0')} of 06`, h('b', {}, steps[stepIdx])),
+        h('span', { class: 'ap-bar', 'aria-hidden': 'true' }, steps.map((_, i) => h('i', { class: i < stepIdx ? 'done' : i === stepIdx ? 'now' : null })))),
       next && h('button', { type: 'button', class: 'ah-next', onclick: () => moveTo(next[0]) }, `Move to ${next[1]}`, icon('arrow'))));
 
   // ---- the four counts ----
@@ -1179,9 +1289,11 @@ async function auditPage(holder, id) {
     return h('article', { class: 'acard', 'aria-labelledby': `app-${code}` },
       h('div', { class: 'ac-head' }, h('span', { class: 'ac-ic', 'aria-hidden': 'true' }, appSym(code)),
         h('span', { class: 'ac-nm' }, h('h3', { id: `app-${code}` }, appName(code)), h('span', {}, `${(meta?.tagline || '').split(':')[0]} · ${recs.length} records`)),
-        h('a', { class: 'obtn sm arrowed', href: `#/apps/${code}/${enc}` }, 'View and correct records', icon('arrow'))),
+        h('a', { class: 'obtn sm arrowed d-only', href: `#/apps/${code}/${enc}` }, 'View and correct records', icon('arrow')),
+        h('span', { class: 'ac-cnt m-only' }, h('b', {}, String(recs.length)), h('span', {}, 'records'))),
+      h('div', { class: 'ac-chips m-only' }, kinds.map(([k, n]) => h('span', {}, kindLabel(k), ' ', h('b', {}, String(n))))),
       h('div', { class: 'ac-body' },
-        h('div', { class: 'ac-kinds' }, h('h4', {}, 'Equipment recorded'),
+        h('div', { class: 'ac-kinds d-only' }, h('h4', {}, 'Equipment recorded'),
           h('ul', {}, kinds.map(([k, n]) => minor(k)
             ? h('li', { class: 'minor' }, h('span', {}, kindLabel(k)), h('span', {}), h('b', {}, String(n)))
             : h('li', {}, h('span', {}, kindLabel(k)), h('span', { class: 'bar', 'aria-hidden': 'true' }, h('span', { style: `width:${Math.max(2, Math.round(n / max * 100))}%` })), h('b', {}, String(n)))))),
@@ -1189,7 +1301,8 @@ async function auditPage(holder, id) {
           [...byPerson].sort((x, y) => y[1].n - x[1].n).map(([who, v], i) => h('div', { class: 'ac-p' },
             h('span', { class: `av s34${i % 2 ? ' alt' : ''}`, 'aria-hidden': 'true' }, initials(who)),
             h('span', { class: 'ac-pn' }, h('b', {}, who), h('span', {}, `last ${dayTime(v.last).replace('Today', 'today')}`)), h('b', {}, String(v.n)))))),
-      appOpen.length ? taskLine(appOpen.find(isLate) || appOpen[0]) : null);
+      appOpen.length ? taskLine(appOpen.find(isLate) || appOpen[0]) : null,
+      h('a', { class: 'ac-view m-only', href: `#/apps/${code}/${enc}` }, 'View and correct records', icon('arrow')));
   });
   // Apps with open tasks but no data yet.
   const waiting = [...new Set(open.filter(t => t.app && !data.apps[t.app] && t.app !== 'power').map(t => t.app))].map(code => {
@@ -1331,8 +1444,23 @@ async function tasks(holder) {
         `${t.assignee_name || 'Nobody'} · done ${fmtDay(t.done_at)}, ${onTime ? 'on time' : `${lateDays} day${lateDays === 1 ? '' : 's'} late`}`),
         h('button', { type: 'button', class: 'tlink', onclick: () => setStatus(t, 'todo') }, 'Reopen')));
   };
-  const cols = h('div', { class: 'tcols' });
-  let showOld = false;
+  const cols = h('div', { class: 'tcols d-only' });
+  const listM = h('div', { class: 'tlist m-only' });
+  let showOld = false, doneOpen = false;
+  // Phones: one list in sections, each card with its next step.
+  const cardM = (t, kind) => {
+    const late = isLate(t);
+    const right = kind === 'overdue' ? h('span', { class: t.status === 'running' ? 'tm-st bad' : 'tm-st' }, t.status === 'running' ? 'Running' : 'To do')
+      : t.status === 'running' ? h('span', { class: 'tm-st' }, `started ${ago(t.started_at)}`) : null;
+    const act = t.status === 'running' ? h('button', { type: 'button', class: 'tbtn dark lg', onclick: () => setStatus(t, 'done') }, 'Mark done')
+      : t.status === 'todo' ? h('button', { type: 'button', class: `tbtn lg${late ? ' dark' : ''}`, onclick: () => setStatus(t, 'running') }, 'Start')
+        : h('button', { type: 'button', class: 'tbtn lg', onclick: () => setStatus(t, 'todo') }, 'Reopen');
+    return h('article', { class: `tk m${late ? ' late' : ''}${!t.assignee && t.status !== 'done' ? ' unassigned' : ''}` },
+      h('span', { class: 'tk-tag' }, h('span', { class: 'tagpill sm' }, t.industry_tag), t.app ? appName(t.app) : null, right),
+      h('h3', {}, t.title),
+      h('span', { class: 'tk-row' }, h('span', { class: 'tk-who' }, who(t),
+        late ? h('span', { class: 'due bad' }, fmtDay(t.due_at)) : t.due_at ? h('span', { class: 'due' }, `Due ${fmtDay(t.due_at)}`) : !t.assignee ? h('span', { class: 'nodue' }, '· no due date') : null), act));
+  };
   const draw = () => {
     const keep = t => (!f.audit || t.audit_id === f.audit) && (!f.person || (f.person === '-' ? !t.assignee : t.assignee === f.person))
       && (!f.app || t.app === f.app) && (!f.overdue || isLate(t));
@@ -1345,6 +1473,16 @@ async function tasks(holder) {
     const col = (id, n, title, count, items, empty, extra) => h('section', { class: 'tcol', 'aria-labelledby': id },
       h('div', { class: 'tcol-h' }, h('h2', { id }, h('span', {}, n), title), count),
       items.length ? items.map(card) : h('p', { class: 'empty' }, empty), extra);
+    const lateAll = [...run, ...todo].filter(isLate);
+    const sec = (title, cls, n, items) => items.length ? [h('h2', { class: `tsec ${cls}` }, title, h('span', {}, String(n))), items] : [];
+    listM.replaceChildren(...[
+      ...sec('Overdue', 'bad', lateAll.length, lateAll.map(t => cardM(t, 'overdue'))),
+      ...sec('Running', '', run.filter(t => !isLate(t)).length, run.filter(t => !isLate(t)).map(t => cardM(t, 'running'))),
+      ...sec('To do', '', todo.filter(t => !isLate(t)).length, todo.filter(t => !isLate(t)).map(t => cardM(t, 'todo'))),
+      h('h2', { class: 'tsec' }, 'Done'),
+      h('button', { type: 'button', class: 'tdone', 'aria-expanded': String(doneOpen), onclick: () => { doneOpen = !doneOpen; draw(); } },
+        icon('check'), `${doneRecent.length} finished in the last 30 days`, icon(doneOpen ? 'chevron-up' : 'chevron')),
+      doneOpen ? doneRecent.map(t => cardM(t, 'done')) : null].flat(Infinity).filter(Boolean));
     cols.replaceChildren(
       col('col-run', '01', 'Running', h('span', { class: 'tcnt' }, String(run.length)), run, 'Nothing running.'),
       col('col-todo', '02', 'To do', h('span', { class: 'tcnt' }, String(todo.length)), todo, 'Nothing waiting.'),
@@ -1357,19 +1495,24 @@ async function tasks(holder) {
   const overdueBtn = h('button', {
     type: 'button', class: 'odbtn', 'aria-pressed': 'false', onclick: () => { f.overdue = !f.overdue; overdueBtn.setAttribute('aria-pressed', String(f.overdue)); draw(); },
   }, 'Only overdue', h('span', { class: 'cnt' }, String(overdue.length)));
+  const overdueBtnM = h('button', {
+    type: 'button', class: 'odbtn', 'aria-pressed': 'false', onclick: () => { f.overdue = !f.overdue; overdueBtnM.setAttribute('aria-pressed', String(f.overdue)); overdueBtn.setAttribute('aria-pressed', String(f.overdue)); draw(); },
+  }, 'Only overdue', h('span', { class: 'cnt' }, String(overdue.length)));
   draw();
   holder.replaceChildren(
     pageTitle({
       kicker: 'Monitor', title: 'Tasks, ', em: 'now and next',
-      sub: `${inWords(open.length)} open${overdue.length ? `, ${inWords(overdue.length, true)} of them overdue` : ''}. Overdue work stays at the top of its column. Assigning a task also adds that person to the audit.`,
+      sub: h('span', {}, `${inWords(open.length)} open${overdue.length ? `, ${inWords(overdue.length, true)} of them overdue` : ''}.`,
+        h('span', { class: 'd-only' }, ' Overdue work stays at the top of its column. Assigning a task also adds that person to the audit.')),
       action: goBtn('New task', 'plus', { onclick: () => newTask(auditList, users), disabled: !auditList.length, title: auditList.length ? null : 'Create an audit first' }),
     }),
     h('div', { class: 'tfilters' },
+      overdue.length ? h('span', { class: 'm-only' }, overdueBtnM) : null,
       pick('Audit', 'audit', [h('option', { value: '' }, 'All audits'), auditList.filter(a => !CLOSED.has(a.status)).map(a => h('option', { value: a.id }, `${a.industry_tag} · ${a.title}`))]),
       pick('Person', 'person', [h('option', { value: '' }, 'Everyone'), people.map(([id, n]) => h('option', { value: id }, n)), h('option', { value: '-' }, 'Not assigned')]),
       pick('App', 'app', [h('option', { value: '' }, 'All apps'), state.apps.filter(a => a.field).map(a => h('option', { value: a.code }, a.name))]),
-      overdue.length ? overdueBtn : null),
-    cols);
+      overdue.length ? h('span', { class: 'd-only' }, overdueBtn) : null),
+    cols, listM);
 }
 
 function newTask(auditList, users) {
