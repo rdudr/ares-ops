@@ -161,47 +161,18 @@ function passwordField(label, name, autocomplete, hint) {
 
 function gate(title, sub, formKids, onSubmit, btnLabel, { busyLabel = 'Please wait…', below = null } = {}) {
   const err = h('div', { class: 'err', hidden: true, role: 'alert' });
-  const submit = h('button', { class: 'btn cta wide', type: 'submit' }, btnLabel);
-  const form = h('form', { novalidate: false }, formKids, err, submit, below);
+  const form = h('form', {}, formKids, err, h('button', { class: 'btn', type: 'submit' }, btnLabel), below);
   form.addEventListener('submit', async e => {
     e.preventDefault();
     err.hidden = true;
-    submit.disabled = true;
-    submit.textContent = busyLabel;
-    form.setAttribute('aria-busy', 'true');
-    try { await onSubmit(form); } catch (ex) {
-      err.textContent = ex.message; err.hidden = false;
-      form.classList.remove('shake'); void form.offsetWidth; form.classList.add('shake');
-    } finally { submit.disabled = false; submit.textContent = btnLabel; form.removeAttribute('aria-busy'); }
+    const b = form.querySelector('button[type=submit]');
+    b.disabled = true;
+    b.textContent = busyLabel;
+    try { await onSubmit(form); } catch (ex) { err.textContent = ex.message; err.hidden = false; } finally { b.disabled = false; b.textContent = btnLabel; }
   });
-  const year = new Date().getFullYear();
-  root.replaceChildren(h('div', { class: 'gate' },
-    h('section', { class: 'gate-hero', 'aria-label': 'About ARES Console' },
-      h('div', { class: 'gate-top' },
-        h('div', { class: 'gate-lockup' },
-          h('span', { class: 'gate-mark' }, h('img', { src: '/logo.png', alt: 'AR Energy Services' })),
-          h('div', {}, h('b', {}, 'ARES Console'), h('small', {}, 'AR Energy Services'))),
-        h('span', { class: 'gate-badge' }, h('i', {}), 'Team access')),
-      h('div', { class: 'gate-copy' },
-        h('h1', {}, 'Every audit, one console'),
-        h('p', {}, 'Energy audits from site to report: the field apps, the power quality analyser and Report Studio, with one login for the whole team.')),
-      h('ul', { class: 'gate-tools', 'aria-label': 'Tools in ARES Console' },
-        GATE_TOOLS.map(([code, name]) => h('li', {}, h('img', { src: `/icons/${code}.png`, alt: '', loading: 'lazy' }), h('span', {}, name)))),
-      h('div', { class: 'gate-partners' },
-        h('small', {}, 'AR Energy Services · energy audits, power quality and efficiency studies for industry'))),
-    h('div', { class: 'gate-side' },
-      h('div', { class: 'card gate-card' },
-        h('div', { class: 'gate-mobile-brand' }, h('img', { src: '/logo.png', alt: '' }), h('b', {}, 'ARES Console')),
-        h('h2', {}, title), h('p', { class: 'muted' }, sub), form,
-        h('p', { class: 'gate-secure' }, h('svg', { viewBox: '0 0 24 24', class: 'ic', 'aria-hidden': 'true' }),
-          'Encrypted connection. Repeated wrong passwords lock the account for a while, and every sign-in is logged.')),
-      h('footer', { class: 'gate-foot' },
-        h('span', {}, `© ${year} AR Energy Services`), h('span', { 'aria-hidden': 'true' }, '·'),
-        h('span', {}, 'For authorised AR Energy Services team members only'), h('span', { 'aria-hidden': 'true' }, '·'),
-        h('a', { href: '/apps/', target: '_blank', rel: 'noopener' }, 'Download the field apps')))));
-  // The lock icon (built with the DOM: h() makes HTML elements, not SVG).
-  const lock = root.querySelector('.gate-secure svg');
-  if (lock) lock.replaceWith(icon('lock'));
+  root.replaceChildren(h('div', { class: 'gate' }, h('div', { class: 'card' },
+    h('div', { class: 'brand' }, h('img', { src: '/logo.png', alt: '' }), h('div', {}, h('b', {}, 'ARES Console'), h('small', {}, 'AR Energy Services'))),
+    h('h1', {}, title), h('p', { class: 'muted' }, sub), form)));
   form.querySelector('input:not([type=checkbox])')?.focus();
 }
 
@@ -378,12 +349,12 @@ async function openTool(codeOrApp, auditId) {
 }
 
 function shell(active, content) {
-  const navLink = p => h('a', { class: `nav${p.sub ? ' sub' : ''}${p.id === active ? ' on' : ''}`, href: `#/${p.id}`, 'aria-current': p.id === active ? 'page' : null }, p.code ? miniIcon(p.code) : icon(p.icon), p.label);
+  const navLink = p => h('a', { class: `nav${p.sub ? ' sub' : ''}${p.id === active ? ' on' : ''}`, href: `#/${p.id}`, 'aria-current': p.id === active ? 'page' : null }, icon(p.icon), p.label);
   // The download page for every AR app (Android APKs and web links), on this server at /apps/.
   const downloadLink = () => h('a', { class: 'nav', href: '/apps/', target: '_blank', rel: 'noopener' }, icon('download'), 'Download apps', h('span', { class: 'sr' }, ' (opens in a new tab)'));
-  const extLink = x => h('a', { class: 'nav', href: x.href, target: '_blank', rel: 'noopener', onclick: e => { if (!NO_LAUNCH.has(x.code)) { e.preventDefault(); openTool(x.code); } } }, miniIcon(x.code), x.label, h('span', { class: 'sr' }, ' (opens in a new tab)'));
+  const extLink = x => h('a', { class: 'nav', href: x.href, target: '_blank', rel: 'noopener', onclick: e => { if (!NO_LAUNCH.has(x.code)) { e.preventDefault(); openTool(x.code); } } }, icon('external'), x.label, h('span', { class: 'sr' }, ' (opens in a new tab)'));
   const side = h('nav', { class: 'side', 'aria-label': 'Sections' },
-    h('a', { class: 'brand', href: '#/overview' }, h('span', { class: 'brand-mark' }, h('img', { src: '/logo.png', alt: '' })),
+    h('a', { class: 'brand', href: '#/overview' }, h('img', { src: '/logo.png', alt: '' }),
       h('div', {}, h('b', {}, 'ARES Console'), h('small', {}, 'AR Energy Services'))),
     h('div', { class: 'side-scroll' },
       GROUPS.map(g => [h('div', { class: 'group' }, g), g === 'Tools' && toolLinks().map(extLink), menuPages().filter(p => p.group === g).map(navLink),
