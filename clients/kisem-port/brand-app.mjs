@@ -47,6 +47,9 @@ export async function brandApp(code, dir) {
   for (const [f, size] of icons) {
     if (fs.existsSync(path.join(dir, f)) || !f.includes('app-icon')) await sharp(logo).resize(size, size).png().toFile(path.join(dir, f));
   }
+  // The Android icon script reads the app logo (it pointed at the KISEM logo file).
+  const gen = path.join(dir, 'scripts/generate-icons.mjs');
+  if (fs.existsSync(gen)) fs.writeFileSync(gen, fs.readFileSync(gen, 'utf8').replace(/resolve\("[^"]*\.(png|jpe?g)"\)/, 'resolve("assets/app-logo.png")'));
   let changed = 0;
   for (const f of walk(dir)) {
     if (!/\.(tsx?|mjs|css|json)$/.test(f) || f.endsWith('package-lock.json')) continue;
