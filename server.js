@@ -57,6 +57,7 @@ export function createServer(db, { filesDir = config.filesDir } = {}) {
     '/app.js': ['app.js', 'text/javascript; charset=utf-8'],
     '/styles.css': ['styles.css', 'text/css; charset=utf-8'],
     '/logo.png': ['logo.png', 'image/png'],
+    '/hero.jpg': ['hero.jpg', 'image/jpeg'],
   };
 
   const server = http.createServer(async (req, res) => {

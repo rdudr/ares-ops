@@ -133,9 +133,15 @@ const field = (label, input, hint) => h('label', { class: 'f' }, label, input, h
 const val = (form, name) => form.elements[name]?.value?.trim() ?? '';
 
 // ---------- sign-in screens ----------
-function gate(title, sub, formKids, onSubmit, btnLabel) {
+// Sign-in, first run and own password: the website's dark panel with the form on a card.
+function gate(title, sub, formKids, onSubmit, btnLabel, note) {
   const err = h('div', { class: 'err', hidden: true });
-  const form = h('form', {}, formKids, err, h('button', { class: 'btn', type: 'submit' }, btnLabel));
+  const form = h('form', { class: 'gate-form' },
+    h('div', { class: 'gate-title' }, h('h2', {}, title), h('p', {}, sub)),
+    formKids, err,
+    h('button', { class: 'btn go', type: 'submit' }, btnLabel, h('span', { class: 'go-ic', 'aria-hidden': 'true' }, icon('arrow'))),
+    note && h('p', { class: 'gate-note' }, icon('lock'), h('span', {}, note)));
+  form.querySelectorAll('input[type=password]').forEach(addShowToggle);
   form.addEventListener('submit', async e => {
     e.preventDefault();
     err.hidden = true;
@@ -143,10 +149,39 @@ function gate(title, sub, formKids, onSubmit, btnLabel) {
     b.disabled = true;
     try { await onSubmit(form); } catch (ex) { err.textContent = ex.message; err.hidden = false; } finally { b.disabled = false; }
   });
-  root.replaceChildren(h('div', { class: 'gate' }, h('div', { class: 'card' },
-    h('div', { class: 'brand' }, h('img', { src: '/logo.png', alt: '' }), h('div', {}, h('b', {}, 'ARES Console'), h('small', {}, 'AR Energy Services'))),
-    h('h1', {}, title), h('p', { class: 'muted' }, sub), form)));
+  const point = (ic, k, t) => h('li', {}, h('span', { class: 'gate-ic', 'aria-hidden': 'true' }, icon(ic)), h('span', {}, h('small', {}, k), h('span', {}, t)));
+  root.replaceChildren(h('div', { class: 'gate' },
+    h('main', { class: 'gate-panel' },
+      h('div', { class: 'gate-top' }, brand(),
+        h('a', { class: 'gate-site', href: 'https://arenergyservices.in/', target: '_blank', rel: 'noopener' },
+          'arenergyservices.in', icon('external'), h('span', { class: 'sr' }, ' (public website, opens in a new tab)'))),
+      h('div', { class: 'gate-body' },
+        h('div', { class: 'gate-copy' },
+          h('span', { class: 'kicker' }, 'Ops workspace'),
+          h('h1', {}, 'Your team, audits and ', h('em', {}, 'field data'), ' in one place.'),
+          h('p', {}, 'The private side of AR Energy Services: who is in the field, every audit and what it has collected, and who may use which app.'),
+          h('ul', { class: 'gate-points' },
+            point('team', 'One login', 'One Login ID for every field app.'),
+            point('shield', 'Private by default', 'Client names and readings stay behind this sign-in.'),
+            point('live', 'Live', 'See who is recording, in which app, for which audit.'))),
+        form)),
+    h('footer', { class: 'gate-foot' }, h('span', {}, '© AR Energy Services · private, not indexed'),
+      h('a', { href: '/apps/' }, 'Download the field apps'))));
   form.querySelector('input')?.focus();
+}
+
+// A "Show" button inside a password field.
+function addShowToggle(input) {
+  const b = h('button', { type: 'button', class: 'pw-show', 'aria-pressed': 'false', 'aria-label': 'Show password' }, 'Show');
+  b.addEventListener('click', () => {
+    const show = input.type === 'password';
+    input.type = show ? 'text' : 'password';
+    b.textContent = show ? 'Hide' : 'Show';
+    b.setAttribute('aria-pressed', String(show));
+  });
+  const wrap = h('span', { class: 'pw' });
+  input.replaceWith(wrap);
+  wrap.append(input, b);
 }
 
 function setupScreen() {
@@ -171,7 +206,7 @@ function loginScreen() {
     await loadMe();
     if (location.hash !== '#/billing') location.hash = '#/overview';
     route();
-  }, 'Sign in');
+  }, 'Sign in', 'Five wrong passwords lock the account from that network for 15 minutes; an admin can unlock it sooner. You are signed out after 30 minutes idle.');
 }
 
 function changePasswordScreen() {
@@ -201,7 +236,11 @@ const ICONS = {
   tasks: ['M4 6l1.5 1.5L8 5', 'M4 12l1.5 1.5L8 11', 'M4 18l1.5 1.5L8 17', 'M11 6h9M11 12h9M11 18h9'],
   activity: ['M12 7v5l3 2', 'M3.5 12a8.5 8.5 0 1 0 2.5-6', 'M3 4v4h4'],
   account: ['M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z', 'M12 12.5a3 3 0 1 0 0-6 3 3 0 0 0 0 6z', 'M6.5 18.5a6 6 0 0 1 11 0'],
-  sidebar: ['M4 5h16v14H4z', 'M9 5v14'],
+  arrow: ['M5 12h14', 'M13 6l6 6-6 6'],
+  chevron: ['M6 9l6 6 6-6'],
+  lock: ['M6 11h12v9H6z', 'M8.5 11V8a3.5 3.5 0 0 1 7 0v3'],
+  shield: ['M12 3 4 6v6c0 5 3.4 8.4 8 9 4.6-.6 8-4 8-9V6z', 'M9 12l2 2 4-4'],
+  more: ['M5 12h.01', 'M12 12h.01', 'M19 12h.01'],
   live: ['M13 2 4 14h7l-1 8 9-12h-7z'],
   clock: ['M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z', 'M12 7v5l3 2'],
   doc: ['M7 3h7l4 4v14H7z', 'M14 3v4h4', 'M10 12h5M10 16h5'],
@@ -228,14 +267,7 @@ function icon(name) {
 }
 const initials = name => name.split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join('');
 
-function readPref(key, fallback) {
-  try { return localStorage.getItem(key) ?? fallback; } catch { return fallback; }
-}
-function writePref(key, v) {
-  try { localStorage.setItem(key, v); } catch { /* storage blocked: preference just isn't remembered */ }
-}
-
-// ---------- shell: sidebar (regular width) / tab bar (compact width) + toolbar ----------
+// ---------- shell: the website's dark header with a pill menu; a dock on phones ----------
 const PAGES = [
   { id: 'overview', label: 'Overview', group: 'Monitor', icon: 'overview' },
   { id: 'tasks', label: 'Tasks', group: 'Monitor', icon: 'tasks' },
@@ -247,6 +279,7 @@ const PAGES = [
   { id: 'report-studio', label: 'Report Studio', group: 'Tools', icon: 'doc' },
   { id: 'guide', label: 'Getting started', group: null, icon: 'guide' },
   { id: 'account', label: 'My account', group: null, icon: 'account' },
+  { id: 'more', label: 'More', group: null, icon: 'more' },
 ];
 const GROUPS = ['Monitor', 'Manage', 'Field apps', 'Tools'];
 // Field apps get a sub-page each (from /api/me), listed under "All apps".
@@ -259,60 +292,95 @@ const TOOLS = [
 ];
 const toolLinks = () => TOOLS.filter(t => mine(t.app));
 
-function shell(active, content) {
-  const navLink = p => h('a', { class: `nav${p.sub ? ' sub' : ''}${p.id === active ? ' on' : ''}`, href: `#/${p.id}`, 'aria-current': p.id === active ? 'page' : null }, icon(p.icon), p.label);
-  const extLink = x => h('a', { class: 'nav', href: x.href, target: '_blank', rel: 'noopener' }, icon('external'), x.label, h('span', { class: 'sr' }, ' (opens in a new tab)'));
-  const side = h('nav', { class: 'side', 'aria-label': 'Sections' },
-    h('a', { class: 'brand', href: '#/overview' }, h('img', { src: '/logo.png', alt: '' }),
-      h('div', {}, h('b', {}, 'ARES Console'), h('small', {}, 'AR Energy Services'))),
-    h('div', { class: 'side-scroll' },
-      GROUPS.map(g => [h('div', { class: 'group' }, g), g === 'Tools' && toolLinks().map(extLink), menuPages().filter(p => p.group === g).map(navLink),
-        g === 'Field apps' && fieldPages().map(navLink)])));
+let heroSlot = null;
+// Each page puts its title block in the dark header through this. Returns a placeholder for the page.
+function pageHead(...kids) {
+  const el = h('div', { class: 'head' }, ...kids);
+  if (!heroSlot) return el;
+  heroSlot.replaceChildren(el);
+  return document.createComment('page head');
+}
 
-  const tabbar = h('nav', { class: 'tabbar', 'aria-label': 'Sections' },
-    PAGES.filter(p => p.group && p.group !== 'Tools').map(p => h('a', { class: p.id === active ? 'on' : '', href: `#/${p.id}`, 'aria-current': p.id === active ? 'page' : null },
-      icon(p.icon), p.label.replace(' & access', '').replace(' log', '').replace('App console', 'Apps').replace('Previous reports', 'Reports'))));
+function brand() {
+  return h('a', { class: 'brand', href: '#/overview' }, h('img', { src: '/logo.png', alt: '' }),
+    h('span', {}, h('b', {}, 'ARES Console'), h('small', {}, 'AR Energy Services')));
+}
 
-  const shellEl = h('div', { class: `shell${readPref('ares.sidebar', 'open') === 'closed' ? ' collapsed' : ''}` });
-  const toggle = h('button', {
-    class: 'icon-btn sidebar-toggle', type: 'button', 'aria-label': 'Show or hide sidebar',
-    'aria-expanded': String(!shellEl.classList.contains('collapsed')),
-    onclick: () => {
-      const closed = shellEl.classList.toggle('collapsed');
-      toggle.setAttribute('aria-expanded', String(!closed));
-      writePref('ares.sidebar', closed ? 'closed' : 'open');
-    },
-  }, icon('sidebar'));
+async function signOut() {
+  await api('POST', '/api/logout').catch(() => {});
+  state.me = null;
+  route();
+}
 
+// A menu item: page links stay in the Console, external ones open a new tab.
+const mi = (href, ic, label, ext) => h('a', { href, role: 'menuitem', ...(ext ? { target: '_blank', rel: 'noopener' } : {}) },
+  icon(ic), label, ext && h('span', { class: 'sr' }, ' (opens in a new tab)'));
+
+// A button with a small menu under it. Closes on a choice, Escape or a click elsewhere.
+function dropdown(btn, items) {
+  const wrap = h('div', { class: 'dd' }, btn);
   let pop = null;
-  const closePop = () => { pop?.remove(); pop = null; document.removeEventListener('click', outside, true); };
-  const outside = e => { if (pop && !pop.contains(e.target) && !menuBtn.contains(e.target)) closePop(); };
-  const menuBtn = h('button', {
-    class: 'menu-btn', type: 'button', 'aria-haspopup': 'menu',
-    onclick: () => {
-      if (pop) return closePop();
-      pop = h('div', { class: 'popover', role: 'menu' },
-        h('div', { class: 'who' }, h('b', {}, state.me.name), h('span', { class: 'small muted' }, `${state.me.login_id} · ${ROLE[state.me.role]}`)),
-        h('a', { href: '#/account', role: 'menuitem', onclick: closePop }, icon('account'), 'My account'),
-        h('button', {
-          type: 'button', role: 'menuitem', onclick: async () => {
-            closePop();
-            await api('POST', '/api/logout').catch(() => {});
-            state.me = null;
-            route();
-          },
-        }, icon('signout'), 'Sign out'));
-      toolbar.append(pop);
-      document.addEventListener('click', outside, true);
-      pop.querySelector('a').focus();
-    },
-  }, h('span', { class: 'av' }, initials(state.me.name)), state.me.name.split(' ')[0]);
-  const toolbar = h('header', { class: 'toolbar' }, toggle,
-    h('span', { class: 'title' }, [...menuPages(), ...fieldPages()].find(p => p.id === active)?.label || ''), h('span', { class: 'spacer' }), menuBtn);
-  toolbar.addEventListener('keydown', e => { if (e.key === 'Escape') closePop(); });
+  const close = () => {
+    pop?.remove(); pop = null;
+    btn.setAttribute('aria-expanded', 'false');
+    document.removeEventListener('click', outside, true);
+    document.removeEventListener('keydown', esc);
+  };
+  const outside = e => { if (pop && !wrap.contains(e.target)) close(); };
+  const esc = e => { if (e.key === 'Escape') { close(); btn.focus(); } };
+  btn.setAttribute('aria-haspopup', 'menu');
+  btn.setAttribute('aria-expanded', 'false');
+  btn.addEventListener('click', () => {
+    if (pop) return close();
+    pop = h('div', { class: 'popover', role: 'menu' }, items());
+    pop.addEventListener('click', e => { if (e.target.closest('a')) close(); });
+    wrap.append(pop);
+    btn.setAttribute('aria-expanded', 'true');
+    document.addEventListener('click', outside, true);
+    document.addEventListener('keydown', esc);
+    pop.querySelector('a, button')?.focus();
+  });
+  return wrap;
+}
 
-  shellEl.append(side, h('div', { class: 'content' }, toolbar, h('main', { class: 'main' }, content)));
-  root.replaceChildren(shellEl, tabbar);
+function shell(active, content) {
+  const me = state.me;
+  const on = id => id === active || (id === 'apps' && active.startsWith('apps'));
+  const cur = id => on(id) ? { class: 'on', 'aria-current': 'page' } : {};
+  const link = (id, label) => h('a', { href: `#/${id}`, ...cur(id) }, label);
+  const ddBtn = (label, isOn) => h('button', { type: 'button', class: isOn ? 'on' : null }, label, icon('chevron'));
+
+  const fieldMenu = dropdown(ddBtn('Field apps', on('apps')),
+    () => [mi('#/apps', 'apps', 'App console'), fieldPages().map(p => mi(`#/${p.id}`, 'phone', p.label))]);
+  const moreMenu = dropdown(ddBtn('More', ['activity', 'report-studio', 'guide', 'more'].includes(active)),
+    () => [mi('#/activity', 'activity', 'Activity log'), mi('#/report-studio', 'doc', 'Report Studio'),
+      toolLinks().map(t => mi(t.href, 'external', t.label, true)),
+      mi('#/guide', 'guide', 'Getting started'), mi('/apps/', 'download', 'Download page', true)]);
+  const account = dropdown(
+    h('button', { type: 'button', class: 'acct', 'aria-label': `Account menu: ${me.name}, ${ROLE[me.role]}` },
+      h('span', { class: 'av' }, initials(me.name)), h('span', { class: 'acct-name' }, me.name.split(' ')[0])),
+    () => [h('div', { class: 'who' }, h('b', {}, me.name), h('span', { class: 'small muted' }, `${me.login_id} · ${ROLE[me.role]}`)),
+      mi('#/account', 'account', 'My account'),
+      h('button', { type: 'button', role: 'menuitem', onclick: signOut }, icon('signout'), 'Sign out')]);
+
+  const nav = h('nav', { class: 'topnav', 'aria-label': 'Main' }, brand(),
+    h('div', { class: 'links' }, link('overview', 'Overview'), link('audits', 'Audits'), link('team', 'Team'), link('tasks', 'Tasks'),
+      fieldMenu, link('reports', 'Reports'), moreMenu),
+    account);
+
+  // Until the page sets its own title block, the header shows the page name.
+  const label = [...menuPages(), ...fieldPages()].find(p => p.id === active)?.label || '';
+  heroSlot = h('div', { class: 'hero-slot' }, h('div', { class: 'head' }, h('div', {}, h('h1', {}, label))));
+
+  // Phones: a dock with the four main pages and More.
+  const dockLink = (id, ic, lbl) => h('a', { href: `#/${id}`, ...cur(id) }, icon(ic), lbl);
+  const inDock = ['overview', 'audits', 'tasks', 'team'].includes(active);
+  const dock = h('nav', { class: 'dock', 'aria-label': 'Sections' },
+    dockLink('overview', 'overview', 'Overview'), dockLink('audits', 'audits', 'Audits'),
+    dockLink('tasks', 'tasks', 'Tasks'), dockLink('team', 'team', 'Team'),
+    h('a', { href: '#/more', class: inDock ? null : 'on', 'aria-current': active === 'more' ? 'page' : null }, icon('more'), 'More'));
+
+  root.replaceChildren(h('div', { class: 'shell' }, h('header', { class: 'hero' }, nav, heroSlot), h('main', { class: 'main' }, content)), dock);
 }
 
 async function route() {
@@ -330,7 +398,7 @@ async function route() {
   const fn = page === 'audit' && param ? h2 => auditPage(h2, decodeURIComponent(param))
     : page === 'apps' && param && param2 ? h2 => appAuditPage(h2, decodeURIComponent(param), decodeURIComponent(param2))
     : page === 'apps' && param ? h2 => appPage(h2, decodeURIComponent(param))
-      : ({ overview, team, audits, tasks, activity, account, apps: appsPage, guide: guidePage, reports: reportsPage, 'report-studio': reportStudioPage }[page] || overview);
+      : ({ overview, team, audits, tasks, activity, account, apps: appsPage, guide: guidePage, reports: reportsPage, 'report-studio': reportStudioPage, more: morePage }[page] || overview);
   const holder = h('div', {}, h('p', { class: 'muted' }, 'Loading…'));
   const activeId = page === 'audit' ? 'audits' : page === 'apps' && param ? `apps/${param}` : page;
   shell([...menuPages(), ...fieldPages()].some(p => p.id === activeId) || page === 'guide' ? activeId : 'overview', holder);
@@ -341,6 +409,28 @@ async function route() {
   }
 }
 window.addEventListener('hashchange', route);
+
+// ---------- More (phones: everything that is not in the dock) ----------
+function morePage(holder) {
+  const me = state.me;
+  const row = (href, ic, label, note, ext) => h('a', { class: 'mrow', href, ...(ext ? { target: '_blank', rel: 'noopener' } : {}) },
+    h('span', { class: 'mic', 'aria-hidden': 'true' }, icon(ic)),
+    h('span', { class: 'mt' }, h('b', {}, label), note && h('span', {}, note)),
+    ext && h('span', { class: 'sr' }, ' (opens in a new tab)'));
+  const group = (title, rows, extra) => h('section', { class: 'card mgroup' }, h('div', { class: 'cap' }, h('h2', { class: 'kick' }, title), extra), rows);
+  const tagline = code => state.apps.find(a => a.code === code)?.tagline;
+  holder.replaceChildren(
+    pageHead(h('div', {}, h('h1', {}, 'More'))),
+    group('Field apps', fieldPages().map(p => row(`#/${p.id}`, 'phone', p.label, tagline(p.id.slice(5)))), h('a', { href: '#/apps', class: 'small' }, 'App console')),
+    group('Records', [row('#/reports', 'doc', 'Previous reports', 'Finalised audits'), row('#/activity', 'activity', 'Activity log', 'Every sign-in, change and sync')]),
+    group('Tools', [toolLinks().map(t => row(t.href, 'external', t.label, tagline(t.app), true)), row('#/report-studio', 'doc', 'Report Studio', 'Coming soon')]),
+    group('Help', [row('#/guide', 'guide', 'Getting started', 'From new login to recording on site'), row('/apps/', 'download', 'Download page', 'Newest version of every field app', true)]),
+    h('section', { class: 'card mgroup' },
+      h('div', { class: 'macct' }, h('span', { class: 'av lg' }, initials(me.name)),
+        h('span', {}, h('h2', {}, me.name), h('span', { class: 'small' }, `${ROLE[me.role]} · ${me.login_id}`))),
+      h('a', { class: 'mrow plain', href: '#/account' }, icon('account'), 'My account and password'),
+      h('button', { class: 'mrow plain danger', type: 'button', onclick: signOut }, icon('signout'), 'Sign out')));
+}
 
 // ---------- overview ----------
 const PERIODS = [[7, 'Week'], [30, 'Month'], [90, 'Quarter'], [365, 'Year']];
@@ -450,7 +540,7 @@ async function overview(holder, { background = false } = {}) {
   const people = d.people.filter(p => p.role !== 'super_admin' || p.records || p.hours);
 
   holder.replaceChildren(
-    h('div', { class: 'head' },
+    pageHead(
       h('div', {}, h('h1', {}, 'Overview'),
         h('p', { class: 'muted small' }, `Team activity this ${periodName} · updated ${fmtDate(d.generated_at)}`)),
       seg),
@@ -576,7 +666,7 @@ async function team(holder) {
   });
 
   holder.replaceChildren(
-    h('div', { class: 'head' },
+    pageHead(
       h('div', {}, h('h1', {}, 'Team & access'),
         h('p', { class: 'muted small' }, me.role === 'super_admin'
           ? 'One Login ID for every app. Tick the apps each person may use; changes apply immediately.'
@@ -675,7 +765,7 @@ async function audits(holder) {
   });
 
   holder.replaceChildren(
-    h('div', { class: 'head' },
+    pageHead(
       h('div', {}, h('h1', {}, 'Audits'), h('p', { class: 'muted small' }, 'Running audits. Each plant gets a system-made industry tag; the public site shows only that tag, never the client name. ',
         'Engineers see only the audits they are added to. ', done ? h('a', { href: '#/reports' }, `${done} finalised in Previous reports`) : null)),
       h('button', { class: 'btn', onclick: newAudit }, 'New audit')),
@@ -776,7 +866,7 @@ async function auditPage(holder, id) {
   const others = data.files.filter(f => !f.mime.startsWith('image/'));
   // Wrapped in h(): it skips empty (null) sections and flattens lists; replaceChildren would print them.
   holder.replaceChildren(h('div', {},
-    h('div', { class: 'head' },
+    pageHead(
       h('div', {},
         h('p', { class: 'small' }, h('a', { href: '#/audits' }, '‹ All audits')),
         h('h1', {}, a.title),
@@ -856,7 +946,7 @@ async function tasks(holder) {
     items.length ? items.map(card) : h('p', { class: 'empty' }, emptyText));
   const done = list.filter(t => t.status === 'done').slice(0, 30);
   holder.replaceChildren(
-    h('div', { class: 'head' }, h('div', {}, h('h1', {}, 'Tasks'), h('p', { class: 'muted small' }, 'What the team is doing now and next.')),
+    pageHead( h('div', {}, h('h1', {}, 'Tasks'), h('p', { class: 'muted small' }, 'What the team is doing now and next.')),
       h('button', { class: 'btn', disabled: !auditList.length, title: auditList.length ? null : 'Create an audit first', onclick: () => newTask(auditList, users) }, 'New task')),
     h('div', { class: 'cols' },
       col('Running', list.filter(t => t.status === 'running'), 'Nothing running.'),
@@ -898,7 +988,7 @@ const describe = a => [ACTION[a.action] || a.action, (a.target_name || a.target)
 async function activity(holder) {
   const { activity: list } = await api('GET', '/api/activity?limit=300');
   holder.replaceChildren(
-    h('div', { class: 'head' }, h('div', {}, h('h1', {}, 'Activity log'),
+    pageHead( h('div', {}, h('h1', {}, 'Activity log'),
       h('p', { class: 'muted small' }, 'Every sign-in, change, sync and blocked attempt. This log cannot be edited or deleted.'))),
     h('div', { class: 'card scroll' }, h('table', {},
       h('thead', {}, h('tr', {}, h('th', {}, 'When'), h('th', {}, 'Who'), h('th', {}, 'What'), h('th', {}, 'Details'), h('th', {}, 'From'))),
@@ -927,7 +1017,7 @@ async function account(holder) {
     } catch (ex) { err.textContent = ex.message; err.hidden = false; }
   });
   holder.replaceChildren(
-    h('div', { class: 'head' }, h('div', {}, h('h1', {}, 'My account'),
+    pageHead( h('div', {}, h('h1', {}, 'My account'),
       h('p', { class: 'muted small' }, `${state.me.name} · ${state.me.login_id} · ${ROLE[state.me.role]}`))),
     form);
 }
@@ -954,7 +1044,7 @@ async function appsPage(holder) {
   const web = apps.filter(a => a.web && !a.field);
   const planned = apps.filter(a => !a.field && !a.web);
   holder.replaceChildren(
-    h('div', { class: 'head' },
+    pageHead(
       h('div', {}, h('h1', {}, 'App console'),
         h('p', { class: 'muted small' }, 'Every field app and its data. Choose an app to see each company it has data for: the company profile, what was recorded, by whom and when.')),
     ),
@@ -1026,7 +1116,7 @@ async function appPage(holder, code) {
   const metric = (ic, label, value, note) => h('div', { class: 'metric' }, h('div', { class: 'top' }, icon(ic), label), h('div', { class: 'v' }, value), note);
   const active = a.people.filter(p => p.status === 'active');
   holder.replaceChildren(h('div', {},
-    h('div', { class: 'head' },
+    pageHead(
       h('div', { class: 'row' }, appIcon(r, 52),
         h('div', {}, h('p', { class: 'small' }, h('a', { href: '#/apps' }, '‹ App console')),
           h('h1', {}, a.name), h('p', { class: 'muted small' }, a.tagline || 'Planned app'))),
@@ -1065,7 +1155,7 @@ async function appPage(holder, code) {
 // ---------- Report Studio (coming soon) ----------
 function reportStudioPage(holder) {
   holder.replaceChildren(
-    h('div', { class: 'head' }, h('div', {}, h('h1', {}, 'Report Studio'),
+    pageHead( h('div', {}, h('h1', {}, 'Report Studio'),
       h('p', { class: 'muted small' }, 'The final audit report, made from every app\u2019s data for a company.'))),
     h('div', { class: 'card', style: 'text-align:center;padding:48px 20px' },
       h('span', { class: 'pill soft', style: 'font-size:13px' }, 'Coming soon'),
@@ -1077,7 +1167,7 @@ function reportStudioPage(holder) {
 function guidePage(holder) {
   const step = (n, title, ...body) => h('li', { class: 'gstep' }, h('span', { class: 'gnum', 'aria-hidden': 'true' }, n), h('div', {}, h('b', {}, title), h('p', { class: 'small muted' }, ...body)));
   holder.replaceChildren(
-    h('div', { class: 'head' }, h('div', {}, h('h1', {}, 'Getting started'),
+    pageHead( h('div', {}, h('h1', {}, 'Getting started'),
       h('p', { class: 'muted small' }, 'How a new engineer goes from no account to recording on site.'))),
     h('div', { class: 'grid2' },
       h('div', {},
@@ -1171,7 +1261,7 @@ async function appAuditPage(holder, code, auditId) {
     h('button', { type: 'button', class: 'btn ghost sm danger', onclick: remove(r) }, 'Remove'));
 
   holder.replaceChildren(h('div', {},
-    h('div', { class: 'head' },
+    pageHead(
       h('div', {},
         h('p', { class: 'small' }, h('a', { href: '#/apps' }, '‹ App console'), ' · ', h('a', { href: `#/apps/${code}` }, app.name)),
         h('h1', {}, a.client_name || d.audit.client_name || a.title),
@@ -1242,7 +1332,7 @@ async function reportsPage(holder) {
   const { audits: list } = await api('GET', '/api/audits');
   const done = list.filter(a => CLOSED.has(a.status)).sort((x, y) => (y.finalized_at || 0) - (x.finalized_at || 0));
   holder.replaceChildren(
-    h('div', { class: 'head' }, h('div', {}, h('h1', {}, 'Previous reports'),
+    pageHead( h('div', {}, h('h1', {}, 'Previous reports'),
       h('p', { class: 'muted small' }, 'Finalised audits. Their data is kept as it was; open one to see every record, photo and file, or download all of it as a ZIP.'))),
     h('div', { class: 'card scroll' }, done.length ? h('table', {},
       h('thead', {}, h('tr', {}, h('th', {}, 'Company'), h('th', {}, 'Audit'), h('th', {}, 'Finalised'), h('th', { class: 'n' }, 'Records'), h('th', {}, 'Report'), h('th', {}, ''))),
