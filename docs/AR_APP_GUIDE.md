@@ -97,7 +97,7 @@ what the image shows (`SYNC_API.md` §3).
 
 ## 4. Look and feel
 
-The apps follow the website (arenergyservices.in): warm paper background, dark ink, one accent per
+The apps follow the website (eassiitgn.page): warm paper background, dark ink, one accent per
 app taken from its logo.
 
 - **Colours.** `app/globals.css` maps Tailwind's `slate` to the website neutrals (`#fbf9f4` paper …
@@ -202,7 +202,7 @@ phone never waits for the network and nothing typed is ever lost.**
   unsent changes: the app names that person and asks them to sign in once online so it syncs. This
   way nobody's work is dropped or sent under someone else's name. Once clear, the new person sees
   only their own audits and starts from an empty store.
-- Everything goes over HTTPS to `api.arenergyservices.in` only (Capacitor `allowNavigation`,
+- Everything goes over HTTPS to `ops.arenergyservices.in` only (Capacitor `allowNavigation`,
   no mixed content). The apps use no cookies and no tracking; the Console uses one sign-in cookie.
   The app's Privacy & storage page says this in plain words.
 

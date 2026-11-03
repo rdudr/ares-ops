@@ -1,9 +1,5 @@
-# Private data: never commit
 data/
+node_modules/
 *.db
 *.db-*
 .env
-.env.*
-
-node_modules/
-.claude/

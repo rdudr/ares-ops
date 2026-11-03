@@ -204,7 +204,7 @@ def main(key):
         quoted = r'''["'][^"']*["']'''  # the config may use single or double quotes
         c = re.sub(r'appId:\s*' + quoted, f'appId: "{cfg["app_id"]}"', c)
         c = re.sub(r'appName:\s*' + quoted, f'appName: {json.dumps(cfg["name"])}', c)
-        c = re.sub(r'allowNavigation:\s*\[[^\]]*\],?', 'allowNavigation: ["api.arenergyservices.in"],', c)
+        c = re.sub(r'allowNavigation:\s*\[[^\]]*\],?', 'allowNavigation: ["ops.arenergyservices.in"],', c)
         c = re.sub(r'\s*cleartext:\s*true,?', '', c)
         c = re.sub(r'allowMixedContent:\s*true', 'allowMixedContent: false', c)
         open(cap, 'w', encoding='utf-8').write(c)

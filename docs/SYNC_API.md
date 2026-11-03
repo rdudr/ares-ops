@@ -5,7 +5,7 @@ way. The idea: **the phone never waits for the network and nobody merges files b
 into a local queue and are pushed to the cloud automatically when online; the same call brings back
 what the rest of the team has added.
 
-All requests and responses are JSON. App codes: `survey`, `textile`, `air`, `pump`, `cool`,
+All requests and responses are JSON. App codes: `survey`, `textile`, `air`, `pump`, `cool`, `xmer`, `light`, `dryer`,
 `heat`, `power`, `bills`, `solar`, `report`.
 
 ## 1. Sign in
@@ -111,7 +111,8 @@ arrival, so a renamed file of another type is refused.
      "mime": "image/jpeg", "size": 834221, "sha256": "hex of the whole file", "name": "IMG_0042.jpg" }
    ```
 
-   `kind` is `photo`, `thermal`, `scan` or `instrument_file`. The **caption must say what the image
+   `kind` is `photo`, `thermal`, `scan`, `instrument_file`, `logo` (the company's logo) or `site` (a
+   photograph of the site for the report cover; the newest of each is used). The **caption must say what the image
    shows**. The answer says how many bytes the server already has (`file.received`); if the same
    file is already stored for this audit it is `ready` straight away.
 2. **Send the bytes** in pieces of up to 4 MB:
@@ -140,3 +141,14 @@ A 401 (`signed_out`) means the token expired or was ended: show the sign-in scre
 
 On app open, when the network comes back, after saving a record (debounced a few seconds), and every
 few minutes while the app is open. Show "waiting to sync: N" so people know nothing is lost.
+
+## 6. AI reading of a bill (Report Studio only)
+
+`GET /api/ai/status` returns `{ "bill_reading": true|false, "model": "…" }`.
+
+`POST /api/ai/bill-read` with `{ "audit_id": "…", "mime": "image/jpeg|image/png|image/webp|application/pdf", "data": "<base64>" }`
+(at most 8 MB) returns `{ "fields": { "month": "Apr 2026", "kwh": 123456, … }, "model": "…" }`: the
+figures of Report Studio's bill screen that were found, each a suggestion a person still verifies. A Report Studio
+sign-in (or the Console) only, for an audit the person is on. Off unless the server has
+`ANTHROPIC_API_KEY` and `AI_BILL_READING=on` in `/etc/ares-apps/console.env`; Report Studio also asks for the
+client's consent per report before sending any bill. The Console keeps nothing but an activity-log line.

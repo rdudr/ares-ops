@@ -11,5 +11,12 @@
     "start": "node server.js",
     "dev": "node --watch server.js",
     "test": "node test/smoke.mjs"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "0.133.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.10",
+    "zustand": "^5.0.8"
   }
 }

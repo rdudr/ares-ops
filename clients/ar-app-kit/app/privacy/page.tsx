@@ -39,7 +39,7 @@ export default function PrivacyPage() {
 
       <Section title="What is sent, and to whom">
         <p>
-          Only to the AR Energy Services server (<code>api.arenergyservices.in</code>, run by AR Enterprise), over an
+          Only to the AR Energy Services server (<code>ops.arenergyservices.in</code>, run by AR Enterprise), over an
           encrypted connection: what you record for the audits you are assigned to, who recorded it and when, the time you
           spend in the app (to plan the team&apos;s work), and the photos and files you add. Your password is checked by the
           server and stored there only in a scrambled form that cannot be read back.

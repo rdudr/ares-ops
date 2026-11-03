@@ -1,7 +1,7 @@
 // ARES app API client — shared by every AR Enterprise field app (copied into lib/ares/).
 // Contract: ares-ops/docs/SYNC_API.md. No secrets here: each person signs in with their own ARES ID.
 
-export const ARES_API = (process.env.NEXT_PUBLIC_ARES_API || "https://api.arenergyservices.in").replace(/\/$/, "");
+export const ARES_API = (process.env.NEXT_PUBLIC_ARES_API || "https://ops.arenergyservices.in").replace(/\/$/, "");
 
 export type AppCode = "survey" | "textile" | "air" | "pump" | "cool" | "heat" | "motor" | "power" | "bills" | "solar" | "report";
 

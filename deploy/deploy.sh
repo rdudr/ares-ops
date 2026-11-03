@@ -30,6 +30,14 @@ ssh "$HOST" 'set -e
   sudo rm -rf /opt/ares-ops.old
   if [ -d /opt/ares-ops ]; then sudo mv /opt/ares-ops /opt/ares-ops.old; fi
   sudo mv /opt/ares-ops.new /opt/ares-ops
+  # Packages (one: the Anthropic SDK for the optional AI bill reader). Production only.
+  ( cd /opt/ares-ops && sudo npm ci --omit=dev --no-audit --no-fund --loglevel=error )
+  # A copy of the database before the new code starts (it may add columns or tables).
+  if [ -f /var/lib/ares/ares.db ]; then
+    sudo install -d -m 700 /var/backups/ares
+    sudo sqlite3 /var/lib/ares/ares.db ".backup /var/backups/ares/pre-deploy-$(date +%Y%m%d-%H%M%S).db" 2>/dev/null \
+      || sudo cp /var/lib/ares/ares.db "/var/backups/ares/pre-deploy-$(date +%Y%m%d-%H%M%S).db"
+  fi
   if [ -f /etc/systemd/system/ares-ops.service ] && command -v caddy >/dev/null; then
     # Update: refresh config and restart. The database in /var/lib/ares is untouched.
     sudo install -m 644 /opt/ares-ops/deploy/ares-ops.service /etc/systemd/system/ares-ops.service
