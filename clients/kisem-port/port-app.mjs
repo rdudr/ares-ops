@@ -14,6 +14,9 @@
 //     the AR Android app id so a new APK installs over the old one;
 //   * AR colours (navy actions on warm grey) and the AR logo.
 // An existing AR app keeps its git history: the result is committed on the branch `kit-v2`.
+//
+// By hand after a port (once per app, already done on kit-v2): Dye House's PDF letterhead
+// (ares-jet/scripts/make-letterhead.mjs) and Cool Zone's report logo (public/report-logo.jpg).
 import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
@@ -40,7 +43,7 @@ export const APPS = {
 };
 
 // Never copied: KISEM branding and data, build output, Android projects (made by the APK script).
-const EXCLUDE = /^(android\/|releases\/|reference\/|docs\/|\.claude\/|\.idea\/|\.vscode\/|public\/brand\/|out\/|.*\.apk$|.*\.jks$|.*\.db$|(public\/)?APP logo\.png$|public\/iitgn[^/]*$|scripts\/make-logo\.mjs$|.*desktop\.ini$|AGENTS\.md$|CLAUDE\.md$|ar-logic\.json$|\.github\/workflows\/ar-logic-notify\.yml$)/i;
+const EXCLUDE = /^(android\/|releases\/|reference\/|docs\/|\.claude\/|\.idea\/|\.vscode\/|public\/brand\/|out\/|.*\.apk$|.*\.jks$|.*\.db$|(public\/)?APP logo\.png$|public\/iitgn[^/]*$|public\/samples\/|public\/(A-CMP|jeet-eff|zero-degree-logo[^/]*)\.(png|jpe?g)$|scripts\/make-logo\.mjs$|.*desktop\.ini$|AGENTS\.md$|CLAUDE\.md$|ar-logic\.json$|\.github\/workflows\/ar-logic-notify\.yml$)/i;
 const TEXT = /\.(ts|tsx|js|mjs|cjs|json|css|md|html|txt|yml|yaml)$|^\.(gitignore|env\.example)$/;
 
 // Strings that must not change: file markers other copies of the app read back.
