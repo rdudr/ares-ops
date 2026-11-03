@@ -1,5 +1,5 @@
 // Draws the AR app logos in the house style of the original AR set (warm grey ground, the AR
-// Enterprise wave mark on top, the app's name in a coloured pill, a simple drawing).
+// logo with its name on top, the app's name in a coloured pill, a simple drawing).
 //
 //   node tools/logos/make-logos.mjs <path to a node_modules folder that has sharp>
 //
@@ -16,8 +16,8 @@ const ROOT = path.resolve(HERE, '..', '..');
 const req = createRequire(path.join(process.argv[2] || ROOT, 'x.js'));
 const sharp = req('sharp');
 
-const mark = fs.readFileSync(path.join(HERE, 'ar-mark.png')).toString('base64');
-const NAVY = '#1C3A8A';
+const mark = fs.readFileSync(path.join(HERE, 'ar-logo-text.png')).toString('base64'); // the AR logo with its name
+const NAVY = '#0B3D1E'; // drawing ink: the AR logo's green
 
 // Each drawing sits in a 1024 box; the pill and the mark are added around it.
 const S = (body, extra = '') => `<g fill="none" stroke="${NAVY}" stroke-width="26" stroke-linecap="round" stroke-linejoin="round" ${extra}>${body}</g>`;
@@ -56,7 +56,7 @@ const ART = {
 };
 
 const LOGOS = [
-  { code: 'motor', name: 'MOTOR PULSE', color: '#2A45A3' },
+  { code: 'motor', name: 'MOTOR PULSE', color: '#1F6B3A' },
   { code: 'textile', name: 'DYE HOUSE', color: '#019C8F' },
   { code: 'pump', name: 'HYDRO FLOW', color: '#3567F0' },
   { code: 'cool', name: 'COOL ZONE', color: '#7C3AED' },
@@ -73,8 +73,8 @@ function svg({ code, name, color }) {
   const pillW = Math.min(900, name.length * fs * 0.62 + 120);
   return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="1024" height="1024" viewBox="0 0 1024 1024">
   <rect width="1024" height="1024" fill="#F4F2EE"/>
-  <image x="392" y="40" width="240" height="160" xlink:href="data:image/png;base64,${mark}"/>
-  <g transform="translate(0,40)">${ART[code](color)}</g>
+  <image x="392" y="8" width="240" height="260" xlink:href="data:image/png;base64,${mark}"/>
+  <g transform="translate(0,48)">${ART[code](color)}</g>
   <rect x="${512 - pillW / 2}" y="800" width="${pillW}" height="150" rx="40" fill="${color}"/>
   <text x="512" y="${875 + fs * 0.36}" text-anchor="middle" font-family="'Arial Narrow', 'Roboto Condensed', Arial, sans-serif" font-weight="700" font-size="${fs}" fill="#fff" letter-spacing="1">${name.replace(/&/g, '&amp;')}</text>
 </svg>`;
@@ -90,7 +90,7 @@ for (const l of LOGOS) {
 }
 // The logos the team made for the apps whose names stay.
 for (const [code, file] of [['survey', 'BRIEF.png'], ['air', 'AIR Findings.png'], ['heat', 'bOILER & fUEL.png']]) {
-  const src = path.join(HERE, 'keep', file);
+  const src = path.join(HERE, 'keep-ar', file); // the team's logos with the AR logo swapped in (swap-mark.py)
   await sharp(src).resize(1024, 1024).png().toFile(path.join(out, `${code}.png`));
   await sharp(src).resize(256, 256).png().toFile(path.join(ROOT, 'public', 'icons', `${code}.png`));
 }

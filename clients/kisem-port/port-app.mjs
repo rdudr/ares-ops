@@ -21,6 +21,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { createRequire } from 'node:module';
+import { brandApp } from './brand-app.mjs';
 import { fileURLToPath } from 'node:url';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -229,6 +230,8 @@ export async function port(key, { logoDir = path.join(OPS, 'tools/logos/out'), v
   if (!giText.includes('# AR app')) fs.appendFileSync(gi, '\n# AR app\n/android/\n/releases/\n/out/\n*.apk\n*.jks\n*.db\n.env*\n!.env.example\n');
 
   fs.writeFileSync(path.join(dest, 'README.md'), `# ${cfg.name}\n\n${tagline}\n\nAR Energy Services field app. Signs in with the ARES login and keeps its data, photos and\ncompany details in the ARES Console (ops.arenergyservices.in). Works offline and syncs when back\nonline.\n\n- Web: https://ops.arenergyservices.in/field/${cfg.slug}/ (\`npm run web:build\`, then \`ares-ops/deploy/field-web.sh ${cfg.slug}\`)\n- Android: \`npm run android:apk\` (signed with the AR key; see ares-ops/docs/AR_APP_GUIDE.md)\n\nThe calculations come from the matching KISEM app (made with ares-ops/clients/kisem-port).\n`);
+  // AR logo, icons, green colours and the last KISEM leftovers (brand-app.mjs).
+  await brandApp(cfg.code, dest);
   return { dest, copied, existed };
 }
 
