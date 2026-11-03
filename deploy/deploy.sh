@@ -33,7 +33,7 @@ ssh "$HOST" 'set -e
   # Packages (one: the Anthropic SDK for the optional AI bill reader). Production only.
   ( cd /opt/ares-ops && sudo npm ci --omit=dev --no-audit --no-fund --loglevel=error )
   # A copy of the database before the new code starts (it may add columns or tables).
-  if [ -f /var/lib/ares/ares.db ]; then
+  if sudo test -f /var/lib/ares/ares.db; then
     sudo install -d -m 700 /var/backups/ares
     sudo sqlite3 /var/lib/ares/ares.db ".backup /var/backups/ares/pre-deploy-$(date +%Y%m%d-%H%M%S).db" 2>/dev/null \
       || sudo cp /var/lib/ares/ares.db "/var/backups/ares/pre-deploy-$(date +%Y%m%d-%H%M%S).db"
