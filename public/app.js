@@ -309,7 +309,7 @@ const PAGES = [
   { id: 'team-activity', label: 'Team activity', group: 'Monitor', icon: 'team' },
   { id: 'tasks', label: 'Tasks', group: 'Monitor', icon: 'tasks' },
   { id: 'activity', label: 'Activity log', group: 'Monitor', icon: 'activity' },
-  { id: 'team', label: 'Team', group: 'Manage', icon: 'team' },
+  { id: 'team', label: 'Team & access', group: 'Manage', icon: 'team' },
   { id: 'audits', label: 'Audits', group: 'Manage', icon: 'audits' },
   { id: 'reports', label: 'Previous reports', group: 'Manage', icon: 'doc' },
   { id: 'apps', label: 'App console', group: 'Field apps', icon: 'apps' },
@@ -627,7 +627,7 @@ async function teamActivity(holder, { background = false } = {}) {
 }
 
 // ---------- team & access ----------
-// ---------- team: profile cards ----------
+// ---------- profile card (My account: photo and details for the report team) ----------
 // Every person has a profile card (photo, position, qualification, experience); this page shows
 // the team's profile cards (photo, position, qualification, experience) instead of per-app access.
 // Creating a card creates that person's login. Cards marked "in reports" fill the report's
@@ -703,51 +703,6 @@ function cardFields(f, u, { loginId = false, manage = false } = {}) {
   };
 }
 
-async function addCard() {
-  const me = state.me;
-  const { audits: auditList } = await api('GET', '/api/audits');
-  let collect;
-  openDialog('Add a person', f => {
-    collect = cardFields(f, { in_report: true }, { loginId: true, manage: true });
-    // AR: each person gets a role, the apps they use and the audits they work on.
-    const role = h('select', { name: 'role' },
-      h('option', { value: 'engineer' }, 'Engineer: collects data in apps'),
-      me.role === 'super_admin' && h('option', { value: 'head' }, 'Admin: sees the Console for the apps given to them'),
-      me.owner && h('option', { value: 'super_admin' }, 'Super Admin: full control'));
-    const type = h('select', {
-      name: 'employment', onchange: e => { if (e.target.value === 'freelancer') role.value = 'engineer'; role.disabled = e.target.value === 'freelancer'; },
-    }, h('option', { value: 'staff' }, 'Staff'), h('option', { value: 'freelancer' }, 'Freelancer'));
-    f.append(
-      h('div', { class: 'fgrid', style: 'margin-top:12px' }, field('Type', type), field('Role', role)),
-      h('fieldset', {}, h('legend', {}, 'Apps they can use'),
-        h('div', { class: 'chips' }, state.apps.filter(a => mine(a.code) && (a.field || a.web)).map(a => h('label', { class: 'chip' }, h('input', { type: 'checkbox', name: 'apps', value: a.code }), a.name)))),
-      h('fieldset', {}, h('legend', {}, 'Audits they work on (only these industries)'),
-        auditList.length
-          ? h('div', { class: 'chips' }, auditList.filter(a => !['published', 'archived'].includes(a.status)).map(a =>
-            h('label', { class: 'chip', title: `${a.client_name} — ${a.site_name}` }, h('input', { type: 'checkbox', name: 'audits', value: a.id }), `${a.industry_tag} · ${a.title}`)))
-          : h('p', { class: 'small muted' }, 'No audits yet. You can assign them later.')),
-      h('p', { class: 'note', style: 'margin-top:14px' },
-        'This also creates their login. A one-time temporary password is shown on the next screen.'));
-  }, async f => {
-    const checked = name => [...f.querySelectorAll(`input[name=${name}]:checked`)].map(i => i.value);
-    const r = await api('POST', '/api/users', {
-      ...collect(f), login_id: val(f, 'login_id'), employment: val(f, 'employment'), role: f.elements.role.value,
-      apps: checked('apps'), audits: checked('audits'),
-    });
-    route();
-    showCredentials(r.user.name, r.user.login_id, r.temp_password, false);
-  }, { submitLabel: 'Create card and login' });
-}
-
-function editCard(u) {
-  let collect;
-  openDialog(`Edit ${u.name}`, f => { collect = cardFields(f, u, { manage: true }); }, async f => {
-    await api('PATCH', `/api/users/${u.id}`, collect(f));
-    toast('Saved');
-    route();
-  });
-}
-
 function editMyCard() {
   let collect;
   openDialog('My profile card', f => { collect = cardFields(f, state.me); }, async f => {
@@ -759,49 +714,18 @@ function editMyCard() {
 }
 
 // Associated faculty: shown on the Team page and in reports, without a login. Super Admin edits.
-function facultyDialog(f0) {
-  let photo = f0?.photo || null;
-  const preview = h('div', {}, avatar({ name: f0?.name || '?', photo }, 88));
-  const showPhoto = () => preview.replaceChildren(avatar({ name: f0?.name || '?', photo }, 88));
-  openDialog(f0 ? `Edit ${f0.name}` : 'Add a faculty member', f => {
-    f.append(
-      h('div', { class: 'row', style: 'gap:14px;margin-bottom:14px' }, preview,
-        h('div', { class: 'row', style: 'gap:8px' },
-          h('button', { type: 'button', class: 'btn small ghost', onclick: () => pickPhoto(d => { photo = d; showPhoto(); }) }, 'Choose photo'),
-          h('button', { type: 'button', class: 'btn small ghost', onclick: () => { photo = null; showPhoto(); } }, 'Remove photo'))),
-      h('div', { class: 'fgrid' },
-        field('Full name', h('input', { type: 'text', name: 'name', value: f0?.name || '', required: true, maxlength: 80 }), 'e.g. Dr. Naran Pindoriya'),
-        field('Role', h('input', { type: 'text', name: 'position', value: f0?.position || '', maxlength: 80 }), 'e.g. Technical Advisor')),
-      h('div', { class: 'fgrid', style: 'margin-top:12px' },
-        field('Designation and department', h('input', { type: 'text', name: 'department', value: f0?.department || '', maxlength: 160 }), 'e.g. Professor, Electrical Engineering'),
-        field('E-mail', h('input', { type: 'text', name: 'email', value: f0?.email || '', autocomplete: 'off' }))),
-      h('div', { class: 'fgrid', style: 'margin-top:12px' },
-        field('Order', h('input', { type: 'text', name: 'report_order', value: String(f0?.report_order || 0), inputmode: 'numeric' }), '0 first, then 1, 2 …')),
-      h('label', { class: 'chip', style: 'margin-top:14px' },
-        h('input', { type: 'checkbox', name: 'in_report', checked: f0 ? f0.in_report !== false : true }), 'Show in reports'));
-  }, async f => {
-    const b = { name: val(f, 'name'), position: val(f, 'position') || null, department: val(f, 'department') || null, email: val(f, 'email') || null,
-      report_order: Number(val(f, 'report_order') || 0), in_report: f.elements.in_report.checked, photo };
-    if (f0) await api('PATCH', `/api/faculty/${f0.id}`, b); else await api('POST', '/api/faculty', b);
-    toast('Saved');
-    route();
-  }, { submitLabel: f0 ? 'Save' : 'Add faculty member' });
-}
-
+// AR Energy Services: one company, run by its owner (the main Super Admin). Each person gets the
+// apps and audits they work on; Admins manage only the Engineers of their own apps (lib/scope.js).
 async function team(holder) {
-  const { users } = await api('GET', '/api/users');
+  const [{ users }, { audits: auditList }] = await Promise.all([api('GET', '/api/users'), api('GET', '/api/audits')]);
   const me = state.me;
-  // Super Admins manage everyone but the main Super Admin; Admins manage the Engineers of their own apps
-  // (lib/scope.js decides, and the server checks it again). Everyone edits their own card.
-  const canManage = u => !!u.can_manage;
-  const canAdd = me.role === 'super_admin' || me.role === 'head';
+  const canManage = u => u.can_manage;
 
-  // The apps each person may use, ticked on and off here (changes apply at once).
-  const appChips = u => h('div', { class: 'chips', style: 'margin-top:8px' }, state.apps.filter(a => mine(a.code) && (a.field || a.web)).map(a => {
-    const on = (u.apps || []).includes(a.code);
+  const appChips = u => h('div', { class: 'chips' }, state.apps.filter(a => mine(a.code)).map(a => {
+    const on = u.apps.includes(a.code);
     if (u.role === 'super_admin') return h('span', { class: 'chip on ro' }, a.name);
     const box = h('input', {
-      type: 'checkbox', checked: on, disabled: !(u.can_change_apps || []).includes(a.code),
+      type: 'checkbox', checked: on, disabled: !u.can_change_apps.includes(a.code),
       onchange: async e => {
         try {
           await api('POST', `/api/users/${u.id}/apps`, { app: a.code, grant: e.target.checked });
@@ -813,70 +737,119 @@ async function team(holder) {
     return h('label', { class: `chip${on ? ' on' : ''}` }, box, a.name);
   }));
 
-  const resetPw = async u => {
-    if (!confirm(`Make a new temporary password for ${u.name}? Their current password stops working and they are signed out.`)) return;
-    try { const r = await api('POST', `/api/users/${u.id}/reset-password`); showCredentials(u.name, u.login_id, r.temp_password, true); }
-    catch (ex) { toast(ex.message); }
-  };
-  const unlock = async u => {
-    try { await api('POST', `/api/users/${u.id}/unlock`); toast(`${u.name} can sign in again`); route(); }
-    catch (ex) { toast(ex.message); }
-  };
-  // Removing someone signs them out everywhere and ends their login; their card, records and photos stay.
-  const removeMember = async u => {
-    if (!confirm(`Remove ${u.name} from the team? They are signed out of the Console and every app and can no longer sign in. Their past work stays in the records.`)) return;
-    try { await api('POST', `/api/users/${u.id}/status`, { status: 'revoked' }); toast(`${u.name} removed from the team`); route(); }
-    catch (ex) { toast(ex.message); }
-  };
-  // For a lost phone or a leaked password: stops sign-in everywhere until resumed. Not removal.
-  const pause = async (u, on) => {
-    if (on && !confirm(`Pause sign-in for ${u.name}? They are signed out of the Console and every app until you resume it. Their card and work stay.`)) return;
-    try { await api('POST', `/api/users/${u.id}/status`, { status: on ? 'hold' : 'active' }); toast(on ? `${u.name}: sign-in paused` : `${u.name}: sign-in resumed`); route(); }
+  const setStatus = async (u, status) => {
+    const msg = {
+      hold: `Put ${u.name} on hold? They are signed out of every app now and cannot sync until you reactivate them.`,
+      revoked: `Revoke ${u.name}? They are signed out everywhere and can no longer sign in or send data.`,
+      active: `Reactivate ${u.name}?`,
+    }[status];
+    if (!confirm(msg)) return;
+    try { await api('POST', `/api/users/${u.id}/status`, { status }); toast(`${u.name}: ${STATUS[status]}`); route(); }
     catch (ex) { toast(ex.message); }
   };
 
-  const card = (u, i) => h('article', { class: `pcard${u.status !== 'active' ? ' paused' : ''}` },
-    h('div', { class: 'pc-top' }, typeof i === 'number' && h('span', { class: 'pc-num', 'aria-label': `Number ${i + 1}` }, String(i + 1)), avatar(u),
-      h('div', { style: 'min-width:0' },
-        h('h3', {}, u.name),
-        h('div', { class: 'pc-pos' }, u.position || h('span', { class: 'muted' }, 'Position not set')),
-        h('div', { class: 'row', style: 'gap:6px;margin-top:8px' },
-          u.in_report ? h('span', { class: 'pill ok' }, 'In reports') : h('span', { class: 'pill soft' }, 'Not in reports'),
-          u.status === 'hold' && h('span', { class: 'pill hold' }, 'Sign-in paused'),
-          u.status === 'revoked' && h('span', { class: 'pill revoked' }, 'Removed'),
-          u.locked && h('span', { class: 'pill bad' }, 'Locked: wrong passwords')))),
-    u.qualification && h('p', { class: 'small' }, h('b', {}, 'Qualification: '), u.qualification),
-    u.experience && h('p', { class: 'small pc-exp' }, h('b', {}, 'Experience: '), u.experience),
-    (u.email || u.phone) && h('div', { class: 'small muted' }, [u.email, u.phone].filter(Boolean).join(' · ')),
-    h('div', { class: 'small muted' }, `Login ID ${u.login_id} · ${ROLE[u.role]} · last sign-in ${ago(u.last_login_at)}`, u.must_change_pw ? ' · has not set own password yet' : ''),
-    u.status !== 'revoked' && h('div', { class: 'small muted', style: 'margin-top:10px' }, u.role === 'super_admin' ? 'Apps (all, as Super Admin)' : 'Apps this person can use'),
-    u.status !== 'revoked' && appChips(u),
-    (u.id === me.id || canManage(u)) && h('div', { class: 'row pc-actions' },
-      h('button', { class: 'btn small ghost', onclick: () => (u.id === me.id ? editMyCard() : editCard(u)) }, 'Edit card'),
-      canManage(u) && h('button', { class: 'btn small ghost', onclick: () => resetPw(u) }, 'Reset password'),
-      canManage(u) && u.locked && h('button', { class: 'btn small', onclick: () => unlock(u) }, 'Unlock'),
-      canManage(u) && u.status === 'active' && h('button', { class: 'btn small warn', onclick: () => pause(u, true) }, 'Pause sign-in'),
-      canManage(u) && u.status === 'hold' && h('button', { class: 'btn small', onclick: () => pause(u, false) }, 'Resume sign-in'),
-      canManage(u) && u.status !== 'revoked' && h('button', { class: 'btn small danger', onclick: () => removeMember(u) }, 'Remove from team'),
-      canManage(u) && u.status === 'revoked' && h('button', { class: 'btn small', onclick: () => pause(u, false) }, 'Restore to team')));
+  const rows = users.map(u => {
+    const m = canManage(u);
+    return h('div', { class: 'person' },
+      h('div', {},
+        h('div', { class: 'row', style: 'gap:8px' }, h('span', { class: 'nm' }, u.name), statusPill(u.status),
+          u.owner && h('span', { class: 'pill soft' }, 'Main Super Admin'),
+          u.locked && h('span', { class: 'pill bad' }, 'Locked: wrong passwords')),
+        h('div', { class: 'small muted', style: 'margin-top:4px' }, `Login ID: ${u.login_id}`),
+        h('div', { class: 'small muted' }, ROLE[u.role], ' · ', u.employment === 'freelancer' ? 'Freelancer' : 'Staff', u.phone ? ` · ${u.phone}` : ''),
+        h('div', { class: 'small muted' }, `Last sign-in: ${ago(u.last_login_at)}`, u.must_change_pw ? ' · has not set own password yet' : '')),
+      h('div', {},
+        h('div', { class: 'small muted', style: 'margin-bottom:6px' }, u.role === 'super_admin' ? 'Apps (all, as Super Admin)'
+          : me.role === 'super_admin' ? 'Apps this person can use' : 'Your apps this person can use'),
+        appChips(u),
+        h('div', { class: 'small muted', style: 'margin:12px 0 6px' }, 'Assigned audits'),
+        u.role === 'engineer'
+          ? (u.audits.length ? h('div', { class: 'chips' }, u.audits.map(a => h('span', { class: 'pill tag', title: a.id }, a.tag))) : h('span', { class: 'small muted' }, 'None — assign in Audits'))
+          : h('span', { class: 'small muted' }, u.role === 'head' ? 'The audits of their apps (Admin)' : 'All audits (Super Admin)')),
+      h('div', { class: 'actions' },
+        m && u.status !== 'active' && h('button', { class: 'btn small', onclick: () => setStatus(u, 'active') }, 'Reactivate'),
+        m && u.status === 'active' && h('button', { class: 'btn small warn', onclick: () => setStatus(u, 'hold') }, 'Put on hold'),
+        m && u.status !== 'revoked' && h('button', { class: 'btn small danger', onclick: () => setStatus(u, 'revoked') }, 'Revoke'),
+        m && h('button', {
+          class: 'btn small ghost', onclick: async () => {
+            if (!confirm(`Make a new temporary password for ${u.name}? Their current password stops working and they are signed out.`)) return;
+            try { const r = await api('POST', `/api/users/${u.id}/reset-password`); showCredentials(u.name, u.login_id, r.temp_password, true); }
+            catch (ex) { toast(ex.message); }
+          },
+        }, 'Reset password'),
+        m && u.locked && h('button', {
+          class: 'btn small', onclick: async () => {
+            try { await api('POST', `/api/users/${u.id}/unlock`); toast(`${u.name} can sign in again`); route(); }
+            catch (ex) { toast(ex.message); }
+          },
+        }, 'Unlock'),
+        m && h('button', { class: 'btn small ghost', onclick: () => editPerson(u) }, 'Edit')));
+  });
 
-  const byOrder = (a, b) => (a.status === 'active' ? 0 : 1) - (b.status === 'active' ? 0 : 1) || (a.in_report ? 0 : 1) - (b.in_report ? 0 : 1)
-    || (a.report_order || 0) - (b.report_order || 0) || a.name.localeCompare(b.name);
-  const ordered = users.filter(u => u.status !== 'revoked').sort(byOrder);
-  const removed = users.filter(u => u.status === 'revoked').sort(byOrder);
-  holder.replaceChildren(...[
+  holder.replaceChildren(
     h('div', { class: 'head' },
-      h('div', {}, h('h1', {}, 'Team'),
-        h('p', { class: 'muted small' }, me.role === 'super_admin' ? 'One Login ID for every app. Tick the apps each person may use; changes apply at once. Cards marked "In reports" fill the report\'s assessment team.' : 'Your team: the Engineers who work on your apps. You can give or take only your own apps.')),
-      h('div', { class: 'row' },
-        h('button', { class: 'btn ghost', onclick: () => editMyCard() }, 'My card'),
-        canAdd && h('button', { class: 'btn cta', onclick: () => addCard() }, 'Add person'))),
-    h('h2', { class: 'section-title', style: 'margin:22px 0 10px' }, `Team (${ordered.length})`),
-    ordered.length ? h('div', { class: 'pcgrid' }, ordered.map(u => card(u, u.in_report && u.status === 'active' ? ordered.filter(x => x.in_report && x.status === 'active').indexOf(u) : undefined))) : h('div', { class: 'card' }, h('p', { class: 'empty' }, 'No one yet.')),
-    removed.length > 0 && canAdd && h('details', { class: 'removed' },
-      h('summary', { class: 'section-title' }, `Removed from the team (${removed.length})`),
-      h('div', { class: 'pcgrid' }, removed.map(u => card(u)))),
-  ].filter(Boolean));
+      h('div', {}, h('h1', {}, 'Team & access'),
+        h('p', { class: 'muted small' }, me.role === 'super_admin'
+          ? 'One Login ID for every app. Tick the apps each person may use; changes apply immediately.'
+          : 'Your team: Engineers who work on your apps. You can give or take only your own apps, and change only people who work on nothing else.')),
+      h('button', { class: 'btn', onclick: () => addPerson(auditList) }, 'Add person')),
+    h('div', { class: 'card' }, rows.length ? rows : h('p', { class: 'empty' }, 'No one yet.')));
+}
+
+function addPerson(auditList) {
+  const me = state.me;
+  openDialog('Add a person', f => {
+    const role = h('select', { name: 'role' },
+      h('option', { value: 'engineer' }, 'Engineer — collects data in apps'),
+      me.role === 'super_admin' && h('option', { value: 'head' }, 'Admin — sees the Console for the apps given to them'),
+      me.owner && h('option', { value: 'super_admin' }, 'Super Admin — full control'));
+    const type = h('select', {
+      name: 'employment', onchange: e => { if (e.target.value === 'freelancer') role.value = 'engineer'; role.disabled = e.target.value === 'freelancer'; },
+    }, h('option', { value: 'staff' }, 'Staff'), h('option', { value: 'freelancer' }, 'Freelancer'));
+    f.append(
+      h('div', { class: 'fgrid' },
+        field('Full name', h('input', { type: 'text', name: 'name', required: true })),
+        field('Login ID', h('input', { type: 'text', name: 'login_id', required: true, autocomplete: 'off' }), 'e.g. ravi.k')),
+      h('div', { class: 'fgrid', style: 'margin-top:12px' },
+        field('Phone (optional)', h('input', { type: 'tel', name: 'phone' })),
+        field('Type', type)),
+      h('label', { class: 'f', style: 'margin-top:12px' }, 'Role', role),
+      h('fieldset', {}, h('legend', {}, 'Apps they can use'),
+        h('div', { class: 'chips' }, state.apps.filter(a => mine(a.code)).map(a => h('label', { class: 'chip' }, h('input', { type: 'checkbox', name: 'apps', value: a.code }), a.name)))),
+      h('fieldset', {}, h('legend', {}, 'Audits they work on (only these industries)'),
+        auditList.length
+          ? h('div', { class: 'chips' }, auditList.filter(a => !['published', 'archived'].includes(a.status)).map(a =>
+            h('label', { class: 'chip', title: `${a.client_name} — ${a.site_name}` }, h('input', { type: 'checkbox', name: 'audits', value: a.id }), `${a.industry_tag} · ${a.title}`)))
+          : h('p', { class: 'small muted' }, 'No audits yet — you can assign later.')),
+      h('p', { class: 'note', style: 'margin-top:14px' }, 'A one-time temporary password is created. You will see it once, on the next screen.'));
+  }, async f => {
+    const checked = name => [...f.querySelectorAll(`input[name=${name}]:checked`)].map(i => i.value);
+    const r = await api('POST', '/api/users', {
+      name: val(f, 'name'), login_id: val(f, 'login_id'), phone: val(f, 'phone') || null,
+      employment: val(f, 'employment'), role: f.elements.role.value, apps: checked('apps'), audits: checked('audits'),
+    });
+    route();
+    showCredentials(r.user.name, r.user.login_id, r.temp_password, false);
+  }, { submitLabel: 'Create login' });
+}
+
+function editPerson(u) {
+  const me = state.me;
+  openDialog(`Edit ${u.name}`, f => f.append(
+    field('Full name', h('input', { type: 'text', name: 'name', value: u.name, required: true })),
+    field('Phone', h('input', { type: 'tel', name: 'phone', value: u.phone || '' })),
+    field('Type', h('select', { name: 'employment' },
+      h('option', { value: 'staff', selected: u.employment === 'staff' }, 'Staff'),
+      h('option', { value: 'freelancer', selected: u.employment === 'freelancer' }, 'Freelancer'))),
+    me.role === 'super_admin' && field('Role', h('select', { name: 'role' },
+      Object.entries(ROLE).filter(([k]) => k !== 'super_admin' || me.owner || u.role === k)
+        .map(([k, v]) => h('option', { value: k, selected: u.role === k }, v))))), async f => {
+    const body = { name: val(f, 'name'), phone: val(f, 'phone'), employment: val(f, 'employment') };
+    if (f.elements.role) body.role = f.elements.role.value;
+    await api('PATCH', `/api/users/${u.id}`, body);
+    toast('Saved');
+    route();
+  });
 }
 
 // ---------- audits ----------
