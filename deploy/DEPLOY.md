@@ -7,7 +7,11 @@ one Linux server (Oracle Cloud Free Tier or any VPS) under two addresses:
 |---|---|
 | `arenergyservices.in`, `www.` | Public website (Hostinger, unchanged) |
 | `ops.arenergyservices.in` | ARES Console for Super Admins and Head Members |
-| `api.arenergyservices.in` | Sync API used by the field apps |
+| `api.arenergyservices.in` | Sync API used by the field apps (`/api/`), and a preview of the Console from the `design-change` branch |
+
+Both names reach the same Node process and database. Only the Console pages differ: on `api.` they
+are static files in `/opt/ares-design`, published from the `design-change` branch (see *Console
+preview* below). `/api/`, `/apps/`, `/field/` and `/pqa/` behave the same on both names.
 
 ## 1. Create the server (Oracle Cloud Free Tier)
 
@@ -58,6 +62,7 @@ Every part on the server has its own pipeline, run on a push to `main`:
 | Pipeline | Repo | Deploys | Same as |
 |---|---|---|---|
 | `Deploy ARES` (`.github/workflows/deploy.yml`) | ares-ops | Console, sync API, Caddyfile, cron jobs | `bash deploy/deploy.sh` |
+| `Deploy Console preview` (`.github/workflows/deploy-design.yml`) | ares-ops, on a push to `design-change` that changes `public/` | Console pages of that branch to `/opt/ares-design` (api.arenergyservices.in); no restart, no data | `bash deploy/deploy-design.sh` |
 | `Deploy GST Billing` (`.github/workflows/deploy-billing.yml`) | ares-ops, only when `billing.sh` or `gst-billing.service` change; or run by hand with another upstream commit | GST Billing | `bash deploy/billing.sh` |
 | `Web app` (`.github/workflows/field-web.yml`, from the AR app kit) | each field app repo | that app at `/field/<app>/` | `bash deploy/field-web.sh <app>` |
 | `Android APK` (`.github/workflows/android-apk.yml`, from the AR app kit) | each field app repo | signed APK to the download page | `node scripts/android-apk.mjs` |
@@ -75,6 +80,15 @@ Secrets, the same in every repo that deploys (Settings → Secrets and variables
 
 To pause automatic deploys, disable the workflow in the repo's Actions tab. Manual deploys with the
 scripts keep working. To revoke the key, remove its line from `~ubuntu/.ssh/authorized_keys`.
+
+### Console preview (api.arenergyservices.in)
+
+The redesign is built on the `design-change` branch. Each push publishes that branch's `public/`
+folder to `/opt/ares-design`, which Caddy serves at `https://api.arenergyservices.in` with the same
+security headers as the Node server. Its pages call the same `/api/` as the Console on `ops.`, so a
+change made in the preview is a real change. The sign-in is separate (the cookie belongs to each
+name). Server changes (`lib/`, `server.js`) on the branch do **not** reach the preview: they go live
+only when merged into `main`.
 
 ## GST Billing (billing.arenergyservices.in)
 

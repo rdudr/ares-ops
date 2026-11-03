@@ -1,0 +1,56 @@
+# Publishes the Console pages of the design-change branch to the preview at
+# https://api.arenergyservices.in (deploy/deploy-design.sh). Static pages only: the preview uses
+# the same ARES server and database as ops.arenergyservices.in, which keeps serving main.
+# Uses the same secrets as deploy.yml (AR_DEPLOY_KEY, AR_KNOWN_HOSTS, optional variable AR_HOST).
+name: Deploy Console preview
+
+on:
+  push:
+    branches: [design-change]
+    paths:
+      - 'public/**'
+      - 'deploy/deploy-design.sh'
+      - '.github/workflows/deploy-design.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-design
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Check the deploy key is set
+        env:
+          AR_DEPLOY_KEY: ${{ secrets.AR_DEPLOY_KEY }}
+          AR_KNOWN_HOSTS: ${{ secrets.AR_KNOWN_HOSTS }}
+        run: |
+          if [ -z "$AR_DEPLOY_KEY" ] || [ -z "$AR_KNOWN_HOSTS" ]; then
+            echo "::error::Add the AR_DEPLOY_KEY and AR_KNOWN_HOSTS secrets first (see deploy.yml)."
+            exit 1
+          fi
+
+      - name: SSH to the AR server
+        env:
+          AR_DEPLOY_KEY: ${{ secrets.AR_DEPLOY_KEY }}
+          AR_KNOWN_HOSTS: ${{ secrets.AR_KNOWN_HOSTS }}
+          AR_HOST: ${{ vars.AR_HOST || '130.210.60.79' }}
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$AR_DEPLOY_KEY" > ~/.ssh/ar_deploy && chmod 600 ~/.ssh/ar_deploy
+          printf '%s\n' "$AR_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          printf 'Host ar\n  HostName %s\n  User ubuntu\n  IdentityFile ~/.ssh/ar_deploy\n  IdentitiesOnly yes\n  StrictHostKeyChecking yes\n' "$AR_HOST" > ~/.ssh/config
+
+      - name: Deploy the preview
+        run: bash deploy/deploy-design.sh ar

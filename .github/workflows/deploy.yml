@@ -20,6 +20,8 @@ on:
       - 'deploy/gst-billing.service'
       - 'deploy/field-web.sh'
       - '.github/workflows/deploy-billing.yml'
+      - 'deploy/deploy-design.sh'
+      - '.github/workflows/deploy-design.yml'
   workflow_dispatch:
 
 permissions:

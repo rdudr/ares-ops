@@ -1,7 +1,10 @@
 # Caddy gets and renews HTTPS certificates automatically.
-# Both names point at the same Node process: the Console for people, /api/ for the apps.
+# Both names reach the same Node process and database. ops.arenergyservices.in serves the Console
+# from main; api.arenergyservices.in serves the app API (/api/) the same way, but its Console pages
+# are the preview of the design-change branch (static files in /opt/ares-design, deploy/deploy-design.sh).
 
-ops.arenergyservices.in, api.arenergyservices.in {
+# Shared by both names: APK page, field web apps, Power Quality analyser, access log.
+(ares_common) {
 	encode gzip
 	# AR apps download page and APKs (a copy of the public APK repo, see ar-apps-sync.sh).
 	redir /apps /apps/
@@ -48,19 +51,54 @@ ops.arenergyservices.in, api.arenergyservices.in {
 		header /index.html Cache-Control "no-cache"
 		file_server
 	}
-	handle {
-		request_body {
-			max_size 10MB
-		}
-		reverse_proxy 127.0.0.1:8080 {
-			header_up X-Forwarded-For {remote_host}
-		}
-	}
 	log {
 		output file /var/log/caddy/ares-access.log {
 			roll_size 20MiB
 			roll_keep 5
 		}
+	}
+}
+
+(ares_backend) {
+	request_body {
+		max_size 10MB
+	}
+	reverse_proxy 127.0.0.1:8080 {
+		header_up X-Forwarded-For {remote_host}
+	}
+}
+
+# The Console (main branch) and the app API.
+ops.arenergyservices.in {
+	import ares_common
+	handle {
+		import ares_backend
+	}
+}
+
+# The app API, plus the Console pages from the design-change branch. Same server, same accounts
+# and data: sign-in, every change and every sync go through /api/ exactly as on ops.
+api.arenergyservices.in {
+	import ares_common
+	handle /api/* {
+		import ares_backend
+	}
+	handle {
+		# The same headers the Node server sends with its pages (lib/http.js securityHeaders).
+		header {
+			Content-Security-Policy "default-src 'self'; img-src 'self' data:; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"
+			X-Content-Type-Options nosniff
+			X-Frame-Options DENY
+			Referrer-Policy no-referrer
+			X-Robots-Tag "noindex, nofollow"
+			Permissions-Policy "camera=(), microphone=(), geolocation=()"
+			Strict-Transport-Security "max-age=31536000; includeSubDomains"
+			Cache-Control no-cache
+		}
+		@hidden path /.* */.*
+		respond @hidden 404
+		root * /opt/ares-design
+		file_server
 	}
 }
 
