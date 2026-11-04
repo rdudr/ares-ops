@@ -9,7 +9,7 @@ set -euo pipefail
 HOST="${HOST:-ar}"
 APPS_DIR="$(cd "$(dirname "$0")/../../AR Apps" && pwd)"
 # web path : app folder
-ALL="brief:ares-brief jet:ares-jet pump:ares-pump air:ares-air boiler:ares-boiler cooling:ares-cooling mla:ares-mla"
+ALL="brief:ares-brief jet:ares-jet pump:ares-pump air:ares-air boiler:ares-boiler cooling:ares-cooling mla:ares-mla xmer:ares-xmer light:ares-light dryer:ares-dryer"
 WANT="${*:-}"
 
 TMP=$(mktemp -d)

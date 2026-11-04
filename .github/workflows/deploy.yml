@@ -53,6 +53,8 @@ jobs:
             exit 1
           fi
 
+      - run: npm ci --no-audit --no-fund
+
       - run: npm test
 
       - name: SSH to the AR server
