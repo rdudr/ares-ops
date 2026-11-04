@@ -1,7 +1,7 @@
 # ARES Console
 
 Team dashboard, credentials and cloud-sync server for **AR Energy Services**
-(planned address: `ops.arenergyservices.in` for the Console, `api.arenergyservices.in` for the apps).
+(planned address: `ops.arenergyservices.in` for the Console, `ops.arenergyservices.in` for the apps).
 The platform rules live in the website repo: `docs/PLATFORM_RULES.md` (§6a cloud sync, §6b logins, §8 security).
 
 ## What it does

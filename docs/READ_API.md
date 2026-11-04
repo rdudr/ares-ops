@@ -1,6 +1,6 @@
 # Read API: one audit's data (draft v0)
 
-For PostMan, the Console dashboard and the AI services (summaries, report drafts, the per-audit
+For Report Studio, the Console dashboard and the AI services (summaries, report drafts, the per-audit
 chatbot). **Status: draft v0, to be agreed with the AI side before anyone builds on it.** The shape is
 marked by `schema`; any breaking change bumps it to `v1`.
 
@@ -12,7 +12,7 @@ Sign in either way:
 
 - **Console session** (Super Admin or Head Member): sees every app of every audit.
 - **App token** from `POST /api/device/login`, sent as `Authorization: Bearer <token>`:
-  - a token for the `report` app (PostMan / Report Studio, the AI services) sees every app of the
+  - a token for the `report` app (Report Studio / Report Studio, the AI services) sees every app of the
     audits that person may use;
   - any other app's token sees only its own app.
 

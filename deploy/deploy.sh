@@ -8,6 +8,19 @@ set -euo pipefail
 HOST="${1:-ar}"
 cd "$(dirname "$0")/.."
 
+# Production runs main, and only main. A deploy from another branch or an unpushed checkout replaces
+# whatever is live and is undone by the next push. GitHub Actions deploys the pushed commit itself.
+if [ -z "${GITHUB_ACTIONS:-}" ] && [ "${ALLOW_ANY_BRANCH:-}" != "1" ]; then
+  git fetch -q origin main
+  if [ "$(git rev-parse --abbrev-ref HEAD)" != main ] || [ "$(git rev-parse HEAD)" != "$(git rev-parse origin/main)" ] || [ -n "$(git status --porcelain)" ]; then
+    echo "!! refusing to deploy: use a clean checkout of main, level with origin/main."
+    echo "   To try a branch, use deploy/deploy-design.sh (Console pages only, on api.arenergyservices.in)."
+    echo "   For an emergency: ALLOW_ANY_BRANCH=1 bash deploy/deploy.sh"
+    exit 1
+  fi
+fi
+COMMIT=$(git rev-parse --short HEAD)$(git diff --quiet HEAD || echo -dirty)
+
 echo "== checking the build"
 npm test >/dev/null
 
@@ -21,15 +34,25 @@ echo "== uploading to $HOST"
 scp -q "$TMP/ares-ops.tgz" "$HOST:/tmp/ares-ops.tgz"
 
 echo "== installing on $HOST"
-ssh "$HOST" 'set -e
+ssh "$HOST" "COMMIT=$COMMIT; "'set -e
   sudo rm -rf /opt/ares-ops.new
   sudo mkdir -p /opt/ares-ops.new
   sudo tar -xzf /tmp/ares-ops.tgz -C /opt/ares-ops.new
   rm -f /tmp/ares-ops.tgz
   sudo chown -R root:root /opt/ares-ops.new
+  # Packages (one: the Anthropic SDK for the optional AI bill reader), installed before the swap so a
+  # failed install leaves the running version alone.
+  ( cd /opt/ares-ops.new && sudo npm ci --omit=dev --no-audit --no-fund --loglevel=error )
+  echo "$COMMIT $(date -u +%FT%TZ)" | sudo tee /opt/ares-ops.new/DEPLOYED >/dev/null
   sudo rm -rf /opt/ares-ops.old
   if [ -d /opt/ares-ops ]; then sudo mv /opt/ares-ops /opt/ares-ops.old; fi
   sudo mv /opt/ares-ops.new /opt/ares-ops
+  # A copy of the database before the new code starts (it may add columns or tables).
+  if sudo test -f /var/lib/ares/ares.db; then
+    sudo install -d -m 700 /var/backups/ares
+    sudo sqlite3 /var/lib/ares/ares.db ".backup /var/backups/ares/pre-deploy-$(date +%Y%m%d-%H%M%S).db" 2>/dev/null \
+      || sudo cp /var/lib/ares/ares.db "/var/backups/ares/pre-deploy-$(date +%Y%m%d-%H%M%S).db"
+  fi
   if [ -f /etc/systemd/system/ares-ops.service ] && command -v caddy >/dev/null; then
     # Update: refresh config and restart. The database in /var/lib/ares is untouched.
     sudo install -m 644 /opt/ares-ops/deploy/ares-ops.service /etc/systemd/system/ares-ops.service
@@ -71,4 +94,4 @@ ssh "$HOST" 'set -e
     exit 1
   fi
   [ "$code" = 200 ]'
-echo "== done"
+echo "== done: $COMMIT"

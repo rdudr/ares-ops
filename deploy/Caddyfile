@@ -83,6 +83,10 @@ api.arenergyservices.in {
 	handle /api/* {
 		import ares_backend
 	}
+	# The AI report connector (lib/mcp.js).
+	handle /mcp {
+		import ares_backend
+	}
 	handle {
 		# The same headers the Node server sends with its pages (lib/http.js securityHeaders).
 		header {

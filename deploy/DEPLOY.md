@@ -55,6 +55,15 @@ first visit once DNS points at the server. Get the one-time setup code with
 Repeat step 3 — `setup.sh` is safe to run again, and the database in `/var/lib/ares` is never touched
 by an update.
 
+### What runs in production
+
+Production runs `main`, and only `main`. Every push to `main` deploys it. `deploy/deploy.sh` refuses
+to run from any other branch, from an unpushed commit or from a checkout with changes, because a
+deploy from elsewhere replaces what is live and is then undone by the next push. To try a branch, use
+the Console preview below. In an emergency, `ALLOW_ANY_BRANCH=1 bash deploy/deploy.sh`, then bring
+the same change to `main` straight away. The server records what it runs in
+`/opt/ares-ops/DEPLOYED` (commit and time).
+
 ### Automatic deploys (GitHub Actions)
 
 Every part on the server has its own pipeline, run on a push to `main`:

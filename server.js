@@ -10,6 +10,7 @@ import { registerConsoleRoutes } from './lib/routes-console.js';
 import { registerDeviceRoutes } from './lib/routes-device.js';
 import { registerDataRoutes } from './lib/routes-data.js';
 import { registerRecordRoutes } from './lib/routes-records.js';
+import { handleMcp } from './lib/mcp.js';
 import { registerBillingRoutes } from './lib/routes-billing.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -32,9 +33,11 @@ const config = {
   consoleUrl: process.env.CONSOLE_URL || 'https://ops.arenergyservices.in',
 };
 
-const APP_API = /^\/api\/(device\/|sync$|files(\/|$)|audits\/[^/]+\/data$)/;
+// What the app websites (field apps, Report Studio) may call from their own address.
+const APP_API = /^\/api\/(device\/|sync$|files(\/|$)|audits\/[^/]+\/data$|ai\/(status|bill-read)$|team-cards$)/;
 
 // Exact origins from APP_ORIGINS, plus any https://<name>.arenergyservices.in (where AR app web builds live).
+// Nothing deeper, and nothing that merely ends in the name.
 function allowedAppOrigin(origin) {
   if (!origin) return false;
   if (config.appOrigins.includes(origin)) return true;
@@ -46,7 +49,7 @@ const COOKIE = config.secureCookies ? '__Host-ares' : 'ares';
 export function createServer(db, { filesDir = config.filesDir } = {}) {
   const setupCode = crypto.randomBytes(6).toString('hex').toUpperCase();
   const router = createRouter();
-  registerConsoleRoutes(router, { setupCode });
+  registerConsoleRoutes(router, { setupCode, filesDir });
   registerDeviceRoutes(router);
   registerDataRoutes(router, { filesDir });
   registerRecordRoutes(router, { filesDir });
@@ -55,8 +58,13 @@ export function createServer(db, { filesDir = config.filesDir } = {}) {
   const files = {
     '/': ['index.html', 'text/html; charset=utf-8'],
     '/app.js': ['app.js', 'text/javascript; charset=utf-8'],
+    // Each app's overview at a company, worked out with the apps' own engines (tools/bundle-overview.mjs).
+    '/overview.js': ['overview.js', 'text/javascript; charset=utf-8'],
     '/styles.css': ['styles.css', 'text/css; charset=utf-8'],
     '/logo.png': ['logo.png', 'image/png'],
+    // Each app's own logo (public/icons/<app code>.png), for cards, the menu and dialogs.
+    ...Object.fromEntries(['survey', 'motor', 'heat', 'textile', 'air', 'pump', 'cool', 'xmer', 'light', 'dryer', 'power', 'report', 'bills']
+      .map(c => [`/icons/${c}.png`, [`icons/${c}.png`, 'image/png']])),
   };
 
   const server = http.createServer(async (req, res) => {
@@ -67,6 +75,9 @@ export function createServer(db, { filesDir = config.filesDir } = {}) {
       try { url = new URL(req.url, 'http://localhost'); } catch { throw new HttpError(400, 'Bad request.'); }
       const ip = (config.trustProxy && String(req.headers['x-forwarded-for'] || '').split(',')[0].trim()) || req.socket.remoteAddress;
 
+      // The AI report connector (lib/mcp.js): its own token, its own answers.
+      if (url.pathname === '/mcp') return await handleMcp(db, req, res, ip);
+
       if (!url.pathname.startsWith('/api/')) {
         const f = req.method === 'GET' && files[url.pathname];
         if (!f) throw new HttpError(404, 'Not found.');
@@ -74,13 +85,16 @@ export function createServer(db, { filesDir = config.filesDir } = {}) {
         return res.end(readFileSync(path.join(here, 'public', f[0])));
       }
 
+      // Vary: Origin on every app route, allowed or not: the Console and the apps share one browser
+      // cache (same site), and without it a picture the Console page fetched for itself was
+      // handed to Report Studio or an app from the cache, without the CORS header, and then blocked.
+      if (APP_API.test(url.pathname)) res.setHeader('Vary', 'Origin');
       if (APP_API.test(url.pathname) && allowedAppOrigin(req.headers.origin)) {
         res.setHeader('Access-Control-Allow-Origin', req.headers.origin);
-        res.setHeader('Vary', 'Origin');
         if (req.method === 'OPTIONS') {
           res.writeHead(204, {
             'Access-Control-Allow-Methods': 'GET, POST, PUT',
-            'Access-Control-Allow-Headers': 'Authorization, Content-Type',
+            'Access-Control-Allow-Headers': 'Authorization, Content-Type, X-ARES-App',
             'Access-Control-Max-Age': '600',
           });
           return res.end();
@@ -100,6 +114,8 @@ export function createServer(db, { filesDir = config.filesDir } = {}) {
       };
 
       const bearer = String(req.headers.authorization || '').replace(/^Bearer\s+/i, '');
+      // The live-update stream re-checks the session it was opened with (lib/events.js).
+      ctx.sessionToken = bearer || parseCookies(req.headers.cookie)[COOKIE] || null;
       const deviceAuth = () => {
         const a = loadSession(db, bearer, 'device');
         if (!a) throw new HttpError(401, 'Please sign in again.', 'signed_out');
@@ -109,7 +125,7 @@ export function createServer(db, { filesDir = config.filesDir } = {}) {
         // Console: cookie session for Super Admin / Head only. Automatic refreshes send
         // X-ARES-Background and do not count as activity for the 30-minute idle timeout.
         if (req.method !== 'GET') checkSameOrigin(req);
-        const a = loadSession(db, parseCookies(req.headers.cookie)[COOKIE], 'web', { touch: req.headers['x-ares-background'] !== '1' });
+        const a = loadSession(db, parseCookies(req.headers.cookie)[COOKIE], 'web', { touch: req.headers['x-ares-background'] !== '1' && !opts.background });
         // A GST Billing session (app 'bills') is not a Console session.
         if (!a || a.session.app) throw new HttpError(401, 'Please sign in.', 'signed_out');
         if (!isManager(a.user)) throw new HttpError(403, 'Not allowed.');
@@ -166,7 +182,13 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   const db = openDb(config.dbFile);
   const { server, setupCode } = createServer(db);
   // Remove expired sessions every hour.
-  setInterval(() => db.prepare('DELETE FROM sessions WHERE expires_at < ?').run(Date.now()), 3600000).unref();
+  // Every hour: expired sessions; connector tokens ended more than 90 days ago; connector calls older than a year.
+  setInterval(() => {
+    const now = Date.now();
+    db.prepare('DELETE FROM sessions WHERE expires_at < ?').run(now);
+    db.prepare('DELETE FROM mcp_tokens WHERE COALESCE(revoked_at, expires_at) < ?').run(now - 90 * 864e5);
+    db.prepare('DELETE FROM mcp_log WHERE at < ?').run(now - 365 * 864e5);
+  }, 3600000).unref();
   server.listen(config.port, config.host, () => {
     console.log(`ARES Console running at http://${config.host === '0.0.0.0' ? 'localhost' : config.host}:${config.port}`);
     if (!db.prepare('SELECT 1 FROM users LIMIT 1').get()) {

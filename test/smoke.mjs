@@ -4,9 +4,11 @@ import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 import net from 'node:net';
 import fs from 'node:fs';
+import vm from 'node:vm';
 import os from 'node:os';
 import path from 'node:path';
-import { openDb } from '../lib/db.js';
+import { openDb, tx } from '../lib/db.js';
+import { createDemoAudit } from '../lib/demo.js';
 import { createServer } from '../server.js';
 
 const db = openDb(':memory:');
@@ -56,7 +58,7 @@ const appLogin = async (login_id, password, app) => {
 
 const admin = consoleClient();
 const ADMIN_PW = 'Admin-pass-2026';
-let auditId, p1, p2;
+let auditId, p1, p2, cardmember;
 
 await step('setup needs the code printed by the server', async () => {
   assert.equal((await admin('POST', '/api/setup', { code: 'WRONG', name: 'Axita', login_id: 'axita', password: ADMIN_PW })).status, 403);
@@ -105,6 +107,7 @@ await step('a freelancer cannot open the admin console', async () => {
 await step('same login works in every granted app, refused in others', async () => {
   assert.equal((await appLogin('fl.two', p2.pw, 'pump')).status, 403);
   assert.equal((await appLogin('fl.one', p1.pw, 'pump')).status, 200);
+  assert.equal((await appLogin('fl.two', p2.pw, 'nope')).status, 400); // unknown apps are refused
 });
 
 await step('first login must change the temporary password before syncing', async () => {
@@ -364,7 +367,12 @@ await step('AR apps on allowed origins may call the app API; other sites and Con
   assert.equal((await pre('/api/device/login', 'https://pump.arenergyservices.in')).headers.get('access-control-allow-origin'), 'https://pump.arenergyservices.in');
   assert.equal((await pre('/api/sync', 'https://evil.example')).headers.get('access-control-allow-origin'), null);
   assert.equal((await pre('/api/sync', 'https://arenergyservices.in.evil.example')).headers.get('access-control-allow-origin'), null);
+  assert.equal((await pre('/api/device/login', 'https://x.evil.arenergyservices.in')).headers.get('access-control-allow-origin'), null);
   assert.equal((await pre('/api/users', 'https://localhost')).headers.get('access-control-allow-origin'), null);
+  // Report Studio (report.arenergyservices.in) also reads the AI bill reader and the team cards from its own address.
+  for (const p of ['/api/ai/status', '/api/ai/bill-read', '/api/team-cards'])
+    assert.equal((await pre(p, 'https://report.arenergyservices.in')).headers.get('access-control-allow-origin'), 'https://report.arenergyservices.in', p);
+  assert.equal((await pre('/api/ai/bill-read', 'https://evil.example')).headers.get('access-control-allow-origin'), null);
 });
 
 await step('plant details saved in one app are offered to other apps on the same audit', async () => {
@@ -380,6 +388,35 @@ await step('plant details saved in one app are offered to other apps on the same
   assert.equal(pump.profile.district, 'Surat');
   assert.equal(pump.saved_by, 'Freelancer One');
   assert.equal((await other('GET', '/api/device/company-profiles?audit_id=AU-9999-0001')).status, 404);
+});
+
+await step('company and plant details are kept once and every app reads them, logo included', async () => {
+  // A bad pincode or an unknown state is refused; the good details are stored.
+  assert.equal((await admin('POST', `/api/audits/${auditId}/details`, { pincode: '12345' })).status, 400);
+  assert.equal((await admin('POST', `/api/audits/${auditId}/details`, { state: 'Atlantis' })).status, 400);
+  const ok = await admin('POST', `/api/audits/${auditId}/details`, { district: 'Surat', state: 'gujarat', pincode: '394230',
+    contract_demand_kva: '450', msme_no: 'udyam-gj-22-0001234', work_type: 'detailed', site_name: 'Unit 1' });
+  assert.equal(ok.status, 200);
+  const air = appClient((await appLogin('fl.two', p2.pw, 'air')).data.token);
+  const p = (await air('GET', `/api/device/audit-profile?audit_id=${auditId}`)).data.profile;
+  assert.equal(p.company_name, 'Shree Textiles');
+  assert.equal(p.plant_name, 'Unit 1');
+  assert.equal(p.state, 'Gujarat');
+  assert.equal(p.contract_demand_kva, 450);
+  assert.equal(p.msme_no, 'UDYAM-GJ-22-0001234');
+  assert.equal(p.work_type_name, 'Detailed energy audit');
+  assert.equal((await air('GET', '/api/device/audit-profile?audit_id=AU-9999-0001')).status, 404);
+  // The logo, uploaded from one app, is shown by another app and listed with the audit.
+  const pump = appClient((await appLogin('fl.one', p1.pw, 'pump')).data.token);
+  const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII=', 'base64');
+  const sha = crypto.createHash('sha256').update(png).digest('hex');
+  const id = crypto.randomUUID();
+  await pump('POST', '/api/files', { id, audit_id: auditId, kind: 'logo', caption: 'Company logo', mime: 'image/png', size: png.length, sha256: sha });
+  await fetch(`${base}/api/files/${id}/content?offset=0`, { method: 'PUT', headers: { Authorization: `Bearer ${(await appLogin('fl.one', p1.pw, 'pump')).data.token}`, 'Content-Type': 'application/octet-stream' }, body: png });
+  const airToken = (await appLogin('fl.two', p2.pw, 'air')).data.token;
+  assert.equal((await fetch(`${base}/api/files/${id}`, { headers: { Authorization: `Bearer ${airToken}` } })).status, 200);
+  const mine = (await air('GET', '/api/device/me')).data.audits.find(a => a.id === auditId);
+  assert.equal(mine.logo_file_id, id);
 });
 
 await step('a photo is stored with its record, field, tag and where it was taken, in either order', async () => {
@@ -478,7 +515,7 @@ await step('the Console edits and removes records, phones get the change; finali
   const zip = Buffer.from(await zipRes.arrayBuffer());
   assert.equal(zip.readUInt32LE(0), 0x04034b50);
   const listing = zip.toString('latin1');
-  assert.ok(listing.includes('Company.json') && listing.includes('Apps/Pump Testing/pump_test.csv') && listing.includes('Files/index.csv'));
+  assert.ok(listing.includes('Company.json') && listing.includes('Apps/Hydro Flow/pump_test.csv') && listing.includes('Files/index.csv'));
 
   assert.equal((await admin('POST', `/api/audits/${auditId}/finalise`, {})).status, 200);
   const me = await app('GET', '/api/device/me');
@@ -595,6 +632,386 @@ await step('passwords and tokens are never stored in plain text', async () => {
   const row = db.prepare("SELECT pw_hash FROM users WHERE login_id = 'fl.one'").get();
   assert.match(row.pw_hash, /^scrypt\$/);
   assert.ok(!db.prepare('SELECT token_hash FROM sessions').all().some(s => s.token_hash.length !== 64));
+});
+
+// A real 1x1 JPEG, and a "photo" whose bytes are not an image at all.
+const TINY_JPEG = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wgALCAABAAEBAREA/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPxA=';
+const FAKE_JPEG = 'data:image/jpeg;base64,' + Buffer.from('<script>alert(1)</script>').toString('base64');
+
+await step('AR profile cards: created with photo and details; an Engineer unless another role is chosen', async () => {
+  const r = await admin('POST', '/api/users', {
+    name: 'Card Member', login_id: 'cardmember', position: 'Energy Auditor', qualification: 'M.Tech (Energy)',
+    experience: '4 years of industrial energy audits', email: 'cardmember@example.com', photo: TINY_JPEG,
+    role: 'head', apps: ['survey'],
+  });
+  assert.equal(r.status, 200);
+  assert.equal(r.data.user.role, 'head');
+  const eng = await admin('POST', '/api/users', { name: 'Card Engineer', login_id: 'card.eng', apps: ['survey'] });
+  assert.equal(eng.data.user.role, 'engineer');
+  assert.equal(r.data.user.position, 'Energy Auditor');
+  assert.match(r.data.user.photo, /^data:image\/jpeg;base64,/);
+  assert.equal((await admin('POST', '/api/users', { name: 'Bad', login_id: 'bad.photo', photo: FAKE_JPEG })).status, 400);
+  assert.equal((await admin('POST', '/api/users', { name: 'Bad', login_id: 'bad.mail', email: 'not-an-email' })).status, 400);
+  const big = 'data:image/jpeg;base64,' + Buffer.concat([Buffer.from([0xff, 0xd8, 0xff]), Buffer.alloc(320 * 1024)]).toString('base64');
+  assert.equal((await admin('POST', '/api/users', { name: 'Bad', login_id: 'bad.big', photo: big })).status, 413);
+  assert.equal((await admin('PATCH', `/api/users/${r.data.user.id}`, { in_report: false })).status, 200);
+  cardmember = { id: r.data.user.id, pw: r.data.temp_password };
+});
+
+await step('an Admin edits their own card; cannot change Super Admins, other apps\' people or roles above them', async () => {
+  const member = consoleClient();
+  assert.equal((await member('POST', '/api/login', { login_id: 'cardmember', password: cardmember.pw })).status, 200);
+  assert.equal((await member('POST', '/api/change-password', { current: cardmember.pw, next: 'Cardmember-pass-2026' })).status, 200);
+  const own = await member('PATCH', '/api/me/profile', { experience: '5 years of industrial energy audits' });
+  assert.equal(own.status, 200);
+  assert.equal(own.data.user.experience, '5 years of industrial energy audits');
+  const admins = (await admin('GET', '/api/users')).data.users;
+  const superAdmin = admins.find(u => u.role === 'super_admin');
+  assert.equal((await member('PATCH', `/api/users/${superAdmin.id}`, { position: 'Changed by someone else' })).status, 403);
+  assert.equal((await member('PATCH', `/api/users/${p1.id}`, { position: 'Changed by someone else' })).status, 403);
+  assert.equal((await member('POST', `/api/users/${p1.id}/status`, { status: 'revoked' })).status, 403);
+  assert.equal((await member('POST', `/api/users/${p1.id}/reset-password`)).status, 403);
+  assert.equal((await member('POST', '/api/users', { name: 'Someone', login_id: 'someone', role: 'head' })).status, 403);
+  assert.equal((await member('POST', '/api/users', { name: 'Someone', login_id: 'someone2', apps: ['pump'] })).status, 403);
+  assert.notEqual((await admin('GET', '/api/users')).data.users.find(u => u.id === superAdmin.id).position, 'Changed by someone else');
+});
+
+await step('everyone can edit their own card; the apps read the team for the report', async () => {
+  const me = await admin('PATCH', '/api/me/profile', { position: 'Project Lead', experience: '10 years', photo: TINY_JPEG, report_order: 5 });
+  assert.equal(me.status, 200);
+  assert.equal(me.data.user.position, 'Project Lead');
+  assert.equal(me.data.user.report_order, 0); // report order is not self-service
+  const app = appClient((await appLogin('fl.one', p1.pw, 'pump')).data.token);
+  const cards = await app('GET', '/api/team-cards');
+  assert.equal(cards.status, 200);
+  assert.ok(cards.data.team.some(t => t.position === 'Project Lead'));
+  assert.ok(!cards.data.team.some(t => t.name === 'Card Member')); // switched off from reports
+  assert.ok(cards.data.team.every(t => !('login_id' in t) && !('pw_hash' in t) && !('role' in t)));
+  assert.equal((await fetch(base + '/api/team-cards')).status, 401); // not without signing in
+});
+
+await step('advisors without a login: none to start with; only the Super Admin edits them', async () => {
+  const list = await admin('GET', '/api/faculty');
+  assert.equal(list.status, 200);
+  assert.deepEqual(list.data.faculty, []); // no KISEM people on the AR side
+  const add = await admin('POST', '/api/faculty', { name: 'Test Advisor', department: 'Technical advisor', in_report: false });
+  assert.equal(add.status, 200);
+  assert.equal((await admin('PATCH', `/api/faculty/${add.data.id}`, { position: 'Advisor', email: 'bad mail' })).status, 400);
+  const app = appClient((await appLogin('fl.one', p1.pw, 'pump')).data.token);
+  const cards = await app('GET', '/api/team-cards');
+  assert.equal(cards.data.faculty.length, 0); // the one not in reports is left out
+  assert.ok([401, 403].includes((await app('POST', '/api/faculty', { name: 'X' })).status)); // apps cannot change it
+  assert.equal((await admin('DELETE', `/api/faculty/${add.data.id}`)).status, 200);
+});
+
+await step('a new audit without a cluster code takes it from the district', async () => {
+  const r = await admin('POST', '/api/audits', { client_name: 'Cluster Test Mills', sector: 'TX', site_name: 'Unit 9', district: 'Ankleshwar', state: 'Gujarat', fy: 'FY2026-27', title: 'Walkthrough' });
+  assert.equal(r.status, 200, JSON.stringify(r.data));
+  const list = await admin('GET', '/api/audits');
+  assert.match(list.data.audits.find(a => a.id === r.data.id).industry_tag, /^TX-ANK-\d{3}$/);
+});
+
+await step('the Console opens an app already signed in with a one-time code', async () => {
+  const swap = (app, code) => fetch(base + '/api/device/launch', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ app, code, device_id: 'web-test' }),
+  }).then(async r => ({ status: r.status, data: await r.json() }));
+  const issued = await admin('POST', '/api/launch', { app: 'power', audit: auditId });
+  assert.equal(issued.status, 200);
+  assert.ok(issued.data.code.length >= 32 && issued.data.expires_in <= 60);
+  assert.equal((await swap('motor', issued.data.code)).status, 401); // a code is for one app only…
+  const again = await admin('POST', '/api/launch', { app: 'power' });
+  const ok = await swap('power', again.data.code);
+  assert.equal(ok.status, 200);
+  assert.ok(ok.data.token && ok.data.user.login_id);
+  assert.equal((await appClient(ok.data.token)('GET', '/api/device/me')).data.app, 'power');
+  assert.equal((await swap('power', again.data.code)).status, 401); // …and works once
+  assert.equal((await swap('power', 'made-up-code')).status, 401);
+  assert.equal((await fetch(base + '/api/launch', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-ARES': '1' }, body: '{"app":"power"}' })).status, 401); // not without the Console
+  assert.equal((await admin('POST', '/api/launch', { app: 'power', audit: 'NO-SUCH' })).status, 404);
+});
+
+// Reads a live-update stream until `want` appears (or gives up after `ms`).
+async function waitForEvent(res, want, ms = 3000) {
+  const reader = res.body.getReader();
+  const dec = new TextDecoder();
+  let text = '';
+  const timer = setTimeout(() => reader.cancel(), ms);
+  try {
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) return text;
+      text += dec.decode(value);
+      if (text.includes(want)) return text;
+    }
+  } finally { clearTimeout(timer); reader.cancel().catch(() => {}); }
+}
+
+await step('live updates: a teammate\'s phone is told at once when data changes; no stream without sign-in', async () => {
+  assert.equal((await fetch(`${base}/api/device/events`)).status, 401);
+  const twoToken = (await appLogin('fl.two', p2.pw, 'air')).data.token;
+  const stream = await fetch(`${base}/api/device/events`, { headers: { Authorization: `Bearer ${twoToken}` } });
+  assert.equal(stream.status, 200);
+  assert.match(stream.headers.get('content-type'), /text\/event-stream/);
+  const got = waitForEvent(stream, `"audit_id":"${auditId}"`);
+  await new Promise(r => setTimeout(r, 100));
+  // On the AR side fl.one lost the Air app earlier in these tests: give it back and sign in again.
+  await admin('POST', `/api/users/${p1.id}/apps`, { app: 'air', grant: true });
+  const oneAgain = appClient((await appLogin('fl.one', 'Field-one-2026', 'air')).data.token);
+  const r = await oneAgain('POST', '/api/sync', { since: oneSince, records: [rec('C-LIVE', Date.now() - 60000)] });
+  assert.equal(r.data.results[0].status, 'stored', JSON.stringify(r.data));
+  const text = await got;
+  assert.ok(text.includes('event: change') && text.includes('"what":"records"'), 'the change was announced');
+  assert.ok(!text.includes('C-LIVE'), 'the announcement carries no record data');
+});
+
+await step('signing out of an app ends that app pass at once', async () => {
+  const t = (await appLogin('fl.two', p2.pw, 'air')).data.token;
+  const c = appClient(t);
+  assert.equal((await c('GET', '/api/device/me')).status, 200);
+  assert.equal((await c('POST', '/api/device/logout', {})).status, 200);
+  assert.equal((await c('GET', '/api/device/me')).status, 401);
+});
+
+await step('AI connector: demo audits only, a personal token, and the privacy guard', async () => {
+  // A demo audit with a facts sheet (as Report Studio saves it), where one equipment label carries the company name.
+  const demo = await admin('POST', '/api/audits', { client_name: 'Navrang Dyeing Works', sector: 'TX', site_name: 'Sachin Unit', district: 'Surat', state: 'Gujarat', fy: 'FY2026-27', title: 'Detailed energy audit' });
+  const aid = demo.data.id;
+  assert.equal((await admin('POST', `/api/audits/${aid}/mcp/tokens`, { label: 'Claude' })).status, 409); // not demo yet
+  assert.equal((await admin('POST', `/api/audits/${aid}/demo`, { demo: true })).status, 200);
+  const made = await admin('POST', `/api/audits/${aid}/mcp/tokens`, { label: 'Claude' });
+  assert.equal(made.status, 200);
+  assert.match(made.data.token, /^kmcp_/);
+  assert.ok(made.data.url.endsWith('/mcp'));
+
+  const rpc = (body, token = made.data.token) => fetch(base + '/mcp', { method: 'POST',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json, text/event-stream', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    body: JSON.stringify(body) }).then(async r => ({ status: r.status, data: r.status === 202 ? null : await r.json() }));
+  const call = async (name, args = {}) => (await rpc({ jsonrpc: '2.0', id: 9, method: 'tools/call', params: { name, arguments: args } })).data.result;
+
+  assert.equal((await rpc({ jsonrpc: '2.0', id: 1, method: 'initialize', params: {} }, null)).status, 401);
+  const init = await rpc({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'test', version: '1' } } });
+  assert.equal(init.data.result.protocolVersion, '2025-06-18');
+  assert.ok(init.data.result.capabilities.tools);
+  assert.equal((await rpc({ jsonrpc: '2.0', method: 'notifications/initialized' })).status, 202);
+  const list = await rpc({ jsonrpc: '2.0', id: 2, method: 'tools/list' });
+  assert.deepEqual(list.data.result.tools.map(t => t.name).sort(),
+    ['get_candidates', 'get_chart_options', 'get_facts', 'get_overview', 'get_report_outline', 'save_draft', 'validate_draft']);
+  assert.match((await call('get_overview')).structuredContent.error, /has not saved this report/);
+
+  // Report Studio saves the report (with the company's real name inside) and the facts sheet.
+  const pm = appClient((await appLogin('axita', ADMIN_PW, 'report')).data.token);
+  const state = { company: { name: 'Navrang Dyeing Works', addr1: 'Plot 77, Sachin GIDC', poc: 'Mahesh Kothari', phone: '9824012345' },
+    bills: [{ month: 'Apr', kwh: 412000, consumerNo: '61234500987' }] };
+  const sheet = { schema: 'postman-facts/v1', reportType: 'detailed',
+    modules: [{ id: 'bills', title: 'Electricity bill', enabled: true }, { id: 'motors', title: 'Motor load analysis', enabled: true, records: 2 }],
+    slots: [{ id: 'chapter:motors', label: 'Motor load analysis: analysis', module: 'motors', filled: false }],
+    facts: [{ id: 'bill.kwh.total', module: 'bills', label: 'Units in the year', unit: 'kWh', value: 412000, display: '4,12,000 kWh' },
+      { id: 'motor.M-01.load', module: 'motors', equipment: 'M-01', label: 'Load factor', unit: '%', value: 31.2, display: '31.2 %', flag: 'bad' }],
+    series: [{ id: 'motor.load', module: 'motors', label: 'Load factor by motor', unit: '%', kind: 'equipment', types: ['bar'], points: [{ x: 'M-01', y: 31.2 }] }],
+    candidates: [{ id: 'motor.M-01.under', module: 'motors', equipment: 'M-01', text: 'M-01 runs at 31.2 % load', facts: ['motor.M-01.load'] }] };
+  const now = Date.now();
+  const saved = await pm('POST', '/api/sync', { since: now, records: [
+    { id: `rpt-${aid}`, audit_id: aid, kind: 'report', taken_at: now, saved_at: now, payload: { schema: 'postman-report/v1', n: 1, c: JSON.stringify(state) } },
+    { id: `rpt-${aid}-facts`, audit_id: aid, kind: 'report_facts', taken_at: now, saved_at: now, payload: sheet }] });
+  assert.deepEqual(saved.data.results.map(r => r.status), ['stored', 'stored']);
+
+  const over = await call('get_overview');
+  assert.equal(over.isError, false);
+  assert.match(over.structuredContent.plant, /^PLANT-[A-Z2-9]{4}$/);
+  const facts = await call('get_facts', { module: 'motors' });
+  assert.equal(facts.structuredContent.facts[0].id, 'motor.M-01.load');
+  for (const r of [over, facts, await call('get_report_outline'), await call('get_candidates'), await call('get_chart_options')]) {
+    const text = r.content[0].text;
+    for (const secret of ['Navrang', 'Sachin', 'Surat', 'Mahesh', '9824012345', '61234500987', 'Axita', 'TX-']) assert.ok(!text.includes(secret), `${secret} must not leave the server`);
+  }
+
+  // The AI may not type numbers; references, standard names and chapters are fine.
+  const bad = await call('validate_draft', { draft: { recos: [{ module: 'motors', equipment: 'M-01', title: 'Right-size M-01', observation: 'M-01 runs at about 31 % load.', recommendation: 'Replace it with a smaller IE3 motor.' }] } });
+  assert.equal(bad.structuredContent.ok, false);
+  assert.ok(bad.structuredContent.errors.some(e => /typed by hand/.test(e)));
+  const leak = await call('validate_draft', { draft: { sections: [{ slot: 'chapter:motors', text: 'At Navrang the motors [[F.motor.M-01.load]] run light.' }] } });
+  assert.ok(leak.structuredContent.errors.some(e => /name of this plant/.test(e)));
+  const good = { note: 'Motors chapter', draft: {
+    sections: [{ slot: 'chapter:motors', text: 'Motor M-01 runs at a load factor of [[F.motor.M-01.load]], well below its best-efficiency range (IEC 60034-30-1, IE3).' }],
+    recos: [{ module: 'motors', equipment: 'M-01', title: 'Right-size motor M-01', observation: 'M-01 runs at [[F.motor.M-01.load]] of its rating.', recommendation: 'Replace it with a smaller IE3 motor.', priority: 'high' }],
+    charts: [{ module: 'motors', series: ['motor.load'], type: 'bar', title: 'Load factor of the motors', caption: 'Measured with the MLA app.' }] } };
+  const vg = await call('validate_draft', good); assert.equal(vg.structuredContent.ok, true, JSON.stringify(vg.structuredContent.errors));
+  const s = await call('save_draft', good);
+  assert.equal(s.structuredContent.saved, true);
+  const rec = db.prepare('SELECT payload FROM records WHERE id = ?').get(s.structuredContent.suggestion);
+  const items = JSON.parse(rec.payload).items;
+  assert.equal(items.length, 3);
+  assert.ok(items[0].text.includes('31.2 %'), 'the server puts Report Studio\'s value in');
+
+  // A facts sheet that carries the company name is blocked whole, and logged.
+  const t2 = Date.now() + 5;
+  await pm('POST', '/api/sync', { since: t2, records: [{ id: `rpt-${aid}-facts`, audit_id: aid, kind: 'report_facts', taken_at: t2, saved_at: t2,
+    payload: { ...sheet, facts: [...sheet.facts, { id: 'x.1', module: 'motors', equipment: 'Navrang boiler', label: 'Load', unit: '%', value: 1 }] } }] });
+  const blocked = await call('get_facts');
+  assert.equal(blocked.isError, true);
+  assert.match(blocked.structuredContent.error, /privacy guard/);
+  const log = await admin('GET', `/api/audits/${aid}/mcp`);
+  assert.ok(log.data.log.some(l => l.blocked));
+
+  // Revoking stops the token at once; demo off ends all tokens.
+  assert.equal((await admin('POST', `/api/mcp/tokens/${made.data.id}/revoke`)).status, 200);
+  assert.equal((await rpc({ jsonrpc: '2.0', id: 3, method: 'tools/list' })).status, 401);
+});
+
+await step('demo company (made from the server): every app gets test data, marked as demo; no button or route for it', async () => {
+  assert.ok(!fs.readFileSync(new URL('../public/app.js', import.meta.url), 'utf8').includes('/api/demo-audit'), 'no Create demo company button');
+  const sa = db.prepare("SELECT * FROM users WHERE role = 'super_admin' LIMIT 1").get();
+  const d = { data: tx(db, () => createDemoAudit(db, sa, { ip: 'test', filesDir })) };
+  // Building ~100 pictures blocks this process for a few seconds; let idle connections close first.
+  await new Promise(r => setTimeout(r, 300));
+  const data = await admin('GET', `/api/audits/${d.data.audit_id}/data`);
+  const apps = Object.keys(data.data.apps).sort();
+  assert.deepEqual(apps, ['air', 'cool', 'dryer', 'heat', 'light', 'motor', 'power', 'pump', 'report', 'survey', 'textile', 'xmer']);
+  assert.ok(d.data.records >= 70, String(d.data.records));
+  assert.equal(db.prepare('SELECT synthetic FROM audits WHERE id = ?').get(d.data.audit_id).synthetic, 1);
+  assert.ok(d.data.pictures >= 60, String(d.data.pictures));
+  const pics = data.data.files.filter(f => f.mime === 'image/png');
+  assert.ok(pics.some(f => f.kind === 'thermal' && f.pair_id) && pics.some(f => f.kind === 'logo') && pics.some(f => f.kind === 'site'));
+  const one = await fetch(base + pics[0].url, { headers: { Cookie: admin.cookie?.() || '' } });
+  assert.ok([200, 401, 403].includes(one.status));
+});
+
+await step('every save logs the app version that made it; the overview works out each app from its own engine', async () => {
+  const token = (await appLogin('fl.one', p1.pw, 'air')).data.token;
+  const send = (tag, header) => fetch(base + '/api/sync', {
+    method: 'POST', body: JSON.stringify({ since: Date.now(), records: [rec(tag, Date.now() - 60000)] }),
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, ...(header ? { 'X-ARES-App': header } : {}) },
+  }).then(r => r.json());
+  assert.equal((await send('C-VER-1', 'air 0.2.9 android')).results[0].status, 'stored');
+  const stored = db.prepare("SELECT app_version FROM records WHERE tag = 'C-VER-1'").get();
+  assert.equal(stored.app_version, 'v0.2.9 Android');
+  assert.match(db.prepare("SELECT detail FROM activity WHERE action = 'sync' ORDER BY rowid DESC LIMIT 1").get().detail, /app v0\.2\.9 Android$/);
+  await send('C-VER-2', 'air <script> web');
+  assert.equal(db.prepare("SELECT app_version FROM records WHERE tag = 'C-VER-2'").get().app_version, null);
+  assert.match(db.prepare("SELECT detail FROM activity WHERE action = 'sync' ORDER BY rowid DESC LIMIT 1").get().detail, /not reported/);
+
+  const js = await fetch(base + '/overview.js');
+  assert.equal(js.status, 200);
+  const sandbox = { window: {}, localStorage: { getItem: () => null, setItem() {}, removeItem() {} } };
+  sandbox.globalThis = sandbox.window;
+  vm.runInNewContext(await js.text(), sandbox.window);
+  const demoId = db.prepare("SELECT audit_id AS id FROM records WHERE kind = 'monitoring_session' LIMIT 1").get().id; // the demo company
+  const recs = db.prepare("SELECT id, app, kind, tag, payload FROM records WHERE audit_id = ?").all(demoId).map(r => ({ ...r, payload: JSON.parse(r.payload) }));
+  for (const app of sandbox.window.ARES_OVERVIEW.apps) {
+    const o = sandbox.window.ARES_OVERVIEW.overview(app, recs.filter(r => r.app === app));
+    assert.ok(o && o.kpis.length === 4 && o.charts.length >= 1, `${app}: ${JSON.stringify(o)}`);
+    assert.ok(o.kpis.every(k => !/NaN|undefined/.test(k.value)), `${app}: ${JSON.stringify(o.kpis)}`);
+    assert.ok(o.donuts.length >= 2 && o.donuts.every(d => d.slices.length && d.slices.every(x => x.value > 0)), `${app} donuts: ${JSON.stringify(o.donuts)}`);
+  }
+});
+
+await step('audit page: refused and clashing saves are kept until solved; who works where; photos that never arrived', async () => {
+  const token = (await appLogin('fl.one', p1.pw, 'air')).data.token;
+  const send = (body, ver = 'air 0.2.9 android') => fetch(base + '/api/sync', { method: 'POST', body: JSON.stringify({ since: Date.now(), ...body }),
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, 'X-ARES-App': ver } }).then(r => r.json());
+  // a refused save (same tag as a teammate's record), then the same record saved under a new tag
+  const dupId = crypto.randomUUID();
+  const r1 = await send({ records: [{ ...rec('C-01', Date.now() - 60000), id: dupId }],
+    sessions: [{ id: crypto.randomUUID(), audit_id: auditId, started_at: Date.now() - 60000, records: 1 }] });
+  assert.equal(r1.results[0].status, 'refused');
+  let st = (await admin('GET', `/api/audits/${auditId}/status`)).data;
+  const issue = st.issues.find(i => i.record_id === dupId);
+  assert.ok(issue && /already recorded/.test(issue.reason) && issue.app_version === 'v0.2.9 Android', JSON.stringify(st.issues));
+  const one = st.people.find(p => p.apps.some(x => x.app === 'air' && x.live));
+  assert.ok(one, 'the engineer shows as working now in A-CMP');
+  await send({ records: [{ ...rec('C-01-B', Date.now() - 30000), id: dupId }] });
+  st = (await admin('GET', `/api/audits/${auditId}/status`)).data;
+  assert.ok(!st.issues.some(i => i.record_id === dupId), 'a record that saves later closes its own problem');
+  // marked solved by hand
+  const id2 = crypto.randomUUID();
+  await send({ records: [{ ...rec('C-02', Date.now() - 20000), id: id2 }] });
+  st = (await admin('GET', `/api/audits/${auditId}/status`)).data;
+  const i2 = st.issues.find(i => i.record_id === id2);
+  assert.equal((await admin('POST', `/api/sync-issues/${i2.id}/resolve`)).status, 200);
+  st = (await admin('GET', `/api/audits/${auditId}/status`)).data;
+  assert.ok(!st.issues.some(i => i.record_id === id2));
+  // a photo the record points to that never arrived
+  await send({ records: [{ ...rec('C-PHOTO', Date.now() - 10000), payload: { tag: 'C-PHOTO', kw: 30, photoPath: `ares-photo:${crypto.randomUUID()}` } }] });
+  st = (await admin('GET', `/api/audits/${auditId}/status`)).data;
+  const ph = st.photos.find(m => m.app === 'air');
+  assert.ok(ph && ph.photos === 1 && ph.arriving, JSON.stringify(st.photos));
+});
+
+await step('audit process: stages one at a time, the lead moves them, approval only by the approver, completed closes the audit', async () => {
+  const id = (await admin('POST', '/api/audits', { client_name: 'Stage Test Mills', site_name: 'Unit 2', sector: 'TX', title: 'Walkthrough energy audit',
+    fy: 'FY2025-26', district: 'Surat', state: 'Gujarat', work_type: 'walkthrough' })).data.id;
+  let pa = (await admin('GET', `/api/audits/${id}/pipeline`)).data.audit;
+  assert.equal(pa.stage, 'initiated');
+  assert.ok(!pa.stages.includes('detailed'), 'a walkthrough-only audit skips the detailed audit');
+  const users = (await admin('GET', '/api/users')).data.users;
+  const eng = users.find(u => u.login_id === 'fl.one'), eng2 = users.find(u => u.login_id === 'fl.two');
+  assert.equal((await admin('POST', `/api/audits/${id}/assign`, { user_id: eng.id, assign: true, role: 'lead' })).status, 200);
+  assert.equal((await admin('POST', `/api/audits/${id}/assign`, { user_id: eng2.id, assign: true, role: 'lead' })).status, 200);
+  pa = (await admin('GET', `/api/audits/${id}/pipeline`)).data.audit;
+  assert.deepEqual(pa.team.map(t => [t.id === eng2.id ? 'two' : 'one', t.role]).sort(), [['one', 'field'], ['two', 'lead']], 'one lead at a time');
+  assert.equal((await admin('POST', `/api/audits/${id}/stage`, { to: 'processing' })).status, 200, 'a Super Admin may jump');
+  assert.equal((await admin('POST', `/api/audits/${id}/stage`, { to: 'initiated' })).status, 400, 'going back needs a note');
+  for (const to of ['draft', 'approval']) assert.equal((await admin('POST', `/api/audits/${id}/stage`, { to })).status, 200);
+  const ap = await admin('POST', `/api/audits/${id}/stage`, { to: 'final' });
+  assert.equal(ap.status, 403, 'only the approver approves'); assert.match(ap.data.error, /approves/);
+  db.prepare("UPDATE audits SET stage = 'final' WHERE id = ?").run(id);   // as if approved
+  assert.equal((await admin('POST', `/api/audits/${id}/stage`, { to: 'completed' })).status, 200);
+  assert.equal(db.prepare('SELECT status FROM audits WHERE id = ?').get(id).status, 'archived', 'completed finalises the audit');
+  assert.equal((await admin('POST', `/api/audits/${id}/stage`, { to: 'post_audit' })).status, 200);
+  assert.equal((await admin('POST', `/api/audits/${id}/post-audit`, { status: 'done', note: 'VFD fitted' })).status, 200);
+  assert.equal((await admin('POST', `/api/audits/${id}/reopen`)).status, 200);
+  pa = (await admin('GET', `/api/audits/${id}/pipeline`)).data.audit;
+  assert.equal(pa.stage, 'processing'); assert.equal(pa.status, 'in_field');
+  assert.ok(pa.history.length >= 6 && pa.history.some(h => h.note === 'Reopened'));
+});
+
+await step('tasks: process tasks per stage by role, data-entry targets that close on sync, ordinary tasks', async () => {
+  const id = (await admin('POST', '/api/audits', { client_name: 'Task Test Mills', site_name: 'Unit 3', sector: 'TX', title: 'Detailed energy audit',
+    fy: 'FY2025-26', district: 'Surat', state: 'Gujarat', work_type: 'detailed' })).data.id;
+  const users = (await admin('GET', '/api/users')).data.users;
+  const eng = users.find(u => u.login_id === 'fl.one');
+  await admin('POST', `/api/audits/${id}/assign`, { user_id: eng.id, assign: true, role: 'lead' });
+  let T = (await admin('GET', `/api/tasks?audit=${id}`)).data;
+  const team = T.tasks.find(t => t.auto_key === 'initiated:team');
+  assert.ok(team && team.status === 'done', 'the team task closes once there is a lead');
+  assert.ok(T.tasks.some(t => t.auto_key === 'initiated:details'), 'process tasks of the stage appear');
+  assert.equal((await admin('POST', `/api/audits/${id}/stage`, { to: 'detailed' })).status, 200);
+  T = (await admin('GET', `/api/tasks?audit=${id}`)).data;
+  assert.equal(T.tasks.find(t => t.auto_key === 'initiated:details').status, 'done', 'tasks of a passed stage close');
+  const field = T.tasks.find(t => t.auto_key === 'detailed:field-data');
+  assert.ok(field && field.assignee === eng.id, 'assigned to the lead');
+  // a data-entry target, closed by the engineer's sync
+  const made = await admin('POST', '/api/tasks', { audit_id: id, title: 'Record two compressors', app: 'air', record_kind: 'compressor', target: 2, assignee: eng.id });
+  assert.equal(made.status, 200, JSON.stringify(made.data));
+  assert.equal((await admin('POST', '/api/tasks', { audit_id: id, title: 'x', target: 3 })).status, 400, 'a target needs its app');
+  const token = (await appLogin('fl.one', p1.pw, 'air')).data.token;
+  const sync = recs => fetch(base + '/api/sync', { method: 'POST', body: JSON.stringify({ since: Date.now(), records: recs }),
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` } }).then(r => r.json());
+  const r1 = { ...rec('TT-1', Date.now() - 5000), audit_id: id };
+  await sync([r1]);
+  T = (await admin('GET', `/api/tasks?audit=${id}`)).data;
+  let d = T.tasks.find(t => t.id === made.data.id);
+  assert.deepEqual([d.status, d.progress.count, d.progress.target], ['todo', 1, 2]);
+  await sync([{ ...rec('TT-2', Date.now() - 4000), audit_id: id }]);
+  d = db.prepare('SELECT status, done_note FROM tasks WHERE id = ?').get(made.data.id);
+  assert.equal(d.status, 'done'); assert.match(d.done_note, /2 of 2/);
+  assert.ok(T.workload.some(p => p.id === eng.id && p.entered.some(e => e.app === 'air')), 'what each person entered');
+  // process tasks cannot be removed; ordinary ones can
+  assert.equal((await admin('DELETE', `/api/tasks/${field.id}`)).status, 400);
+  const plain = await admin('POST', '/api/tasks', { audit_id: id, title: 'Ask for the last year of bills' });
+  assert.equal((await admin('DELETE', `/api/tasks/${plain.data.id}`)).status, 200);
+});
+
+await step('a record bounced between two copies of an app is refused after 15 saves in two minutes', async () => {
+  const token = (await appLogin('fl.one', p1.pw, 'air')).data.token;
+  const id = crypto.randomUUID();
+  const send = (n) => fetch(base + '/api/sync', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ since: Date.now(), records: [{ ...rec('LOOP-1', Date.now() - 1000), id, payload: { tag: 'LOOP-1', kw: 30 + (n % 2) } }] }) }).then(r => r.json());
+  const got = [];
+  for (let i = 0; i < 18; i++) got.push((await send(i)).results[0]);
+  const refused = got.find(x => x.status === 'refused');
+  assert.ok(refused && /too often/.test(refused.reason), JSON.stringify(got.map(x => x.status)));
+  assert.ok(db.prepare('SELECT version FROM records WHERE id = ?').get(id).version <= 16);
 });
 
 server.close();
