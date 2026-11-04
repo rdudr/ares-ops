@@ -829,17 +829,16 @@ const CHECK = () => { const NS = 'http://www.w3.org/2000/svg', v = document.crea
   const pth = document.createElementNS(NS, 'path'); pth.setAttribute('d', 'M5 12.5l4.2 4.2L19 7'); v.append(pth); return v; };
 const stageOf = (P, key) => P.stages.find(s => s.key === key) || { key, label: key, short: key };
 const daysSince = ms => ms ? Math.max(0, Math.floor((Date.now() - ms) / 86400000)) : 0;
-const reachedAt = (a, key) => { const l = [...(a.history || [])].reverse().find(x => x.to_stage === key); return l ? l.at : (key === 'initiated' ? a.created_at : null); };
+const reachedAt = (a, key) => { const l = [...(a.history || [])].reverse().find(x => x.to_stage === key); return l ? l.at : (key === 'setup' ? a.created_at : null); };
 
 /** Where a stage stands for this company: done, current, waiting (approval), skipped or still to come. */
 function stageState(a, key) {
-  const cur = a.stages.indexOf(a.stage || 'initiated'), i = a.stages.indexOf(key);
+  const cur = a.stages.indexOf(a.stage || 'setup'), i = a.stages.indexOf(key);
   if (i < 0) return 'skip';
   if (i < cur) return 'done';
   if (i > cur) return 'todo';
-  if (key === 'approval') return 'wait';
-  if (key === 'completed') return 'done';
-  if (key === 'post_audit') return a.post_audit_status === 'done' ? 'done' : a.post_audit_status === 'not_done' ? 'bad' : 'cur';
+  if (key === 'review') return 'wait';
+  if (key === 'published') return 'done';
   return 'cur';
 }
 const STATE_WORD = { done: 'done', cur: 'in progress', wait: 'waiting for approval', bad: 'not done', skip: 'not needed (walkthrough audit)', todo: 'to come' };
@@ -859,11 +858,12 @@ function progressLine(a, P, { compact = false } = {}) {
     }));
 }
 
-/** May this person move the company on (as the server decides it): Super Admin, its lead, any Head when it has no lead. */
+/** Who approves a draft and moves audits on (as the server decides it): a Super Admin, an Admin who sees it, or its audit lead. */
+const canApproveStage = () => ['super_admin', 'head'].includes(state.me.role);
 function canMoveStage(a) {
-  if (state.me.role === 'super_admin') return true;
+  if (canApproveStage()) return true;
   const lead = (a.team || []).find(t => t.role === 'lead');
-  return lead ? lead.id === state.me.id : state.me.role === 'head';
+  return !!lead && lead.id === state.me.id;
 }
 async function moveTo(a, to, note, reload) {
   try { await api('POST', `/api/audits/${encodeURIComponent(a.id)}/stage`, { to, note: note || null }); toast('Audit moved on'); reload(); }
@@ -881,42 +881,27 @@ function sendBack(a, P, reload, onlyTo = null) {
     toast('Sent back'); reload();
   }, { submitLabel: 'Send back' });
 }
-function postAuditDialog(a, status, reload) {
-  openDialog(status === 'done' ? 'Post audit done' : 'Post audit: not done', f => {
-    f.append(field('Note', h('textarea', { name: 'note', rows: 3, placeholder: status === 'done' ? 'What the plant carried out' : 'What is still pending, and why' }), 'Details of the post audit come later; a short note is enough for now'));
-  }, async f => {
-    await api('POST', `/api/audits/${encodeURIComponent(a.id)}/post-audit`, { status, note: val(f, 'note') || null });
-    toast('Post audit recorded'); reload();
-  }, { submitLabel: 'Save' });
-}
-
 /** The next step for one company: the hint, and the buttons this person may use. */
 function nextStepBox(a, P, reload) {
   const nx = a.next || {}, next = nx.next ? stageOf(P, nx.next) : null;
-  const isApprover = P.approver && P.approver.id === state.me.id, may = canMoveStage(a);
+  const approves = canApproveStage(), may = canMoveStage(a);
   const buttons = [];
-  if (a.stage === 'approval') {
-    if (isApprover) {
-      buttons.push(h('button', { type: 'button', class: 'btn', onclick: () => moveTo(a, 'final', null, reload) }, 'Approve draft'));
-      buttons.push(h('button', { type: 'button', class: 'btn ghost', onclick: () => sendBack(a, P, reload, 'draft') }, 'Send back to draft'));
-    } else if (may) buttons.push(h('button', { type: 'button', class: 'btn ghost', onclick: () => sendBack(a, P, reload, 'draft') }, 'Take back to draft'));
-  } else if (a.stage === 'post_audit') {
-    if (may) {
-      buttons.push(h('button', { type: 'button', class: 'btn', onclick: () => postAuditDialog(a, 'done', reload) }, 'Mark done'));
-      buttons.push(h('button', { type: 'button', class: 'btn ghost', onclick: () => postAuditDialog(a, 'not_done', reload) }, 'Not done'));
-    }
+  if (a.stage === 'review') {
+    if (approves) {
+      buttons.push(h('button', { type: 'button', class: 'btn', onclick: () => moveTo(a, 'approved', null, reload) }, 'Approve draft'));
+      buttons.push(h('button', { type: 'button', class: 'btn ghost', onclick: () => sendBack(a, P, reload, 'processing') }, 'Send back to Processing'));
+    } else if (may) buttons.push(h('button', { type: 'button', class: 'btn ghost', onclick: () => sendBack(a, P, reload, 'processing') }, 'Take back to Processing'));
   } else if (next && may) {
-    const label = next.key === 'approval' ? `Send to ${P.approver ? P.approver.name.split(' ')[0] : 'approver'} for approval`
-      : next.key === 'completed' ? 'Mark completed' : `Move to ${next.label}`;
+    const label = next.key === 'review' ? 'Send for review' : next.key === 'published' ? 'Publish audit' : `Move to ${next.label}`;
     buttons.push(h('button', { type: 'button', class: nx.ready ? 'btn' : 'btn ghost',
-      onclick: () => next.key === 'completed' ? finaliseAudit(a) : moveTo(a, next.key, null, reload) }, label));
+      onclick: () => next.key === 'published' ? finaliseAudit(a) : moveTo(a, next.key, null, reload) }, label));
   }
-  if (may && a.stages.indexOf(a.stage) > 0 && a.stage !== 'approval') buttons.push(h('button', { type: 'button', class: 'btn ghost', onclick: () => sendBack(a, P, reload) }, 'Go back'));
-  return h('div', { class: `nextbox ${a.stage === 'approval' ? 'wait' : nx.ready ? 'ready' : ''}` },
+  if (may && a.stages.indexOf(a.stage) > 0 && a.stage !== 'review') buttons.push(h('button', { type: 'button', class: 'btn ghost', onclick: () => sendBack(a, P, reload) }, 'Go back'));
+  return h('div', { class: `nextbox ${a.stage === 'review' ? 'wait' : nx.ready ? 'ready' : ''}` },
     h('div', {}, h('div', { class: 'small muted' }, 'Now'), h('b', {}, stageOf(P, a.stage).label), h('span', { class: 'small muted' }, ` · ${daysSince(a.stage_at)} day${daysSince(a.stage_at) === 1 ? '' : 's'}`)),
-    h('p', { class: 'small' }, nx.ready && next && a.stage !== 'approval' ? h('span', { class: 'pill ok' }, `Ready for ${next.short}`) : null, nx.ready && next ? ' ' : '', nx.hint || ''),
+    h('p', { class: 'small' }, nx.ready && next && a.stage !== 'review' ? h('span', { class: 'pill ok' }, `Ready for ${next.short}`) : null, nx.ready && next ? ' ' : '', nx.hint || ''),
     buttons.length ? h('div', { class: 'row', style: 'gap:8px' }, buttons)
-      : h('p', { class: 'small muted' }, a.stage === 'approval' ? `Only ${P.approver ? P.approver.name : 'the approver'} approves.` : 'Only the team lead or a Super Admin moves this audit on.'));
+      : h('p', { class: 'small muted' }, a.stage === 'review' ? 'Only an Admin or Super Admin approves.' : 'Only the audit lead, an Admin or a Super Admin moves this audit on.'));
 }
 
 /** The audit team: who is on this company and as what; add, change role, remove. */
@@ -937,24 +922,22 @@ function auditTeamBox(a, P, users, reload) {
         if (!confirm(`Take ${t.name} off this audit?`)) return;
         try { await api('POST', `/api/audits/${encodeURIComponent(a.id)}/assign`, { user_id: t.id, assign: false }); reload(); } catch (ex) { toast(ex.message); }
       } }, 'Remove'))))
-      : h('p', { class: 'small muted' }, 'Nobody yet. Add a team lead first: they move the audit through its stages.'),
+      : h('p', { class: 'small muted' }, 'Nobody yet. Add an audit lead first: they move the audit through its stages.'),
     h('div', { class: 'row', style: 'gap:8px;margin-top:10px' }, addSel, addRole,
       h('button', { type: 'button', class: 'btn sm', onclick: async () => {
         if (!addSel.value) return toast('Choose a person to add.');
         try { await api('POST', `/api/audits/${encodeURIComponent(a.id)}/assign`, { user_id: addSel.value, assign: true, role: addRole.value }); toast('Added to the audit'); reload(); } catch (ex) { toast(ex.message); }
       } }, 'Add')),
-    h('p', { class: 'small muted', style: 'margin-top:8px' }, 'Engineers see only the companies they are on; the team lead moves this audit on; ',
-      P.approver ? `${P.approver.name} approves the draft.` : 'the approver approves the draft.'));
+    h('p', { class: 'small muted', style: 'margin-top:8px' }, 'Engineers see only the companies they are on; the audit lead moves this audit on; an Admin or Super Admin approves the draft.'));
 }
 
 // ---------- Overview: every company and where it is in the process ----------
 const STAGE_GROUPS = [
   ['all', 'All', null],
-  ['field', 'Field work', ['initiated', 'walkthrough', 'detailed']],
-  ['report', 'Processing & report', ['processing', 'draft', 'final']],
-  ['approval', 'Approval', ['approval']],
-  ['done', 'Completed', ['completed']],
-  ['post', 'Post audit', ['post_audit']],
+  ['field', 'Draft & field', ['setup', 'field']],
+  ['report', 'Processing', ['processing']],
+  ['approval', 'Review & approval', ['review', 'approved']],
+  ['done', 'Published', ['published']],
 ];
 async function pipelinePage(holder) {
   const P = await api('GET', '/api/pipeline');
@@ -963,17 +946,17 @@ async function pipelinePage(holder) {
   const reload = () => pipelinePage(holder);
   const list = P.audits;
   const count = k => list.filter(a => a.stage === k).length;
-  const isApprover = P.approver && P.approver.id === state.me.id;
+  const approves = canApproveStage();
 
   // What needs someone now.
   const attention = [];
   for (const a of list) {
     const name = a.client_name || a.id, href = `#/audit/${encodeURIComponent(a.id)}`;
-    if (a.stage === 'approval') attention.push({ tone: 'warn', a, text: isApprover ? 'Waiting for your approval' : `Waiting for ${P.approver ? P.approver.name : 'approval'}`, href, name });
+    if (a.stage === 'review') attention.push({ tone: 'warn', a, text: approves ? 'Waiting for your approval' : 'Waiting for an Admin to approve', href, name });
     else if (a.issues) attention.push({ tone: 'bad', a, text: `${a.issues} sync problem${a.issues > 1 ? 's' : ''}`, href, name });
-    else if (a.next && a.next.ready && a.next.next && a.stage !== 'post_audit') attention.push({ tone: 'ok', a, text: `Ready for ${stageOf(P, a.next.next).label}`, href, name });
-    else if (!['completed', 'post_audit'].includes(a.stage) && daysSince(a.stage_at) > 14) attention.push({ tone: 'warn', a, text: `${daysSince(a.stage_at)} days at ${stageOf(P, a.stage).short}`, href, name });
-    if (!(a.team || []).some(t => t.role === 'lead') && !['completed', 'post_audit'].includes(a.stage)) attention.push({ tone: 'soft', a, text: 'No team lead yet', href, name });
+    else if (a.next && a.next.ready && a.next.next) attention.push({ tone: 'ok', a, text: `Ready for ${stageOf(P, a.next.next).label}`, href, name });
+    else if (a.stage !== 'published' && daysSince(a.stage_at) > 14) attention.push({ tone: 'warn', a, text: `${daysSince(a.stage_at)} days at ${stageOf(P, a.stage).short}`, href, name });
+    if (!(a.team || []).some(t => t.role === 'lead') && a.stage !== 'published') attention.push({ tone: 'soft', a, text: 'No audit lead yet', href, name });
   }
 
   const shown = () => {
@@ -995,7 +978,7 @@ async function pipelinePage(holder) {
 
   holder.replaceChildren(h('div', {},
     h('div', { class: 'head' },
-      h('div', {}, h('h1', {}, 'Overview'), h('p', { class: 'muted small' }, 'Every company and where it stands in the audit process, from initiation to post audit.')),
+      h('div', {}, h('h1', {}, 'Overview'), h('p', { class: 'muted small' }, 'Every company and where it stands in the audit process, from Draft to Published.')),
       h('div', { class: 'row' }, h('a', { class: 'btn ghost', href: '#/team-activity' }, 'Team activity'), h('button', { class: 'btn', onclick: newAudit }, 'New audit'))),
     // The process at a glance: how many companies are at each stage.
     h('section', { class: 'stagebar', 'aria-label': 'Companies at each stage' }, P.stages.map((st, i) => h('a', {
@@ -1024,12 +1007,12 @@ function companyRow(a, P, reload) {
         h('div', { style: 'min-width:0' }, h('b', {}, a.client_name || a.title), a.synthetic ? h('span', { class: 'pill warn', style: 'margin-left:6px' }, 'Demo') : null,
           h('div', { class: 'small muted' }, [a.site_name, a.work_type === 'walkthrough' ? 'Walkthrough audit' : 'Detailed audit', a.fy, a.id].filter(Boolean).join(' · ')))),
       h('div', { class: 'coteam' },
-        lead ? h('span', { class: 'av lead', title: `${lead.name} · team lead` }, initials(lead.name)) : h('span', { class: 'pill soft' }, 'No lead'),
+        lead ? h('span', { class: 'av lead', title: `${lead.name} · audit lead` }, initials(lead.name)) : h('span', { class: 'pill soft' }, 'No lead'),
         others.slice(0, 5).map(t => h('span', { class: 'av', title: `${t.name} · ${P.roles[t.role] || t.role}` }, initials(t.name))),
         others.length > 5 ? h('span', { class: 'small muted' }, `+${others.length - 5}`) : null)),
     progressLine(a, P, { compact: true }),
     h('div', { class: 'cofoot' },
-      h('span', { class: `pill ${a.stage === 'approval' ? 'warn' : a.next && a.next.ready ? 'ok' : 'soft'}` },
+      h('span', { class: `pill ${a.stage === 'review' ? 'warn' : a.next && a.next.ready ? 'ok' : 'soft'}` },
         `${stageOf(P, a.stage).label} · ${daysSince(a.stage_at)} d`),
       h('span', { class: 'small' }, a.next ? a.next.hint : ''),
       h('span', { class: 'cofacts small muted' }, `${a.records} records · ${a.apps} app${a.apps === 1 ? '' : 's'} · ${a.photos} photos${a.issues ? ` · ${a.issues} sync problem${a.issues > 1 ? 's' : ''}` : ''}`),
@@ -1047,7 +1030,7 @@ async function audits(holder) {
       'aria-label': 'Add person to audit', onchange: async e => {
         if (!e.target.value) return;
         const role = a.team.some(t => t.role === 'lead') ? 'field' : 'lead';
-        try { await api('POST', `/api/audits/${a.id}/assign`, { user_id: e.target.value, assign: true, role }); toast(role === 'lead' ? 'Added as team lead' : 'Added as field engineer'); route(); } catch (ex) { toast(ex.message); }
+        try { await api('POST', `/api/audits/${a.id}/assign`, { user_id: e.target.value, assign: true, role }); toast(role === 'lead' ? 'Added as audit lead' : 'Added as field engineer'); route(); } catch (ex) { toast(ex.message); }
       },
     }, h('option', { value: '' }, '+ Add person'), users.filter(u => u.status === 'active' && !a.team.some(t => t.id === u.id) && (u.role !== 'super_admin' || state.me.role === 'super_admin'))
       .map(u => h('option', { value: u.id }, `${u.name} · ${ROLE[u.role] || u.role}`)));
@@ -1057,7 +1040,7 @@ async function audits(holder) {
         h('div', {}, h('a', { href: `#/audit/${encodeURIComponent(a.id)}` }, h('b', {}, a.client_name || a.title)), a.synthetic ? h('span', { class: 'pill warn', style: 'margin-left:8px' }, 'Demo') : null,
           h('div', { class: 'small muted' }, a.site_name, ' · ', a.title)))),
       h('td', { class: 'stagecell' }, pa.stages.length ? progressLine(pa, P, { compact: true }) : null,
-        h('div', { class: 'small', style: 'margin-top:4px' }, h('b', {}, stageOf(P, a.stage || 'initiated').label), h('span', { class: 'muted' }, ` · ${daysSince(a.stage_at)} d`))),
+        h('div', { class: 'small', style: 'margin-top:4px' }, h('b', {}, stageOf(P, a.stage || 'setup').label), h('span', { class: 'muted' }, ` · ${daysSince(a.stage_at)} d`))),
       h('td', {},
         h('div', { class: 'chips', style: 'margin-bottom:6px' }, a.team.map(t => h('span', { class: `chip on ro${t.role === 'lead' ? ' lead' : ''}`, title: P.roles[t.role] || '' }, t.role === 'lead' ? '★ ' : '', t.name,
           h('button', {
@@ -1072,7 +1055,7 @@ async function audits(holder) {
   holder.replaceChildren(
     h('div', { class: 'head' },
       h('div', {}, h('h1', {}, 'Audits'), h('p', { class: 'muted small' }, 'Running audits. Each plant gets a system-made industry tag; the public site shows only that tag, never the client name. ',
-        'Add the team on each audit: the ★ team lead moves it through its stages; engineers see only the companies they are on. ', done ? h('a', { href: '#/reports' }, `${done} finalised in Previous reports`) : null)),
+        'Add the team on each audit: the ★ audit lead moves it through its stages; engineers see only the companies they are on. ', done ? h('a', { href: '#/reports' }, `${done} finalised in Previous reports`) : null)),
       h('div', { class: 'row' },
         h('button', { class: 'btn', onclick: newAudit }, 'New audit'))),
     h('div', { class: 'card scroll' }, list.length ? h('table', {},
@@ -1266,7 +1249,7 @@ function problemsCard(st, a, rel, reload) {
     if (/closed/i.test(i.reason)) return closed
       ? [h('span', { class: 'small' }, 'The audit is finalised, so saves to it are refused. '), h('button', { type: 'button', class: 'btn sm', onclick: async () => {
         if (!confirm('Reopen this audit so the team can save to it again?')) return;
-        try { await api('POST', `/api/audits/${encodeURIComponent(a.id)}/reopen`); toast('Audit reopened: ask the team to sync again'); reload(); } catch (ex) { toast(ex.message); }
+        try { const note = (prompt('Why is this audit being reopened? (a short written reason)') || '').trim(); if (!note) return; await api('POST', `/api/audits/${encodeURIComponent(a.id)}/reopen`, { note }); toast('Audit reopened: ask the team to sync again'); reload(); } catch (ex) { toast(ex.message); }
       } }, 'Reopen audit')]
       : h('span', { class: 'small' }, `The audit is open again: ask ${who} to sync.`);
     if (/not assigned/i.test(i.reason)) return [h('span', { class: 'small' }, `${who} is not on this audit. `), h('button', { type: 'button', class: 'btn sm', onclick: async () => {
@@ -1413,7 +1396,7 @@ async function auditPage(holder, id) {
         finalised
           ? h('button', { type: 'button', class: 'btn ghost', onclick: async () => {
             if (!confirm('Reopen this audit? It returns to the running lists and its data can be changed again.')) return;
-            try { await api('POST', `/api/audits/${encodeURIComponent(a.id)}/reopen`); toast('Audit reopened'); route(); } catch (ex) { toast(ex.message); }
+            try { const note = (prompt('Why is this audit being reopened? (a short written reason)') || '').trim(); if (!note) return; await api('POST', `/api/audits/${encodeURIComponent(a.id)}/reopen`, { note }); toast('Audit reopened'); route(); } catch (ex) { toast(ex.message); }
           } }, 'Reopen')
           : h('button', { type: 'button', class: 'btn', onclick: () => finaliseAudit({ ...listed, ...a }) }, 'Finalise audit'))),
     finalised ? h('div', { class: 'note', style: 'margin-top:12px' },
@@ -1548,7 +1531,7 @@ function showConnector(made) {
 // ---------- tasks ----------
 // ---------- tasks: process tasks, data-entry targets, ordinary tasks (lib/tasks.js) ----------
 const SOURCE = { process: 'Process', data: 'Data entry', manual: 'Task' };
-const STAGE_SHORT = { initiated: 'Initiated', walkthrough: 'Walkthrough', detailed: 'Detailed', processing: 'Processing', draft: 'Draft', approval: 'Approval', final: 'Final', completed: 'Completed', post_audit: 'Post audit' };
+const STAGE_SHORT = { setup: 'Draft', field: 'In field', processing: 'Processing', review: 'Review', approved: 'Approved', published: 'Published' };
 
 /** One task row: status button, what, where, who, progress, due and the actions. */
 function taskRow(t, kinds, reload, { showCompany = true } = {}) {
@@ -1645,7 +1628,7 @@ async function tasks(holder) {
 }
 
 function newTask(auditList, users, kinds, reload, preset = {}) {
-  const running = auditList.filter(a => !CLOSED.has(a.status) || a.stage === 'completed' || a.stage === 'post_audit');
+  const running = auditList.filter(a => !CLOSED.has(a.status));
   openDialog('New task', f => {
     const appSel = h('select', { name: 'app' }, h('option', { value: '' }, '—'), state.apps.filter(a => a.field || a.code === 'power').map(a => h('option', { value: a.code, selected: preset.app === a.code }, a.name)));
     const kindSel = h('select', { name: 'record_kind' }, h('option', { value: '' }, 'Any record of the app'));

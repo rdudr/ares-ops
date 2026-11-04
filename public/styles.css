@@ -445,7 +445,7 @@ fieldset legend{font-size:13px;font-weight:600;color:var(--label-2);margin:14px 
 }
 .progresscard{margin:16px 0}
 .progressgrid{margin-top:18px;align-items:start}
-.nextbox{border-radius:16px;padding:16px 18px;background:#f6f5fa;display:grid;gap:8px}
+.nextbox{border-radius:16px;padding:16px 18px;background:var(--fill-2);display:grid;gap:8px}
 .nextbox.ready{background:var(--green-tint)}
 .nextbox.wait{background:var(--orange-tint)}
 .nextbox b{font-size:17px}

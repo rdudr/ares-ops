@@ -523,7 +523,7 @@ await step('the Console edits and removes records, phones get the change; finali
   assert.equal((await admin('PUT', '/api/records/edit-record-1', { payload: { head: 1 } })).status, 409); // locked
   const list = await admin('GET', '/api/audits');
   assert.ok(list.data.audits.find(a => a.id === auditId).finalized_at);
-  assert.equal((await admin('POST', `/api/audits/${auditId}/reopen`)).status, 200);
+  assert.equal((await admin('POST', `/api/audits/${auditId}/reopen`, { note: 'Correcting a reading' })).status, 200);
   assert.ok((await app('GET', '/api/device/me')).data.audits.some(a => a.id === auditId));
 });
 
@@ -937,12 +937,12 @@ await step('audit page: refused and clashing saves are kept until solved; who wo
   assert.ok(ph && ph.photos === 1 && ph.arriving, JSON.stringify(st.photos));
 });
 
-await step('audit process: stages one at a time, the lead moves them, approval only by the approver, completed closes the audit', async () => {
+await step('audit process: six AR stages, one at a time; an Admin or Super Admin approves; Published closes the audit', async () => {
   const id = (await admin('POST', '/api/audits', { client_name: 'Stage Test Mills', site_name: 'Unit 2', sector: 'TX', title: 'Walkthrough energy audit',
     fy: 'FY2025-26', district: 'Surat', state: 'Gujarat', work_type: 'walkthrough' })).data.id;
   let pa = (await admin('GET', `/api/audits/${id}/pipeline`)).data.audit;
-  assert.equal(pa.stage, 'initiated');
-  assert.ok(!pa.stages.includes('detailed'), 'a walkthrough-only audit skips the detailed audit');
+  assert.equal(pa.stage, 'setup');
+  assert.deepEqual(pa.stages, ['setup', 'field', 'processing', 'review', 'approved', 'published']);
   const users = (await admin('GET', '/api/users')).data.users;
   const eng = users.find(u => u.login_id === 'fl.one'), eng2 = users.find(u => u.login_id === 'fl.two');
   assert.equal((await admin('POST', `/api/audits/${id}/assign`, { user_id: eng.id, assign: true, role: 'lead' })).status, 200);
@@ -950,19 +950,18 @@ await step('audit process: stages one at a time, the lead moves them, approval o
   pa = (await admin('GET', `/api/audits/${id}/pipeline`)).data.audit;
   assert.deepEqual(pa.team.map(t => [t.id === eng2.id ? 'two' : 'one', t.role]).sort(), [['one', 'field'], ['two', 'lead']], 'one lead at a time');
   assert.equal((await admin('POST', `/api/audits/${id}/stage`, { to: 'processing' })).status, 200, 'a Super Admin may jump');
-  assert.equal((await admin('POST', `/api/audits/${id}/stage`, { to: 'initiated' })).status, 400, 'going back needs a note');
-  for (const to of ['draft', 'approval']) assert.equal((await admin('POST', `/api/audits/${id}/stage`, { to })).status, 200);
-  const ap = await admin('POST', `/api/audits/${id}/stage`, { to: 'final' });
-  assert.equal(ap.status, 403, 'only the approver approves'); assert.match(ap.data.error, /approves/);
-  db.prepare("UPDATE audits SET stage = 'final' WHERE id = ?").run(id);   // as if approved
-  assert.equal((await admin('POST', `/api/audits/${id}/stage`, { to: 'completed' })).status, 200);
-  assert.equal(db.prepare('SELECT status FROM audits WHERE id = ?').get(id).status, 'archived', 'completed finalises the audit');
-  assert.equal((await admin('POST', `/api/audits/${id}/stage`, { to: 'post_audit' })).status, 200);
-  assert.equal((await admin('POST', `/api/audits/${id}/post-audit`, { status: 'done', note: 'VFD fitted' })).status, 200);
-  assert.equal((await admin('POST', `/api/audits/${id}/reopen`)).status, 200);
+  assert.equal((await admin('POST', `/api/audits/${id}/stage`, { to: 'setup' })).status, 400, 'going back needs a note');
+  assert.equal((await admin('POST', `/api/audits/${id}/stage`, { to: 'review' })).status, 200);
+  const { moveStage } = await import('../lib/stages.js');
+  assert.throws(() => moveStage(db, id, 'approved', { id: eng2.id, role: 'engineer' }), /approves/, 'the audit lead cannot approve');
+  assert.equal((await admin('POST', `/api/audits/${id}/stage`, { to: 'approved' })).status, 200, 'a Super Admin approves');
+  assert.equal((await admin('POST', `/api/audits/${id}/stage`, { to: 'published' })).status, 200);
+  assert.equal(db.prepare('SELECT status FROM audits WHERE id = ?').get(id).status, 'archived', 'Published finalises the audit');
+  assert.equal((await admin('POST', `/api/audits/${id}/reopen`, {})).status, 400, 'reopening needs a reason');
+  assert.equal((await admin('POST', `/api/audits/${id}/reopen`, { note: 'Boiler readings to correct' })).status, 200);
   pa = (await admin('GET', `/api/audits/${id}/pipeline`)).data.audit;
   assert.equal(pa.stage, 'processing'); assert.equal(pa.status, 'in_field');
-  assert.ok(pa.history.length >= 6 && pa.history.some(h => h.note === 'Reopened'));
+  assert.ok(pa.history.length >= 5 && pa.history.some(h => h.note === 'Reopened: Boiler readings to correct'));
 });
 
 await step('tasks: process tasks per stage by role, data-entry targets that close on sync, ordinary tasks', async () => {
@@ -972,13 +971,13 @@ await step('tasks: process tasks per stage by role, data-entry targets that clos
   const eng = users.find(u => u.login_id === 'fl.one');
   await admin('POST', `/api/audits/${id}/assign`, { user_id: eng.id, assign: true, role: 'lead' });
   let T = (await admin('GET', `/api/tasks?audit=${id}`)).data;
-  const team = T.tasks.find(t => t.auto_key === 'initiated:team');
+  const team = T.tasks.find(t => t.auto_key === 'setup:team');
   assert.ok(team && team.status === 'done', 'the team task closes once there is a lead');
-  assert.ok(T.tasks.some(t => t.auto_key === 'initiated:details'), 'process tasks of the stage appear');
-  assert.equal((await admin('POST', `/api/audits/${id}/stage`, { to: 'detailed' })).status, 200);
+  assert.ok(T.tasks.some(t => t.auto_key === 'setup:details'), 'process tasks of the stage appear');
+  assert.equal((await admin('POST', `/api/audits/${id}/stage`, { to: 'field' })).status, 200);
   T = (await admin('GET', `/api/tasks?audit=${id}`)).data;
-  assert.equal(T.tasks.find(t => t.auto_key === 'initiated:details').status, 'done', 'tasks of a passed stage close');
-  const field = T.tasks.find(t => t.auto_key === 'detailed:field-data');
+  assert.equal(T.tasks.find(t => t.auto_key === 'setup:details').status, 'done', 'tasks of a passed stage close');
+  const field = T.tasks.find(t => t.auto_key === 'field:field-data');
   assert.ok(field && field.assignee === eng.id, 'assigned to the lead');
   // a data-entry target, closed by the engineer's sync
   const made = await admin('POST', '/api/tasks', { audit_id: id, title: 'Record two compressors', app: 'air', record_kind: 'compressor', target: 2, assignee: eng.id });
