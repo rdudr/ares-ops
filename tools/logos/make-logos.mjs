@@ -55,6 +55,8 @@ const ART = {
     <g stroke="${c}" stroke-width="40"><path d="M420 660v-90M500 660v-170M580 660v-120"/></g>`),
 };
 
+ART.ledger = c => S(`<path d="M512 330c-60-44-150-56-240-44v400c90-12 180 0 240 44 60-44 150-56 240-44V286c-90-12-180 0-240 44z"/><path d="M512 330v400"/>
+    <path d="M330 590v-70M400 590V470" stroke="${c}"/><path d="M690 370c-90 0-130 50-122 140 2 26 8 44 8 44 80 4 136-54 114-184z" fill="${c}" stroke="${c}"/>`);
 const LOGOS = [
   { code: 'motor', name: 'MOTOR PULSE', color: '#1F6B3A' },
   { code: 'textile', name: 'DYE HOUSE', color: '#019C8F' },
@@ -66,6 +68,7 @@ const LOGOS = [
   { code: 'power', name: 'GRID LENS', color: '#0E8A6A' },
   { code: 'bills', name: 'GST BILLING', color: '#334462' },
   { code: 'report', name: 'REPORT STUDIO', color: '#1D388A' },
+  { code: 'ledger', name: 'ENERGY LEDGER', color: '#2E6B3E' },
 ];
 
 function svg({ code, name, color }) {
@@ -83,13 +86,14 @@ function svg({ code, name, color }) {
 const out = path.join(HERE, 'out');
 fs.mkdirSync(out, { recursive: true });
 fs.mkdirSync(path.join(ROOT, 'public', 'icons'), { recursive: true });
-for (const l of LOGOS) {
+const only = process.argv[3]; // one code, to draw just that logo
+for (const l of LOGOS.filter(x => !only || x.code === only)) {
   const buf = Buffer.from(svg(l));
   await sharp(buf).png().toFile(path.join(out, `${l.code}.png`));
   await sharp(buf).resize(256, 256).png().toFile(path.join(ROOT, 'public', 'icons', `${l.code}.png`));
 }
 // The logos the team made for the apps whose names stay.
-for (const [code, file] of [['survey', 'BRIEF.png'], ['air', 'AIR Findings.png'], ['heat', 'bOILER & fUEL.png']]) {
+for (const [code, file] of only ? [] : [['survey', 'BRIEF.png'], ['air', 'AIR Findings.png'], ['heat', 'bOILER & fUEL.png']]) {
   const src = path.join(HERE, 'keep-ar', file); // the team's logos with the AR logo swapped in (swap-mark.py)
   await sharp(src).resize(1024, 1024).png().toFile(path.join(out, `${code}.png`));
   await sharp(src).resize(256, 256).png().toFile(path.join(ROOT, 'public', 'icons', `${code}.png`));

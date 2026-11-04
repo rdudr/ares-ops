@@ -520,3 +520,139 @@ fieldset legend{font-size:13px;font-weight:600;color:var(--label-2);margin:14px 
   .trowt{grid-template-columns:28px 1fr}
   .tact{grid-column:2}
 }
+
+/* Energy Ledger */
+.lg-notice{display:flex;gap:14px;align-items:center;justify-content:space-between;flex-wrap:wrap;background:var(--card);border-radius:16px;padding:14px 18px;margin-bottom:16px;border-left:4px solid var(--orange)}
+.lg-notice.bad{border-left-color:var(--red)}
+.lg-notice>div{flex:1 1 280px;min-width:0}
+.lg-logo{border-radius:14px}
+.lg-gap{margin-top:16px}
+.lg-title{font-size:32px}
+.lg-solo{max-width:1240px;margin:0 auto;padding:22px 20px 60px}
+.lg-tabs{display:flex;gap:4px;background:var(--card);border-radius:999px;padding:4px;margin:0 0 16px;width:fit-content;max-width:100%;overflow-x:auto}
+.lg-tabs button{border:0;background:none;border-radius:999px;padding:8px 18px;min-height:40px;cursor:pointer;font-weight:500;color:var(--label-2);white-space:nowrap}
+.lg-tabs button.on{background:var(--accent);color:var(--on-accent)}
+.lg-tabs button:focus-visible,.lg-link:focus-visible,.lg-pillbtn:focus-visible,.lg-x:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.lg-card{margin-bottom:16px}
+.lg-card>.small.muted{margin-bottom:10px}
+.lg-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-bottom:16px}
+.lg-kpi{background:var(--card);border-radius:16px;padding:14px 16px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.lg-kpi b{font-size:22px;font-weight:600;letter-spacing:-.02em;overflow-wrap:anywhere}
+.lg-finds{display:grid;gap:10px}
+.lg-find{display:flex;gap:10px;align-items:flex-start;font-size:14px}
+.lg-find .pill{flex:none;min-width:64px;text-align:center}
+.lg-charts{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:12px}
+.lg-fig{background:var(--card);border-radius:16px;padding:14px 16px;min-width:0}
+.lg-fig figcaption{display:flex;justify-content:space-between;gap:8px;align-items:baseline;margin-bottom:6px}
+.lg-plot{position:relative}
+.lg-chart{width:100%;height:auto;display:block}
+.lg-tip{position:absolute;pointer-events:none;background:#111;color:#fff;font-size:12px;padding:6px 9px;border-radius:8px;z-index:2;min-width:120px}
+.lg-legend{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--label-2);margin-bottom:4px}
+.lg-legend span{display:inline-flex;gap:5px;align-items:center}
+.lg-figs{font-size:13px;margin-top:6px}
+.lg-figs summary{cursor:pointer;color:var(--label-2)}
+.lg-src{margin-top:12px}
+.lg-scroll{overflow-x:auto}
+.lg-t{border-collapse:collapse;width:100%;font-size:13px}
+.lg-t th{font-weight:600;text-align:left;padding:7px 8px;border-bottom:1px solid var(--sep);white-space:nowrap;font-size:12px;color:var(--label-2)}
+.lg-t td{padding:5px 8px;border-bottom:1px solid var(--sep);white-space:nowrap}
+.lg-t .n{text-align:right;font-variant-numeric:tabular-nums}
+.lg-t tfoot td{font-weight:600;border-bottom:0}
+.lg-edit td{padding:3px 4px}
+.nin{width:82px;min-height:36px;padding:5px 7px;border:1px solid var(--sep);border-radius:8px;background:var(--card);color:var(--label);text-align:right;font-variant-numeric:tabular-nums}
+.nin.wide{width:104px}
+.nin.read{background:var(--orange-tint)}
+.nin.bad{border-color:var(--red)}
+.lg-form .nin{width:100%}
+.lg-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
+.lg-form.two{grid-template-columns:repeat(auto-fit,minmax(210px,1fr))}
+.lg-month{display:flex;gap:3px}
+.lg-month select{min-height:36px;border:1px solid var(--sep);border-radius:8px;background:var(--card);color:var(--label);padding:0 2px}
+.lg-acts{display:flex;gap:4px;align-items:center}
+.lg-pillbtn{border:0;cursor:pointer;min-height:32px}
+.lg-x{border:0;background:none;font-size:18px;line-height:1;width:32px;height:32px;cursor:pointer;color:var(--label-2);border-radius:8px}
+.lg-x:hover{background:var(--fill)}
+.lg-link{border:0;background:none;padding:6px 0;cursor:pointer;text-decoration:underline;font-size:13px}
+.lg-link.danger{color:var(--red)}
+.lg-fuels,.lg-lines{display:grid;gap:12px}
+.lg-fuel{border:1px solid var(--sep);border-radius:14px;padding:12px 14px;display:grid;gap:8px}
+.lg-hint,.lg-warnline{color:var(--orange)}
+.lg-big{display:flex;gap:10px;align-items:baseline;margin:2px 0 4px}
+.lg-big b{font-size:36px;font-weight:600;letter-spacing:-.03em}
+.lg-grid .lg-form{margin-top:12px}
+.lg-h3{margin:14px 0 6px}
+.lg-notes{padding-left:18px;display:grid;gap:5px}
+.lg-check{margin-top:8px;color:var(--label-2)}
+.lg-dlg .body{max-height:88vh;overflow:auto}
+.lg-dlg.wide{width:min(1060px,96vw);max-width:96vw}
+.lg-review{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;margin-top:10px}
+.lg-scan img{width:100%;border-radius:10px;border:1px solid var(--sep);display:block}
+.lg-ai{margin-top:12px;display:grid;gap:8px;justify-items:start}
+.lg-report{background:var(--card);border-radius:20px;padding:28px}
+.lg-report header{border-bottom:2px solid var(--label);padding-bottom:12px;margin-bottom:16px}
+.lg-report h2{font-size:26px;margin:4px 0 8px}
+.lg-report section{margin-top:22px}
+.lg-report h3{margin-bottom:8px}
+.lg-report .lg-kpi{background:var(--bg)}
+.lg-report .lg-fig{padding:10px 0}
+.lg-rlist{padding-left:18px;display:grid;gap:5px;font-size:14px}
+.lg-rt td,.lg-rt th{font-size:11.5px;padding:4px 6px}
+.lg-sources p{margin-bottom:4px}
+@media (max-width:760px){.lg-review{grid-template-columns:1fr}.lg-title{font-size:26px}.lg-charts{grid-template-columns:1fr}}
+.lg-form input:not(.nin),.lg-form select{width:100%;min-height:36px;padding:5px 9px;border:1px solid var(--sep);border-radius:8px;background:var(--card);color:var(--label)}
+.lg-form label,.lg-form .f{min-width:0}
+.lg-bill-info{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:4px}
+.lg-bill-info td{padding:3px 8px 3px 0;white-space:nowrap}
+.lg-bill-info .ttl{font-weight:600;font-size:13px;text-align:center;padding-bottom:6px}
+.lg-bill{font-size:11px;border:1px solid var(--sep)}
+.lg-bill th,.lg-bill td{border:1px solid var(--sep);padding:3px 5px}
+.lg-bill th{white-space:normal;min-width:58px;max-width:92px;text-align:center;vertical-align:middle;background:var(--fill-2);color:var(--label);font-size:10.5px;line-height:1.2}
+.lg-bill th.grp{background:var(--fill)}
+.lg-bill tfoot td{background:var(--fill-2)}
+.lg-rhead{border-bottom:2px solid var(--label);padding-bottom:12px;margin-bottom:16px}
+.lg-brand{display:flex;gap:12px;align-items:center;margin-bottom:12px}
+.lg-brand img{height:52px;width:auto}
+.lg-brand div{display:flex;flex-direction:column}
+.lg-brand b{font-size:18px;letter-spacing:.02em}
+.lg-part{margin-top:30px}
+.lg-parth{font-size:20px;padding-bottom:6px;border-bottom:2px solid var(--label);margin-bottom:12px}
+.lg-subh{font-size:14px;font-weight:600;margin:16px 0 6px}
+.lg-rnote{margin-top:4px}
+.lg-billpage{margin-top:20px}
+.lg-report .lg-charts{grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
+/* The PDF: A4 portrait with the AR name on every page; only the team's bill table takes a wide page. */
+@page{size:A4 portrait;margin:17mm 12mm 14mm;
+  @top-left{content:"AR Energy Services";font:600 9pt var(--font,sans-serif);color:#000}
+  @top-right{font:400 8.5pt sans-serif;color:#444}
+  @bottom-left{content:"Energy Ledger, ARES Console";font:400 8pt sans-serif;color:#555}
+  @bottom-right{content:"Page " counter(page) " of " counter(pages);font:400 8pt sans-serif;color:#555}}
+@page billsheet{size:A3 landscape;margin:15mm 9mm 12mm;
+  @top-left{content:"AR Energy Services";font:600 9pt sans-serif;color:#000}
+  @top-right{font:400 8.5pt sans-serif;color:#444}
+  @bottom-left{content:"Energy Ledger, ARES Console";font:400 8pt sans-serif;color:#555}
+  @bottom-right{content:"Page " counter(page) " of " counter(pages);font:400 8pt sans-serif;color:#555}}
+@media print{
+  :root{--bg:#fff;--card:#fff;--label:#000;--label-2:rgba(0,0,0,.72);--label-3:rgba(0,0,0,.5);--sep:rgba(0,0,0,.25);--fill:rgba(0,0,0,.08);--fill-2:rgba(0,0,0,.05)}
+  html,body{background:#fff}
+  .shell,.content,.main{display:block!important;padding:0!important;margin:0!important;min-height:0!important;max-width:none!important}
+  .noprint,.side,.sidebar,.tabbar,.topbar,.toolbar,.bar,.lg-notice,.lg-tip,.lg-figs{display:none!important}
+  main,.main,.content,.lg-solo,.lg-body{margin:0!important;padding:0!important;max-width:none!important;width:auto!important}
+  .lg-report{padding:0;border-radius:0;background:#fff;font-size:9.5pt}
+  .lg-part{break-before:page;margin-top:0}
+  .lg-parth{font-size:15pt}
+  .lg-subh{font-size:10.5pt;margin:10pt 0 4pt;break-after:avoid}
+  .lg-scroll{overflow:visible}
+  .lg-rt{break-inside:auto}
+  .lg-rt tr{break-inside:avoid}
+  .lg-rt td,.lg-rt th{font-size:7.8pt;padding:2.2pt 4pt;white-space:normal}
+  .lg-report .lg-kpis{grid-template-columns:repeat(3,1fr);gap:6pt}
+  .lg-report .lg-kpi{padding:6pt 8pt;background:#f4f4f4}
+  .lg-report .lg-kpi b{font-size:12pt}
+  .lg-report .lg-charts{grid-template-columns:1fr 1fr;gap:6pt}
+  .lg-report .lg-fig{break-inside:avoid;padding:4pt 0}
+  .lg-billpage{page:billsheet;break-before:page;break-after:page;margin:0}
+  .lg-bill{font-size:6.7pt;width:100%}
+  .lg-bill th{font-size:6.2pt;min-width:0;max-width:none;padding:2px}
+  .lg-bill td{padding:2px;white-space:nowrap}
+  .lg-bill-info{font-size:8.5pt}
+}

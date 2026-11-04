@@ -283,13 +283,14 @@ const PAGES = [
   { id: 'team', label: 'Team & access', group: 'Manage', icon: 'team' },
   { id: 'audits', label: 'Audits', group: 'Manage', icon: 'audits' },
   { id: 'reports', label: 'Previous reports', group: 'Manage', icon: 'doc' },
+  { id: 'ledger', label: 'Energy Ledger', group: 'Manage', icon: 'doc', needs: 'ledger' },
   { id: 'apps', label: 'App console', group: 'Field apps', icon: 'apps' },
   { id: 'guide', label: 'Getting started', group: null, icon: 'guide' },
   { id: 'account', label: 'My account', group: null, icon: 'account' },
 ];
 const GROUPS = ['Monitor', 'Manage', 'Field apps', 'Tools'];
 // Field apps get a sub-page each (from /api/me), listed under "All apps".
-const menuPages = () => PAGES;
+const menuPages = () => PAGES.filter(p => !p.needs || mine(p.needs));
 // Each field app's data in the Console, listed under App console in the menu.
 const fieldPages = () => (state.apps || []).filter(a => a.field && mine(a.code)).map(a => ({ id: `apps/${a.code}`, label: a.name, icon: 'phone', code: a.code, sub: true }));
 const TOOLS = [
@@ -420,15 +421,20 @@ async function route() {
   // Signed in on the way to GST Billing: carry on there.
   if (location.hash === '#/billing') { history.replaceState(null, '', '/#/overview'); return location.replace('/api/billing/sso'); }
   const [page, param, param2] = (location.hash.replace('#/', '') || 'overview').split('?')[0].split('/');
-  const fn = page === 'audit' && param ? h2 => auditPage(h2, decodeURIComponent(param))
+  const solo = page === 'ledger' && param && /[?&]solo\b/.test(location.hash);
+  const fn = page === 'ledger' && mine('ledger') ? h2 => loadLedger().then(m => (param ? m.ledgerCompany(h2, decodeURIComponent(param), ledgerHelpers(), { solo }) : m.ledgerHome(h2, ledgerHelpers())))
+    : page === 'audit' && param ? h2 => auditPage(h2, decodeURIComponent(param))
     : page === 'apps' && param && param2 ? h2 => appAuditPage(h2, decodeURIComponent(param), decodeURIComponent(param2))
     : page === 'apps' && param ? h2 => appPage(h2, decodeURIComponent(param))
       : ({ overview: pipelinePage, 'team-activity': teamActivity, team, audits, tasks, activity, account, apps: appsPage, guide: guidePage, reports: reportsPage }[page] || pipelinePage);
   const holder = h('div', {}, h('p', { class: 'muted' }, 'Loading…'));
   const activeId = page === 'audit' ? 'audits' : page === 'apps' && param ? `apps/${param}` : page;
-  shell([...menuPages(), ...fieldPages()].some(p => p.id === activeId) || page === 'guide' ? activeId : 'overview', holder);
+  // Energy Ledger opened in its own window: the company's data and nothing around it.
+  if (solo) root.replaceChildren(holder);
+  else shell([...menuPages(), ...fieldPages()].some(p => p.id === activeId) || page === 'guide' ? activeId : 'overview', holder);
   try {
     await fn(holder);
+    if (page === 'overview' && mine('ledger')) loadLedger().then(m => m.overviewNotice(ledgerHelpers())).then(n => { if (n) holder.prepend(n); }).catch(() => {});
   } catch (ex) {
     if (ex.status !== 401) holder.replaceChildren(h('div', { class: 'err' }, ex.message));
   }
@@ -1347,7 +1353,7 @@ async function auditPage(holder, id) {
 
   // One card per app that has data (the analyser and Report Studio have their own cards below).
   const ovLib = await loadOverview().catch(() => null);
-  const dataApps = apps.filter(([code, recs]) => code !== 'power' && code !== 'report' && recs.some(r => r.kind !== 'company_profile'));
+  const dataApps = apps.filter(([code, recs]) => code !== 'power' && code !== 'report' && code !== 'ledger' && recs.some(r => r.kind !== 'company_profile'));
   const appCards = dataApps.map(([code, recs]) => {
     let ov = null;
     try { ov = ovLib ? ovLib.overview(code, recs.map(r => ({ id: r.id, kind: r.kind, tag: r.tag, payload: r.payload }))) : null; } catch { ov = null; }
@@ -1378,6 +1384,19 @@ async function auditPage(holder, id) {
           c ? h('span', { class: `pill ${c.fail ? 'bad' : c.warn ? 'warn' : 'ok'}` }, `${c.pass}/${c.total} checks pass`) : null, ' ',
           hl?.overall != null ? h('span', { class: 'pill soft' }, `health ${Math.round(hl.overall)}`) : null));
     })) : h('p', { class: 'empty' }, 'No power quality recording saved for this audit yet.'));
+
+  // Energy Ledger: this company's bills, baseline and GHG inputs, for those who have it.
+  const led = mine('ledger') ? await api('GET', '/api/ledger/summary').then(r => r.companies[a.id] || {}).catch(() => ({})) : null;
+  const ledgerCard = led && h('section', { class: 'card', style: 'margin-top:16px' },
+    h('div', { class: 'cap' }, h('div', { class: 'row', style: 'gap:10px' }, appIcon(null, 34, 'ledger'), h('h2', {}, 'Energy Ledger')),
+      h('div', { class: 'row', style: 'gap:8px' },
+        h('a', { class: 'btn ghost sm', href: `#/ledger/${encodeURIComponent(a.id)}` }, 'Open here'),
+        h('button', { class: 'btn', type: 'button', onclick: () => window.open(`#/ledger/${encodeURIComponent(a.id)}?solo`, '_blank', 'noopener') }, finalised ? 'View in a new window' : 'Enter data', icon('external')))),
+    h('p', { class: 'sub' }, 'Electricity bills with OCR, energy and water baseline, and GHG accounting.'),
+    h('div', { class: 'chips' },
+      h('span', { class: `pill ${led.bills ? (led.verified === led.bills ? 'ok' : 'warn') : 'soft'}` }, led.bills ? `${led.bills} bills, ${led.verified} verified` : 'No bills yet'),
+      h('span', { class: `pill ${led.baseline ? 'ok' : 'soft'}` }, led.baseline ? `Baseline ${led.baseline} months` : 'No baseline yet'),
+      h('span', { class: 'pill soft' }, led.cea ? `CEA Version ${led.cea}` : 'GHG not started')));
 
   const photos = data.files.filter(f => f.mime.startsWith('image/'));
   const others = data.files.filter(f => !f.mime.startsWith('image/'));
@@ -1418,6 +1437,7 @@ async function auditPage(holder, id) {
 
     dataApps.length ? [h('h2', { class: 'section-title' }, `Data by app (${dataApps.length})`), h('div', { class: 'appcards' }, appCards)]
       : h('section', { class: 'card', style: 'margin-top:16px' }, h('p', { class: 'empty' }, 'No app has synced data for this audit yet.')),
+    ledgerCard,
     reportCard,
     pqCard,
     finalised ? null : connectorCard(a),
@@ -1705,6 +1725,7 @@ const ACTION = {
   'task.created': 'added a task', 'task.status': 'moved a task', sync: 'synced data', 'setup.super_admin_created': 'set up the Console',
   'user.unlocked': 'unlocked a person', 'file.uploaded': 'uploaded a file', 'file.downloaded': 'downloaded a file',
   'admin.recovered': 'recovered an admin account on the server',
+  'ledger.saved': 'saved in Energy Ledger', 'cea.new_version': 'CEA published a new baseline version', 'cea.version_added': 'added a CEA baseline version',
   'audit.stage': 'moved an audit on', 'audit.stage_back': 'sent an audit back', 'audit.post_audit': 'recorded the post audit',
   'audit.finalised': 'completed an audit', 'audit.reopened': 'reopened an audit', 'task.edited': 'changed a task', 'task.removed': 'removed a task',
   'sync_issue.solved': 'marked a sync problem solved', 'record.edited': 'corrected a record', 'record.removed': 'removed a record',
@@ -1768,7 +1789,7 @@ async function releases() {
 const fmtSize = n => `${(n / 1e6).toFixed(1)} MB`;
 
 // The app's own logo (public/icons/<code>.png); a published release's icon otherwise; a phone at last.
-const ICON_CODES = new Set(['survey', 'motor', 'heat', 'textile', 'air', 'pump', 'cool', 'xmer', 'light', 'dryer', 'power', 'report', 'audit']);
+const ICON_CODES = new Set(['survey', 'motor', 'heat', 'textile', 'air', 'pump', 'cool', 'xmer', 'light', 'dryer', 'power', 'report', 'audit', 'ledger']);
 function appIcon(rel, size = 44, code = null) {
   const src = code && ICON_CODES.has(code) ? `/icons/${code}.png` : rel?.icon ? `/apps/${rel.icon}` : null;
   return src
@@ -2173,3 +2194,8 @@ async function reportsPage(holder) {
 }
 
 route();
+
+// Energy Ledger: a module of its own, loaded when it is opened (public/ledger.js).
+let ledgerLib = null;
+const loadLedger = () => (ledgerLib ||= import('/ledger.js').catch(ex => { ledgerLib = null; throw ex; }));
+const ledgerHelpers = () => ({ h, api, toast, icon, ago, fmtDate, field, logoImg, state });
