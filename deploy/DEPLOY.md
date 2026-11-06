@@ -148,15 +148,3 @@ ssh ar 'sudo -u ares DB_FILE=/var/lib/ares/ares.db node /opt/ares-ops/scripts/re
 ```
 
 It prints a one-time password, reactivates the account and ends its sessions.
-
-## Demo company (testing Report Studio)
-
-Every deploy makes one demo company if the server has none: an audit marked "demo" with invented
-records in every field app, Grid Lens, Report Studio and the Energy Ledger, covering normal,
-light-load, overloaded and faulty cases, with pictures (`lib/demo.js`, `lib/demo-ledger.js`). It is
-never made twice. To make it by hand, or another one:
-
-```bash
-ssh ar 'sudo -u ares sh -c "umask 077; cd /opt/ares-ops && DB_FILE=/var/lib/ares/ares.db node scripts/create-demo.mjs"'
-ssh ar 'sudo -u ares sh -c "umask 077; cd /opt/ares-ops && DB_FILE=/var/lib/ares/ares.db node scripts/create-demo.mjs --new"'
-```

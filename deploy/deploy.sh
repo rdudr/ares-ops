@@ -93,11 +93,5 @@ ssh "$HOST" "COMMIT=$COMMIT; "'set -e
     echo "!! rolled back; the failed version is in /opt/ares-ops.failed"
     exit 1
   fi
-  # The demo company for testing Report Studio (scripts/create-demo.mjs): made once, never twice,
-  # and never in the way of a deploy.
-  if [ "$code" = 200 ]; then
-    sudo -u ares sh -c "umask 077; cd /opt/ares-ops && DB_FILE=/var/lib/ares/ares.db node --no-warnings scripts/create-demo.mjs --if-missing" \
-      || echo "!! demo company not made (the deploy itself is fine)"
-  fi
   [ "$code" = 200 ]'
 echo "== done: $COMMIT"
