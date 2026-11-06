@@ -1,0 +1,1162 @@
+{
+ "schema": "ares-ledger-tariffs/v1",
+ "maintenance": "Yearly, after GERC issues the new orders (usually March to June): read every order in full, not only the changes, add one new entry to orders below, and update docs/ENERGY-LEDGER.md. Never edit an old entry: companies keep the rates of the month each bill belongs to.",
+ "suppliers": [
+  {
+   "code": "DGVCL",
+   "name": "Dakshin Gujarat Vij Company Ltd",
+   "group": "GVCL"
+  },
+  {
+   "code": "MGVCL",
+   "name": "Madhya Gujarat Vij Company Ltd",
+   "group": "GVCL"
+  },
+  {
+   "code": "PGVCL",
+   "name": "Paschim Gujarat Vij Company Ltd",
+   "group": "GVCL"
+  },
+  {
+   "code": "UGVCL",
+   "name": "Uttar Gujarat Vij Company Ltd",
+   "group": "GVCL"
+  },
+  {
+   "code": "TPL-SURAT",
+   "name": "Torrent Power Ltd, Surat",
+   "group": "TPL-SURAT"
+  },
+  {
+   "code": "TPL-AHMEDABAD",
+   "name": "Torrent Power Ltd, Ahmedabad",
+   "group": "TPL-AHMEDABAD"
+  },
+  {
+   "code": "TPL-DAHEJ",
+   "name": "Torrent Power Ltd, Dahej",
+   "group": "TPL-DAHEJ"
+  },
+  {
+   "code": "TPL-DHOLERA",
+   "name": "Torrent Power Ltd, Dholera",
+   "group": "TPL-DHOLERA"
+  }
+ ],
+ "orders": [
+  {
+   "id": "gvcl-2026-27",
+   "group": "GVCL",
+   "effective": "2026-04",
+   "fy": "2026-27",
+   "title": "GERC Tariff Order dated 25 March 2026, FY 2026-27 (Annexure: Tariff Schedule)",
+   "ref": "MGVCL Case No. 2582 of 2025; the same schedule applies to DGVCL, MGVCL, PGVCL and UGVCL (DGVCL circular 0234/04/2026, PGVCL circular 0291/04/2026)",
+   "general": [
+    [
+     "Green Power",
+     "Rs 0.75 per kWh above the normal tariff for consumers who opt for it, on one month's notice (General condition 18)."
+    ],
+    [
+     "ToU charges",
+     "Levied only if a meter with ToD recording is provided (General condition 15)."
+    ],
+    [
+     "Excess demand",
+     "Paying the excess rate gives no right to draw above the contract demand (General condition 13)."
+    ],
+    [
+     "PF penalty",
+     "Paying the penalty does not excuse the consumer from improving the power factor (General condition 14)."
+    ],
+    [
+     "Delayed payment",
+     "None within ten days of the bill date; after the due date 15% a year till paid (General condition 16)."
+    ],
+    [
+     "Fixed charge rounding",
+     "Billed in steps of 0.5 kVA or kW, a smaller fraction going up to the next 0.5. Energy is billed in whole kWh (General condition 8)."
+    ],
+    [
+     "FPPAS",
+     "Worked out and billed every month by formula (General condition 12). Base power purchase cost Rs 5.11/kWh, base FPPPA Rs 2.45/kWh, average billing rate Rs 6.77/kWh (circular)."
+    ],
+    [
+     "Duty",
+     "Tariffs exclude Electricity Duty and taxes, which are charged on top (General condition 2)."
+    ],
+    [
+     "Open access",
+     "Cross subsidy surcharge Rs 1.33 per unit. Wheeling 23.52 paise per kWh at 11, 22 and 33 kV, 111.05 paise at 400 V (circular)."
+    ]
+   ],
+   "categories": {
+    "HTP-1": {
+     "name": "HTP-I, regular HT supply, 100 kVA and above",
+     "para": "11",
+     "unit": "kVA",
+     "demand": {
+      "slabs": [
+       [500, 150],
+       [1000, 260],
+       [null, 475]
+      ],
+      "excess": 555
+     },
+     "energy": {
+      "byDemand": [
+       [500, 4.0],
+       [2500, 4.2],
+       [null, 4.3]
+      ]
+     },
+     "tou": {
+      "hours": "07:00 to 11:00 and 18:00 to 22:00",
+      "byDemand": [
+       [500, 0.45],
+       [null, 0.85]
+      ]
+     },
+     "touDiscount": {
+      "rate": 0.6,
+      "hours": "11:00 to 17:00"
+     },
+     "minPct": 0.85,
+     "minDemand": 100,
+     "pfRebate": 0.5,
+     "voltage": [
+      ["11 / 22 kV", 1],
+      ["33 / 66 kV", 1.5],
+      ["132 kV and above", 2]
+     ],
+     "extra": [
+      [
+       "Seasonal consumers",
+       "Minimum Rs 4,550 per kVA a year, off-season units at 430 paise (para 11.11)."
+      ]
+     ]
+    },
+    "HTP-II": {
+     "name": "HTP-II, water works and sewerage pumping by local authorities, GWSSB and GIDC",
+     "para": "12",
+     "unit": "kVA",
+     "demand": {
+      "slabs": [
+       [500, 115],
+       [1000, 225],
+       [null, 290]
+      ],
+      "excess": 360
+     },
+     "energy": {
+      "byDemand": [
+       [500, 4.35],
+       [2500, 4.55],
+       [null, 4.65]
+      ]
+     },
+     "tou": {
+      "hours": "07:00 to 11:00 and 18:00 to 22:00",
+      "byDemand": [
+       [500, 0.45],
+       [null, 0.85]
+      ]
+     },
+     "touDiscount": {
+      "rate": 0.6,
+      "hours": "11:00 to 17:00"
+     },
+     "minPct": 0.85,
+     "minDemand": 100,
+     "pfRebate": 0.5,
+     "voltage": [
+      ["11 / 22 kV", 1],
+      ["33 / 66 kV", 1.5],
+      ["132 kV and above", 2]
+     ]
+    },
+    "HTP-IV": {
+     "name": "HTP-IV, night use only, 22:00 to 06:00, by option",
+     "para": "14",
+     "unit": "kVA",
+     "demand": {
+      "slabs": [
+       [500, 50],
+       [1000, 86.67],
+       [null, 158.33]
+      ],
+      "excess": 555
+     },
+     "energy": {
+      "flat": 2.25
+     },
+     "minPct": 0.85,
+     "minDemand": 100,
+     "pfRebate": 0.5,
+     "voltage": [
+      ["11 / 22 kV", 1],
+      ["33 / 66 kV", 1.5],
+      ["132 kV and above", 2]
+     ],
+     "extra": [
+      [
+       "Night use",
+       "Demand is one third of HTP-I. Up to 15% of contract demand and 10% of units may be used outside the night hours. Beyond either limit that month is billed at HTP-I rates (para 14, notes 1 to 5)."
+      ]
+     ]
+    },
+    "LTMD": {
+     "name": "LTMD, low tension above 40 kW",
+     "para": "5",
+     "unit": "kW",
+     "demand": {
+      "slabs": [
+       [40, 90],
+       [60, 130],
+       [null, 195]
+      ],
+      "excess": 265
+     },
+     "energy": {
+      "flat": 4.6
+     },
+     "tou": {
+      "hours": "07:00 to 11:00 and 18:00 to 22:00",
+      "byDemand": [
+       [null, 0.45]
+      ]
+     },
+     "touDiscount": {
+      "rate": 0.6,
+      "hours": "11:00 to 17:00, with a ToD or smart meter"
+     },
+     "minPct": 0.85,
+     "minDemand": 6,
+     "pfRebate": 0,
+     "reactive": 0.1,
+     "extra": [
+      [
+       "Reactive energy",
+       "10 paise per kVARh for all reactive units (para 5.4)."
+      ],
+      [
+       "Prepaid",
+       "Smart prepaid energy charge 446 paise per unit while the balance stays positive."
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "id": "gvcl-2025-26",
+   "group": "GVCL",
+   "effective": "2025-04",
+   "fy": "2025-26",
+   "title": "FY 2025-26 schedule, from the existing rates shown in the GERC Tariff Order of 25 March 2026",
+   "ref": "The FY 2025-26 order itself is not held. These are the rates that order changed from (Table 10-1) and did not change; the team’s Apr-25 to Jan-26 bills agree with them.",
+   "general": [
+    [
+     "ToU charges",
+     "Levied only if a meter with ToD recording is provided."
+    ],
+    [
+     "Duty",
+     "Tariffs exclude Electricity Duty and taxes, which are charged on top."
+    ]
+   ],
+   "categories": {
+    "HTP-1": {
+     "name": "HTP-I, regular HT supply, 100 kVA and above",
+     "para": "11",
+     "unit": "kVA",
+     "demand": {
+      "slabs": [
+       [500, 150],
+       [1000, 260],
+       [null, 475]
+      ],
+      "excess": 555
+     },
+     "energy": {
+      "byDemand": [
+       [500, 4.0],
+       [2500, 4.2],
+       [null, 4.3]
+      ]
+     },
+     "tou": {
+      "hours": "07:00 to 11:00 and 18:00 to 22:00",
+      "byDemand": [
+       [500, 0.45],
+       [null, 0.85]
+      ]
+     },
+     "touDiscount": {
+      "rate": 0.6,
+      "hours": "11:00 to 15:00"
+     },
+     "minPct": 0.85,
+     "minDemand": 100,
+     "pfRebate": 0.5,
+     "voltage": [
+      ["11 / 22 kV", 1],
+      ["33 / 66 kV", 1.5],
+      ["132 kV and above", 2]
+     ],
+     "extra": [
+      [
+       "Seasonal consumers",
+       "Minimum Rs 4,550 per kVA a year, off-season units at 430 paise (para 11.11)."
+      ]
+     ]
+    },
+    "HTP-II": {
+     "name": "HTP-II, water works and sewerage pumping by local authorities, GWSSB and GIDC",
+     "para": "12",
+     "unit": "kVA",
+     "demand": {
+      "slabs": [
+       [500, 115],
+       [1000, 225],
+       [null, 290]
+      ],
+      "excess": 360
+     },
+     "energy": {
+      "byDemand": [
+       [500, 4.35],
+       [2500, 4.55],
+       [null, 4.65]
+      ]
+     },
+     "tou": {
+      "hours": "07:00 to 11:00 and 18:00 to 22:00",
+      "byDemand": [
+       [500, 0.45],
+       [null, 0.85]
+      ]
+     },
+     "touDiscount": {
+      "rate": 0.6,
+      "hours": "11:00 to 15:00"
+     },
+     "minPct": 0.85,
+     "minDemand": 100,
+     "pfRebate": 0.5,
+     "voltage": [
+      ["11 / 22 kV", 1],
+      ["33 / 66 kV", 1.5],
+      ["132 kV and above", 2]
+     ]
+    },
+    "HTP-IV": {
+     "name": "HTP-IV, night use only, 22:00 to 06:00, by option",
+     "para": "14",
+     "unit": "kVA",
+     "demand": {
+      "slabs": [
+       [500, 50],
+       [1000, 86.67],
+       [null, 158.33]
+      ],
+      "excess": 555
+     },
+     "energy": {
+      "flat": 2.25
+     },
+     "minPct": 0.85,
+     "minDemand": 100,
+     "pfRebate": 0.5,
+     "voltage": [
+      ["11 / 22 kV", 1],
+      ["33 / 66 kV", 1.5],
+      ["132 kV and above", 2]
+     ],
+     "extra": [
+      [
+       "Night use",
+       "Demand is one third of HTP-I. Up to 15% of contract demand and 10% of units may be used outside the night hours. Beyond either limit that month is billed at HTP-I rates (para 14, notes 1 to 5)."
+      ]
+     ]
+    },
+    "LTMD": {
+     "name": "LTMD, low tension above 40 kW",
+     "para": "5",
+     "unit": "kW",
+     "demand": {
+      "slabs": [
+       [40, 90],
+       [60, 130],
+       [null, 195]
+      ],
+      "excess": 265
+     },
+     "energy": {
+      "flat": 4.6
+     },
+     "tou": {
+      "hours": "07:00 to 11:00 and 18:00 to 22:00",
+      "byDemand": [
+       [null, 0.45]
+      ]
+     },
+     "touDiscount": {
+      "rate": 0.6,
+      "hours": "11:00 to 15:00"
+     },
+     "minPct": 0.85,
+     "minDemand": 6,
+     "pfRebate": 0,
+     "reactive": 0.1,
+     "extra": [
+      [
+       "Reactive energy",
+       "10 paise per kVARh for all reactive units (para 5.4)."
+      ],
+      [
+       "Prepaid",
+       "Smart prepaid energy charge 446 paise per unit while the balance stays positive."
+      ]
+     ]
+    }
+   },
+   "note": "Replace with the FY 2025-26 order when it is obtained."
+  },
+  {
+   "id": "gvcl-2024-25",
+   "group": "GVCL",
+   "effective": "2024-04",
+   "fy": "2024-25",
+   "title": "GERC Tariff Order dated 1 June 2024, FY 2024-25 (Annexure: Tariff Schedule)",
+   "ref": "UGVCL Case No. 2321 of 2024",
+   "note": "Applies to bills up to March 2025.",
+   "general": [
+    [
+     "ToU charges",
+     "Levied only if a meter with ToD recording is provided."
+    ],
+    [
+     "Duty",
+     "Tariffs exclude Electricity Duty and taxes, which are charged on top."
+    ]
+   ],
+   "categories": {
+    "HTP-1": {
+     "name": "HTP-I, regular HT supply, 100 kVA and above",
+     "para": "11",
+     "unit": "kVA",
+     "demand": {
+      "slabs": [
+       [500, 150],
+       [1000, 260],
+       [null, 475]
+      ],
+      "excess": 555
+     },
+     "energy": {
+      "byDemand": [
+       [500, 4.0],
+       [2500, 4.2],
+       [null, 4.3]
+      ]
+     },
+     "tou": {
+      "hours": "07:00 to 11:00 and 18:00 to 22:00",
+      "byDemand": [
+       [500, 0.45],
+       [null, 0.85]
+      ]
+     },
+     "minPct": 0.85,
+     "minDemand": 100,
+     "pfRebate": 0.5,
+     "voltage": [
+      ["11 / 22 kV", 0],
+      ["33 / 66 kV", 0.75],
+      ["132 kV and above", 1.25]
+     ]
+    },
+    "HTP-II": {
+     "name": "HTP-II, water works and sewerage pumping by local authorities, GWSSB and GIDC",
+     "para": "12",
+     "unit": "kVA",
+     "demand": {
+      "slabs": [
+       [500, 115],
+       [1000, 225],
+       [null, 290]
+      ],
+      "excess": 360
+     },
+     "energy": {
+      "byDemand": [
+       [500, 4.35],
+       [2500, 4.55],
+       [null, 4.65]
+      ]
+     },
+     "tou": {
+      "hours": "07:00 to 11:00 and 18:00 to 22:00",
+      "byDemand": [
+       [500, 0.45],
+       [null, 0.85]
+      ]
+     },
+     "minPct": 0.85,
+     "minDemand": 100,
+     "pfRebate": 0.5,
+     "voltage": [
+      ["11 / 22 kV", 0],
+      ["33 / 66 kV", 0.75],
+      ["132 kV and above", 1.25]
+     ]
+    },
+    "HTP-IV": {
+     "name": "HTP-IV, night use only, 22:00 to 06:00, by option",
+     "para": "14",
+     "unit": "kVA",
+     "demand": {
+      "slabs": [
+       [500, 50],
+       [1000, 86.67],
+       [null, 158.33]
+      ],
+      "excess": 555
+     },
+     "energy": {
+      "flat": 2.25
+     },
+     "minPct": 0.85,
+     "minDemand": 100,
+     "pfRebate": 0.5,
+     "voltage": [
+      ["11 / 22 kV", 0],
+      ["33 / 66 kV", 0.75],
+      ["132 kV and above", 1.25]
+     ]
+    },
+    "LTMD": {
+     "name": "LTMD, low tension above 40 kW",
+     "para": "5",
+     "unit": "kW",
+     "demand": {
+      "slabs": [
+       [40, 90],
+       [60, 130],
+       [null, 195]
+      ],
+      "excess": 265
+     },
+     "energy": {
+      "flat": 4.6
+     },
+     "minPct": 0.85,
+     "minDemand": 6,
+     "pfRebate": 0,
+     "reactive": 0.1
+    }
+   }
+  },
+  {
+   "id": "tpl-surat-2026-27",
+   "group": "TPL-SURAT",
+   "effective": "2026-04",
+   "fy": "2026-27",
+   "title": "GERC Tariff Order dated 25 March 2026, FY 2026-27 (Annexure: Tariff Schedule for the Surat licence area)",
+   "ref": "Torrent Power Limited, Distribution, Surat, Case No. 2586 of 2025",
+   "general": [
+    [
+     "Green Power",
+     "Rs 0.75 per kWh above the normal tariff for consumers who opt for it, on one billing cycle's notice (General condition 18)."
+    ],
+    [
+     "Delayed payment",
+     "None if paid by the due date; after it 15% a year on the amount outstanding, worked out daily."
+    ],
+    [
+     "Duty",
+     "Tariffs exclude Electricity Duty and taxes, which are charged on top (General condition 16)."
+    ],
+    [
+     "PF penalty",
+     "Paying the penalty does not excuse the consumer from improving the power factor (General condition 17)."
+    ]
+   ],
+   "categories": {
+    "HTMD-I": {
+     "name": "HTMD-I, HT supply, 100 kVA and above",
+     "para": "8",
+     "unit": "kVA",
+     "demand": {
+      "slabs": [
+       [500, 170],
+       [null, 285]
+      ],
+      "excess": 395
+     },
+     "energy": {
+      "blocks": {
+       "perKva": 400,
+       "first": 4.8,
+       "rest": 4.7
+      }
+     },
+     "tou": {
+      "hours": "06:00 to 08:00 and 17:00 to 23:00",
+      "byDemand": [
+       [500, 0.65],
+       [null, 1.0]
+      ]
+     },
+     "touDiscount": {
+      "rate": 0.3,
+      "hours": "11:00 to 15:00 (solar hour rebate)"
+     },
+     "minPct": 0.85,
+     "minDemand": 100,
+     "pfRebate": 1,
+     "voltage": [
+      ["11 / 22 kV", 0],
+      ["33 / 66 kV", 0.5],
+      ["132 kV and above", 1]
+     ],
+     "extra": [
+      [
+       "Above 1,000 kVA",
+       "The schedule prints the first 500 and the next 500 kVA only. The second rate is used above that; check it against the bill."
+      ]
+     ]
+    },
+    "HTMD-II": {
+     "name": "HTMD-II, water works and pumping by local authorities",
+     "para": "9",
+     "unit": "kVA",
+     "demand": {
+      "slabs": [
+       [500, 140],
+       [null, 225]
+      ],
+      "excess": 360
+     },
+     "energy": {
+      "blocks": {
+       "perKva": 400,
+       "first": 4.75,
+       "rest": 4.7
+      }
+     },
+     "tou": {
+      "hours": "06:00 to 08:00 and 17:00 to 23:00",
+      "byDemand": [
+       [500, 0.45],
+       [null, 0.8]
+      ]
+     },
+     "touDiscount": {
+      "rate": 0.3,
+      "hours": "11:00 to 15:00 (solar hour rebate)"
+     },
+     "minPct": 0.85,
+     "minDemand": 100,
+     "pfRebate": 1,
+     "voltage": [
+      ["11 / 22 kV", 0],
+      ["33 / 66 kV", 0.5],
+      ["132 kV and above", 1]
+     ]
+    },
+    "LTMD": {
+     "name": "LTMD, low tension above 15 kW",
+     "para": "4",
+     "unit": "kVA",
+     "demand": {
+      "slabs": [
+       [20, 115],
+       [60, 155],
+       [null, 225]
+      ],
+      "excess": 250
+     },
+     "energy": {
+      "flat": 4.85
+     },
+     "minPct": 0.85,
+     "minDemand": 6,
+     "pfRebate": 0,
+     "reactive": 0.1,
+     "extra": [
+      [
+       "Reactive energy",
+       "10 paise per kVARh where the contracted load is 40 kVA or more (para 4.3)."
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "id": "tpl-ahmedabad-2026-27",
+   "group": "TPL-AHMEDABAD",
+   "effective": "2026-04",
+   "fy": "2026-27",
+   "title": "GERC Tariff Order dated 25 March 2026, FY 2026-27 (Annexure: Tariff Schedule, Ahmedabad)",
+   "ref": "Torrent Power Limited, Distribution, Ahmedabad, Case No. 2585 of 2025",
+   "general": [
+    [
+     "Green Power",
+     "Rs 0.75 per kWh above the normal tariff for consumers who opt for it."
+    ],
+    [
+     "Delayed payment",
+     "15% a year after the due date."
+    ],
+    [
+     "Duty",
+     "Tariffs exclude Electricity Duty and taxes, which are charged on top."
+    ],
+    [
+     "PF penalty",
+     "Paying the penalty does not excuse the consumer from improving the power factor."
+    ]
+   ],
+   "categories": {
+    "HTMD-1": {
+     "name": "HTMD-1, HT supply, 100 kW and above",
+     "para": "10",
+     "unit": "kW",
+     "demand": {
+      "slabs": [
+       [1000, 260],
+       [null, 335]
+      ],
+      "excess": 385
+     },
+     "energy": {
+      "blocks": {
+       "perKva": 400,
+       "first": 4.55,
+       "rest": 4.45
+      }
+     },
+     "tou": {
+      "hours": "06:00 to 08:00 and 17:00 to 23:00",
+      "byDemand": [
+       [300, 0.8],
+       [null, 1.0]
+      ]
+     },
+     "touDiscount": {
+      "rate": 0.3,
+      "hours": "11:00 to 15:00 (solar hour rebate)"
+     },
+     "minPct": 0.85,
+     "minDemand": 100,
+     "pfRebate": 0,
+     "pfUnit": {
+      "penalty": 0.03,
+      "mid": 0.0015,
+      "top": 0.0027
+     },
+     "extra": [
+      [
+       "Billing in kW",
+       "Ahmedabad bills demand in kW, not kVA."
+      ],
+      [
+       "Fixed charge",
+       "The order words the two rates as billing demand up to 1000 kW and 1000 kW and above; they are worked here as slabs. Check against the bill."
+      ]
+     ]
+    },
+    "HTMD-2": {
+     "name": "HTMD-2, water and sewage pumping by local authorities",
+     "para": "11",
+     "unit": "kW",
+     "demand": {
+      "slabs": [
+       [null, 225]
+      ],
+      "excess": 285
+     },
+     "energy": {
+      "flat": 4.1
+     },
+     "tou": {
+      "hours": "06:00 to 08:00 and 17:00 to 23:00",
+      "byDemand": [
+       [null, 0.6]
+      ]
+     },
+     "touDiscount": {
+      "rate": 0.3,
+      "hours": "11:00 to 15:00 (solar hour rebate)"
+     },
+     "minPct": 0.85,
+     "minDemand": 100,
+     "pfRebate": 0,
+     "pfUnit": {
+      "penalty": 0.03,
+      "mid": 0.0015,
+      "top": 0.0027
+     }
+    },
+    "LTMD-1": {
+     "name": "LTMD-1, common services and pumping, above 15 kW",
+     "para": "5",
+     "unit": "kW",
+     "demand": {
+      "slabs": [
+       [50, 150],
+       [80, 185],
+       [null, 245]
+      ],
+      "excess": 350
+     },
+     "energy": {
+      "byDemand": [
+       [50, 4.65],
+       [null, 4.8]
+      ]
+     },
+     "minPct": 0.85,
+     "minDemand": 6,
+     "pfRebate": 0,
+     "pfUnit": {
+      "penalty": 0.03,
+      "mid": 0.0015,
+      "top": 0.0027
+     }
+    },
+    "LTMD-2": {
+     "name": "LTMD-2, premises not in another LT category, above 15 kW",
+     "para": "6",
+     "unit": "kW",
+     "demand": {
+      "slabs": [
+       [50, 175],
+       [80, 230],
+       [null, 300]
+      ],
+      "excess": 425
+     },
+     "energy": {
+      "byDemand": [
+       [50, 4.8],
+       [null, 5.0]
+      ]
+     },
+     "minPct": 0.85,
+     "minDemand": 6,
+     "pfRebate": 0,
+     "pfUnit": {
+      "penalty": 0.03,
+      "mid": 0.0015,
+      "top": 0.0027
+     }
+    }
+   }
+  },
+  {
+   "id": "tpl-dahej-2026-27",
+   "group": "TPL-DAHEJ",
+   "effective": "2026-04",
+   "fy": "2026-27",
+   "title": "GERC Tariff Order dated 25 March 2026, FY 2026-27 (Annexure: Tariff Schedule, Dahej)",
+   "ref": "Torrent Power Limited, Distribution, Dahej, Case No. 2587 of 2025",
+   "general": [
+    [
+     "Green Power",
+     "Rs 0.75 per kWh above the normal tariff for consumers who opt for it."
+    ],
+    [
+     "Delayed payment",
+     "15% a year after the due date."
+    ],
+    [
+     "Duty",
+     "Tariffs exclude Electricity Duty and taxes, which are charged on top."
+    ],
+    [
+     "PF penalty",
+     "Paying the penalty does not excuse the consumer from improving the power factor."
+    ]
+   ],
+   "categories": {
+    "HTP-1": {
+     "name": "HTP-I, regular HT supply, 100 kVA and above",
+     "para": "10",
+     "unit": "kVA",
+     "demand": {
+      "slabs": [
+       [500, 150],
+       [1000, 260],
+       [null, 475]
+      ],
+      "excess": 555
+     },
+     "energy": {
+      "byDemand": [
+       [500, 2.9],
+       [2500, 3.1],
+       [null, 3.2]
+      ]
+     },
+     "tou": {
+      "hours": "06:00 to 08:00 and 17:00 to 23:00",
+      "byDemand": [
+       [500, 0.35],
+       [null, 0.75]
+      ]
+     },
+     "touDiscount": {
+      "rate": 0.3,
+      "hours": "11:00 to 15:00 (solar hour rebate)"
+     },
+     "minPct": 0.85,
+     "minDemand": 100,
+     "pfRebate": 0.5,
+     "voltage": [
+      ["11 / 22 kV", 0],
+      ["33 / 66 kV", 0.5],
+      ["132 kV and above", 1]
+     ],
+     "extra": [
+      [
+       "Seasonal consumers",
+       "Minimum Rs 4,550 per kVA a year, off-season units at 350 paise (para 10.11)."
+      ]
+     ]
+    },
+    "HTP-II": {
+     "name": "HTP-II, water works and sewerage pumping",
+     "para": "11",
+     "unit": "kVA",
+     "demand": {
+      "slabs": [
+       [500, 115],
+       [1000, 225],
+       [null, 290]
+      ],
+      "excess": 360
+     },
+     "energy": {
+      "byDemand": [
+       [500, 3.1],
+       [2500, 3.3],
+       [null, 3.4]
+      ]
+     },
+     "tou": {
+      "hours": "06:00 to 08:00 and 17:00 to 23:00",
+      "byDemand": [
+       [500, 0.35],
+       [null, 0.75]
+      ]
+     },
+     "minPct": 0.85,
+     "minDemand": 100,
+     "pfRebate": 0.5,
+     "voltage": [
+      ["11 / 22 kV", 0],
+      ["33 / 66 kV", 0.5],
+      ["132 kV and above", 1]
+     ]
+    },
+    "HTP-IV": {
+     "name": "HTP-IV, night use only, by option",
+     "para": "13",
+     "unit": "kVA",
+     "demand": {
+      "slabs": [
+       [500, 50],
+       [1000, 86.67],
+       [null, 158.33]
+      ],
+      "excess": 555
+     },
+     "energy": {
+      "flat": 2.7
+     },
+     "minPct": 0.85,
+     "minDemand": 100,
+     "pfRebate": 0.5,
+     "voltage": [
+      ["11 / 22 kV", 0],
+      ["33 / 66 kV", 0.5],
+      ["132 kV and above", 1]
+     ]
+    },
+    "LTMD": {
+     "name": "LTMD, low tension above 40 kW",
+     "para": "3",
+     "unit": "kW",
+     "demand": {
+      "slabs": [
+       [40, 90],
+       [60, 130],
+       [null, 195]
+      ],
+      "excess": 265
+     },
+     "energy": {
+      "flat": 3.25
+     },
+     "minPct": 0.85,
+     "minDemand": 15,
+     "pfRebate": 0,
+     "reactive": 0.1
+    }
+   }
+  },
+  {
+   "id": "tpl-dholera-2026-27",
+   "group": "TPL-DHOLERA",
+   "effective": "2026-04",
+   "fy": "2026-27",
+   "title": "GERC Tariff Order dated 25 March 2026, FY 2026-27 (Annexure: Tariff Schedule, Dholera)",
+   "ref": "Torrent Power Limited, Distribution, Dholera, Case No. 2588 of 2025",
+   "general": [
+    [
+     "Green Power",
+     "Rs 0.75 per kWh above the normal tariff for consumers who opt for it."
+    ],
+    [
+     "Delayed payment",
+     "15% a year after the due date."
+    ],
+    [
+     "Duty",
+     "Tariffs exclude Electricity Duty and taxes, which are charged on top."
+    ],
+    [
+     "PF penalty",
+     "Paying the penalty does not excuse the consumer from improving the power factor."
+    ]
+   ],
+   "categories": {
+    "HTP-1": {
+     "name": "HTP-I, regular HT supply, 100 kVA and above",
+     "para": "10",
+     "unit": "kVA",
+     "demand": {
+      "slabs": [
+       [500, 150],
+       [1000, 260],
+       [null, 475]
+      ],
+      "excess": 555
+     },
+     "energy": {
+      "byDemand": [
+       [500, 2.9],
+       [2500, 3.1],
+       [null, 3.2]
+      ]
+     },
+     "tou": {
+      "hours": "06:00 to 08:00 and 17:00 to 23:00",
+      "byDemand": [
+       [500, 0.35],
+       [null, 0.75]
+      ]
+     },
+     "touDiscount": {
+      "rate": 0.3,
+      "hours": "11:00 to 15:00 (solar hour rebate)"
+     },
+     "minPct": 0.85,
+     "minDemand": 100,
+     "pfRebate": 0.5,
+     "voltage": [
+      ["11 / 22 kV", 0],
+      ["33 / 66 kV", 0.5],
+      ["132 kV and above", 1]
+     ],
+     "extra": [
+      [
+       "Seasonal consumers",
+       "Minimum Rs 4,550 per kVA a year, off-season units at 350 paise (para 10.11)."
+      ]
+     ]
+    },
+    "HTP-II": {
+     "name": "HTP-II, water works and sewerage pumping",
+     "para": "11",
+     "unit": "kVA",
+     "demand": {
+      "slabs": [
+       [500, 115],
+       [1000, 225],
+       [null, 290]
+      ],
+      "excess": 360
+     },
+     "energy": {
+      "byDemand": [
+       [500, 3.1],
+       [2500, 3.3],
+       [null, 3.4]
+      ]
+     },
+     "tou": {
+      "hours": "06:00 to 08:00 and 17:00 to 23:00",
+      "byDemand": [
+       [500, 0.35],
+       [null, 0.75]
+      ]
+     },
+     "minPct": 0.85,
+     "minDemand": 100,
+     "pfRebate": 0.5,
+     "voltage": [
+      ["11 / 22 kV", 0],
+      ["33 / 66 kV", 0.5],
+      ["132 kV and above", 1]
+     ]
+    },
+    "HTP-IV": {
+     "name": "HTP-IV, night use only, by option",
+     "para": "13",
+     "unit": "kVA",
+     "demand": {
+      "slabs": [
+       [500, 50],
+       [1000, 86.67],
+       [null, 158.33]
+      ],
+      "excess": 555
+     },
+     "energy": {
+      "flat": 2.7
+     },
+     "minPct": 0.85,
+     "minDemand": 100,
+     "pfRebate": 0.5,
+     "voltage": [
+      ["11 / 22 kV", 0],
+      ["33 / 66 kV", 0.5],
+      ["132 kV and above", 1]
+     ]
+    },
+    "LTMD": {
+     "name": "LTMD, low tension above 40 kW and up to 100 kW",
+     "para": "3",
+     "unit": "kW",
+     "demand": {
+      "slabs": [
+       [40, 90],
+       [60, 130],
+       [null, 195]
+      ],
+      "excess": 265
+     },
+     "energy": {
+      "flat": 3.25
+     },
+     "minPct": 0.85,
+     "minDemand": 15,
+     "pfRebate": 0,
+     "reactive": 0.1
+    }
+   }
+  }
+ ]
+}

@@ -129,8 +129,9 @@ export async function overviewNotice(helpers) {
 // ---------- the menu page ----------
 export async function ledgerHome(holder, helpers) {
   x = helpers;
-  const [cea, { companies }, { audits }, factors] = await Promise.all([
-    x.api('GET', '/api/ledger/cea'), x.api('GET', '/api/ledger/summary'), x.api('GET', '/api/audits'), fetch('/ledger-factors.json').then(r => r.json())]);
+  const [cea, { companies }, { audits }, factors, tariffs] = await Promise.all([
+    x.api('GET', '/api/ledger/cea'), x.api('GET', '/api/ledger/summary'), x.api('GET', '/api/audits'), fetch('/ledger-factors.json').then(r => r.json()), fetch('/ledger-tariffs.json').then(r => r.json())]);
+  const tariffNote = K.tariffDue(tariffs);
   const openList = audits.filter(a => !['published', 'archived'].includes(a.status));
   const draw = st => {
     const cur = st.versions[0];
@@ -141,6 +142,7 @@ export async function ledgerHome(holder, helpers) {
         x.h('img', { src: '/icons/bills.png', alt: '', width: 56, height: 56, class: 'lg-logo' }),
         x.h('div', {}, x.h('h1', {}, 'Energy Ledger'), x.h('p', { class: 'muted small' }, 'One place for a company’s electricity bills, energy baseline and GHG data. It is kept with the audit.')))),
       ceaNotice(st, addBtn),
+      tariffNote ? x.h('div', { class: 'lg-notice warn' }, x.h('div', {}, x.h('b', {}, 'Tariff order update needed'), x.h('p', { class: 'small' }, tariffNote))) : null,
       x.h('section', { class: 'card' },
         x.h('div', { class: 'cap' }, x.h('h2', {}, 'Companies'), x.h('span', { class: 'small muted' }, `${openList.length} open`)),
         openList.length ? x.h('div', { class: 'ilist' }, openList.map(a => {
@@ -226,10 +228,10 @@ const L = { live: [], dirty: new Set(), versions: {}, timer: null, saving: false
 
 export async function ledgerCompany(holder, id, helpers, { solo = false } = {}) {
   x = helpers;
-  const [d, { audits }, factors] = await Promise.all([
-    x.api('GET', `/api/ledger/company/${encodeURIComponent(id)}`), x.api('GET', '/api/audits'), fetch('/ledger-factors.json').then(r => r.json())]);
+  const [d, { audits }, factors, tariffs] = await Promise.all([
+    x.api('GET', `/api/ledger/company/${encodeURIComponent(id)}`), x.api('GET', '/api/audits'), fetch('/ledger-factors.json').then(r => r.json()), fetch('/ledger-tariffs.json').then(r => r.json())]);
   Object.assign(L, {
-    id, solo, holder, factors, cea: d.cea, watch: d.watch, ai: d.ai, audit: d.audit, company: audits.find(a => a.id === id) || {},
+    id, solo, holder, factors, tariffs, cea: d.cea, watch: d.watch, ai: d.ai, audit: d.audit, company: audits.find(a => a.id === id) || {},
     bills: d.records.ledger_bills?.payload || K.blankBills(), baseline: d.records.ledger_baseline?.payload || K.blankBaseline(), ghg: d.records.ledger_ghg?.payload || K.blankGhg(),
     versions: Object.fromEntries(Object.values(KIND).map(k => [k, d.records[k]?.version || 0])), lastBy: Object.values(d.records).sort((a, b) => b.saved_at - a.saved_at)[0] || null,
     dirty: new Set(), stale: false, consent: false, error: null, tab: readTab(),
@@ -397,7 +399,7 @@ function drawOverview(w) {
   if (bc.months) {
     charts.append(chart({ title: 'Units consumed', unit: 'kWh', labels, series: [{ name: 'Units', values: bc.live.map(r => r.kwh) }], fmt: n0 }));
     charts.append(chart({ title: 'Cost per unit', unit: '₹/kWh', labels, kind: 'line', series: [{ name: 'Rate', values: bc.live.map(r => r.rate) }] }));
-    charts.append(chart({ title: 'Maximum demand', unit: 'kVA', labels, series: [{ name: 'Actual MD', values: bc.live.map(r => r.md) }], fmt: n0, refLine: bc.cd ? { value: bc.cd, label: `Contract ${n0(bc.cd)} kVA` } : null }));
+    charts.append(chart({ title: 'Maximum demand', unit: 'kVA', labels, series: [{ name: 'Actual MD', values: bc.live.map(r => r.md) }, { name: 'Billing demand', values: bc.live.map(r => r.billingDemand) }], fmt: n0, refLine: bc.cd ? { value: bc.cd, label: `Contract ${n0(bc.cd)} kVA` } : null }));
     charts.append(chart({ title: 'What the bill is made of', unit: '₹', labels, fmt: n0, series: [
       { name: 'Energy', values: bc.live.map(r => r.energy) }, { name: 'Fuel surcharge', values: bc.live.map(r => r.fuel) },
       { name: 'Demand', values: bc.live.map(r => r.demand) }, { name: 'Duty', values: bc.live.map(r => r.duty) },
@@ -409,15 +411,47 @@ function drawOverview(w) {
     if (blc.hasProd) charts.append(chart({ title: 'Specific electricity', unit: `kWh/${blc.basisLabel}`, labels: blc.rows.map(r => r.label), kind: 'line', series: [{ name: 'SEC', values: blc.rows.map(r => r.secKwh) }], fmt: v => nd(v, 3) }));
   }
   w.append(charts);
+  if (bc.orders.length) w.append(x.h('p', { class: 'small muted lg-src' }, `Tariff: ${[L.bills.cfg.discom, L.bills.cfg.tariff].filter(Boolean).join(', ')}, as per ${bc.orders.map(o => o.title).join('; ')}.`));
   w.append(x.h('p', { class: 'small muted lg-src' }, `Grid factor ${nd(gc.gridEF, 3)} kgCO₂/kWh: ${K.ceaLabel(L.ghg)}. Fuel factors: ${L.ghg.defra?.short || '—'}.`));
 }
 
 // ---------- bills ----------
+/** Rates of the order in plain lines, for the Bills tab and the report. */
+function rateLines(set, volt) {
+  const c = set.cat, u = c.unit, band = (list, one) => list.map(([upto, r], i) => {
+    const from = i ? list[i - 1][0] : 0;
+    return [upto === null ? (i ? `Above ${n0(from)} ${u}` : 'All') : i ? `${n0(from)} to ${n0(upto)} ${u}` : `Up to ${n0(upto)} ${u}`, one(r)];
+  });
+  const paise = r => `${n0(r * 100)} paise per unit`;
+  const e = c.energy, lines = [];
+  band(c.demand.slabs, r => `Rs ${nd(r, r % 1 ? 2 : 0)} per ${u} a month`).forEach(([k, v]) => lines.push([`Demand: ${k} of billing demand`, v]));
+  lines.push(['Demand above the contract', `Rs ${n0(c.demand.excess)} per ${u} a month`]);
+  if (e.flat !== undefined) lines.push(['Energy', paise(e.flat)]);
+  else if (e.byDemand) band(e.byDemand, paise).forEach(([k, v]) => lines.push([`Energy: billing demand ${k[0].toLowerCase()}${k.slice(1)}`, `${v}, whole month`]));
+  else lines.push(['Energy', `First ${n0(e.blocks.perKva)} units per kVA ${paise(e.blocks.first)}, the rest ${paise(e.blocks.rest)}`]);
+  if (c.tou) band(c.tou.byDemand, paise).forEach(([k, v]) => lines.push([`ToU charge, ${c.tou.hours}: ${k[0].toLowerCase()}${k.slice(1)}`, v]));
+  if (c.touDiscount) lines.push([`ToU discount, ${c.touDiscount.hours}`, `${paise(c.touDiscount.rate)} off`]);
+  lines.push(['Billing demand', `Highest of actual MD, ${n0(c.minPct * 100)}% of contract, ${c.minDemand} ${u}`]);
+  lines.push(['Minimum bill', 'Demand charges on the billing demand']);
+  if (c.pfUnit) {
+    lines.push(['PF penalty', `${nd(c.pfUnit.penalty * 100, 2)} paise per unit for each 1% below 90%`]);
+    lines.push(['PF rebate', `${nd(c.pfUnit.mid * 100, 2)} paise per unit for each 1% from 90 to 95%; ${nd(c.pfUnit.top * 100, 2)} paise for each 1% above 95%`]);
+  } else if (c.pfRebate) {
+    lines.push(['PF penalty', '1% of the energy charge for each 1% below 90%; 2% for each 1% below 85%']);
+    lines.push(['PF rebate', `${c.pfRebate}% of the energy charge for each 1% above 95%`]);
+  }
+  if (c.reactive) lines.push(['Reactive energy', `${n0(c.reactive * 100)} paise per kVARh`]);
+  const v = c.voltage?.find(q => q[0] === volt);
+  if (c.voltage) lines.push([`Rebate at ${volt}`, v?.[1] ? `${v[1]}% of the energy charge` : 'None']);
+  return lines;
+}
+const edN = () => Math.min(3, Math.max(1, num(L.bills.cfg.edTypes) || 1));
 const BILL_COLS = [
-  ['kwh', 'Units kWh', 'wide'], ['net', 'Bill ₹', 'wide'], ['pf', 'PF'], ['actualMD', 'Actual MD kVA'], ['energyRate', 'Energy ₹/kWh'],
-  ['fppaRate', 'FPPA ₹/kWh'], ['todNight', 'Night units', 'wide'], ['todPeak', 'TOU units', 'wide'], ['touDiscUnits', 'TOU disc. units', 'wide'], ['touDiscount', 'TOU disc. ₹', 'wide'],
+  ['kwh', 'Units kWh', 'wide'], ['net', 'Bill ₹', 'wide'], ['totConsBilled', 'Tot. consumption ₹', 'wide'], ['pf', 'PF'], ['contract', 'Contract kVA'], ['actualMD', 'Actual MD kVA'], ['energyRate', 'Energy ₹/kWh'],
+  ['fppaRate', 'FPPA ₹/kWh'], ['fppasVar', 'Variable FPPAS ₹', 'wide'], ['todNight', 'Night units', 'wide'], ['todPeak', 'TOU units', 'wide'], ['touDiscUnits', 'TOU disc. units', 'wide'], ['touDiscount', 'TOU disc. ₹', 'wide'],
 ];
 const needsReview = r => r.src && Object.keys(r.src).length;
+const billCols = () => (K.ratesFor(L.bills.cfg, null).reactive ? [...BILL_COLS, ['kvarh', 'kVARh', 'wide']] : BILL_COLS);
 
 function drawBills(w) {
   const cfg = L.bills.cfg, K_ = KIND.bills;
@@ -450,9 +484,9 @@ function drawBills(w) {
   const rows = L.bills.rows;
   w.append(card(`Monthly bills (${rows.length})`, 'Worked out is the bill from these figures and the tariff. Difference near zero means the reading and the tariff agree.',
     rows.length ? scroll(x.h('table', { class: 'lg-t lg-edit' },
-      x.h('thead', {}, x.h('tr', {}, x.h('th', {}, 'Month'), BILL_COLS.map(c => x.h('th', {}, c[1])), x.h('th', { class: 'n' }, '₹/kWh'), x.h('th', { class: 'n' }, 'Worked out ₹'), x.h('th', { class: 'n' }, 'Difference ₹'), x.h('th', {}, 'Bill'))),
+      x.h('thead', {}, x.h('tr', {}, x.h('th', {}, 'Month'), billCols().map(c => x.h('th', {}, c[1])), x.h('th', { class: 'n' }, '₹/kWh'), x.h('th', { class: 'n' }, 'Worked out ₹'), x.h('th', { class: 'n' }, 'Difference ₹'), x.h('th', {}, 'Bill'))),
       x.h('tbody', {}, rows.map(r => billRow(r))),
-      x.h('tfoot', {}, x.h('tr', {}, x.h('td', {}, 'Total'), BILL_COLS.map(c => x.h('td', { class: 'n' }, c[0] === 'kwh' ? live(C => n0(C.bc.total.kwh)) : c[0] === 'net' ? live(C => n0(C.bc.total.bill)) : '')),
+      x.h('tfoot', {}, x.h('tr', {}, x.h('td', {}, 'Total'), billCols().map(c => x.h('td', { class: 'n' }, c[0] === 'kwh' ? live(C => n0(C.bc.total.kwh)) : c[0] === 'net' ? live(C => n0(C.bc.total.bill)) : '')),
         x.h('td', { class: 'n' }, live(C => nd(C.bc.blended, 2))), x.h('td', { class: 'n' }, live(C => n0(C.bc.total.totalBill))), x.h('td'), x.h('td'))))) : x.h('p', { class: 'empty' }, 'No bills yet.')));
 }
 function billRow(r) {
@@ -462,7 +496,7 @@ function billRow(r) {
   const td = (k, wide) => x.h('td', {}, nin(r, k, KIND.bills, { 'aria-label': `${k} ${r.month || ''}`, class: `nin${wide ? ' wide' : ''}${r.src?.[k] ? ' read' : ''}`, title: r.src?.[k] ? `Read by ${r.src[k]}` : null }));
   return x.h('tr', {},
     x.h('td', {}, monthPicker(r)),
-    BILL_COLS.map(c => td(c[0], c[2])),
+    billCols().map(c => td(c[0], c[2])),
     x.h('td', { class: 'n' }, live(C => { const q = find(C); return q ? nd(q.rate, 2) : '—'; })),
     x.h('td', { class: 'n' }, live(C => { const q = find(C); return q ? n0(q.totalBill) : '—'; })),
     x.h('td', { class: 'n' }, diffEl),
@@ -910,14 +944,15 @@ function drawReport(w) {
   const charts = (...list) => x.h('div', { class: 'lg-charts' }, list);
   const note = t => x.h('p', { class: 'small muted lg-rnote' }, t);
   const share = v => (bc.total.bill ? pct((v || 0) / bc.total.bill) : '—');
+  const pct2 = v => (v === null || v === undefined ? '—' : `${nd(v * 100, 2)} %`);
 
   // ---- 1. bills ----
   const labels = bc.live.map(r => r.month);
-  const parts = [['Demand charge', bc.total.demand], ['Energy charge', bc.total.energy], ['FPPA (fuel surcharge)', bc.total.fuel], ['TOU charges', bc.total.touCharge], ['TOU discount', bc.total.touDiscount],
+  const parts = [['Demand charge', bc.total.demand], ['Energy charge', bc.total.energy], ['FPPA (fuel surcharge, with Variable FPPAS)', bc.total.fuel], ['TOU charges', bc.total.touCharge], ['TOU discount', bc.total.touDiscount],
     ['PF adjustment or rebate', bc.total.pfAdj], ['Night rebate', bc.total.nightRebate], ['EHV charges', bc.total.ehv], ['Total consumption charge', bc.total.totalCons], ['Electricity duty', bc.total.duty]];
   const billPart = bc.months ? part(1, 'Electricity bills',
     table(['Item', N('Value')], [
-      ['Source of power', cfg.discom || '—'], ['Consumer no.', cfg.consumerNo || '—'], ['Tariff', cfg.tariff || '—'], ['Contract demand', bc.cd ? `${n0(bc.cd)} kVA` : '—'],
+      ['Source of power', cfg.discom || cfg.otherName || '—'], ['Consumer no.', cfg.consumerNo || '—'], ['Tariff', cfg.tariff || '—'], ['Tariff order', bc.orders.map(o => o.title).join('; ') || cfg.otherOrder || 'Rates entered by hand'], ['Contract demand', bc.cd ? `${n0(bc.cd)} kVA` : '—'],
       [`Minimum billing demand`, bc.minBD ? `${nd(bc.minBD, 1)} kVA` : '—'], ['Months of bills', `${bc.months} (${labels[0]} to ${labels[labels.length - 1]})`],
       ['Bills verified against the bill', `${bc.verified} of ${bc.months}`], ['Total units', `${n0(bc.total.kwh)} kWh`], ['Total billed', rupees(bc.total.bill)], ['Average rate', `₹${nd(bc.blended, 2)} per kWh`],
       ['Highest demand', `${n0(bc.maxMD)} kVA`], ['Average power factor', nd(bc.avg.pf, 3)], ['Load factor', pct(bc.loadFactor)], ['Night units', pct(bc.nightShare)], ['TOU units', pct(bc.touShare)],
@@ -926,16 +961,43 @@ function drawReport(w) {
     table(['Charge', N('Total ₹'), N('Share of the bill')], parts.map(([t, v]) => [t, n0(v), share(v)]), [['Total billed', n0(bc.total.bill), '100.0 %']]),
     sub('Rebates and discounts earned'),
     table(['Rebate', N('Total ₹')], [['Power factor rebate', n0(bc.rebates.pf)], ['TOU discount', n0(bc.rebates.tou)], ['EHV rebate', n0(bc.rebates.ehv)], ['Night rebate', n0(bc.rebates.night)]], [['Total', n0(bc.rebates.total)]]),
+    bc.orders.map(o => [sub(`As per the tariff order: ${o.fy ? `FY ${o.fy}` : o.id}`),
+      note(`${o.title}. ${o.ref.replace(/\.$/, '')}. ${[cfg.discom, o.cat.name].filter(Boolean).join(', ')}. Used for: ${o.months.join(', ')}.${o.note ? ` ${o.note}` : ''}`),
+      table(['Tariff head', 'As per the order'], rateLines(o, cfg.supplyVolt)),
+      sub('Penalties and regulations'),
+      table(['Head', 'What the order says'], [...(o.cat.extra || []), ...(o.general || [])])]),
+    !bc.orders.length && (cfg.otherOrder || cfg.otherName) ? note(`Rates entered by hand from ${[cfg.otherName, cfg.otherOrder].filter(Boolean).join(', ')}.`) : null,
+    sub('Electricity duty'),
+    note(`Duty is set under the Gujarat Electricity Duty Act, not the tariff order. ${edN() === 1 ? 'One ED rate on these bills.' : `${edN()} ED rates on these bills, as printed under Electricity Duty.`}`),
+    table(['Month', N('ED line'), N('kWh'), N('Consumption charges ₹'), N('ED rate'), N('Amount ₹'), N('Exempted ₹')],
+      bc.live.flatMap(r => (r.edLines.length ? r.edLines : [{ i: '—', kwh: r.kwh, charge: r.totalCons, rate: r.dutyRate, amount: r.duty }]).map(l => [r.month, l.i, n0(l.kwh), n0(l.charge), pct2(l.rate), nd(l.amount, 2), r.edExempt ? nd(r.edExempt, 2) : '—'])),
+      [['Total', '', n0(bc.total.kwh), n0(bc.total.totalCons), bc.total.totalCons ? pct2(bc.total.duty / bc.total.totalCons) : '—', nd(bc.total.duty, 2), bc.live.some(r => r.edExempt) ? nd(bc.live.reduce((a, r) => a + r.edExempt, 0), 2) : '—']]),
+    cfg.edExemptUpto ? note(`Electricity duty exempted up to ${cfg.edExemptUpto}, as printed on the bill.`) : null,
+    bc.live.some(r => r.edProblems.length) ? note(`Does not match: ${bc.live.filter(r => r.edProblems.length).map(r => `${r.month}, ${r.edProblems.join('; ')}`).join(' · ')}.`) : note('All duty lines add up to the units and consumption charges on the bills.'),
+    sub('Differences, month by month'),
+    table(['Month', N('Consumption billed ₹'), N('Worked out ₹'), N('Diff. consumption ₹'), N('Bill ₹'), N('Worked out ₹'), N('Diff. bill ₹')],
+      bc.live.map(r => [r.month, nd(r.consBilled, 2), nd(r.totalCons, 2), nd(r.diffCons, 2), nd(r.bill, 2), nd(r.totalBill, 2), nd(r.diff, 2)])),
+    sub('Bills against the tariff order'),
+    table(['Check', N('Result')], [
+      ['Bills that agree with the tariff worked out', `${bc.live.filter(r => r.diff !== null && Math.abs(r.diff) <= Math.max(100, (r.bill || 0) * 0.005)).length} of ${bc.months}`],
+      ['Energy rate different from the order', bc.rateIssues.length ? bc.rateIssues.map(r => r.month).join(', ') : 'None'],
+      ['Months above the contract demand', `${bc.overMonths}`], ['Extra paid for demand above the contract', rupees(bc.total.excessExtra || 0)],
+      ['Months billed on the minimum demand', `${bc.unusedMonths}`], ['Paid for kVA not used', rupees(bc.unusedCost)],
+      ['Power factor penalty', bc.pfPenalty ? `${rupees(bc.pfPenalty)} in ${bc.pfPenaltyMonths} months` : 'None'], ['Power factor rebate earned', rupees(bc.rebates.pf)],
+      ['TOU charges paid', rupees(bc.total.touCharge || 0)], ['TOU discount earned', rupees(bc.rebates.tou)],
+      ['Changes of contract demand', bc.contractChanges.length ? bc.contractChanges.map(q => `${n0(q.from)} to ${n0(q.to)} kVA, ${q.month}`).join('; ') : 'None'],
+    ]),
+    f.filter(i => ['Tariff', 'Penalty', 'Demand', 'TOU', 'PF'].includes(i.tag)).length ? [sub('What to act on'), x.h('ul', { class: 'lg-notes' }, f.filter(i => ['Tariff', 'Penalty', 'Demand', 'TOU', 'PF'].includes(i.tag)).map(i => x.h('li', {}, i.text)))] : null,
     bc.demandAdvice ? [sub('Contract demand'),
-      table(['Month', N('Actual MD kVA'), N('Billing demand kVA'), N('Above contract kVA'), N('Demand charge ₹'), N(`At ${n0(bc.demandAdvice.suggested)} kVA contract ₹`)],
-        bc.live.map(r => [r.month, n0(r.md), n0(r.billingDemand), n0(r.overKva), n0(r.demand), n0(K.demandCharge(r.md === null ? null : Math.max(r.md, bc.demandAdvice.suggested * (num(cfg.minBillingPct) ?? 0.85)), cfg, bc.demandAdvice.suggested))]),
-        [['Total', '', '', '', n0(bc.demandAdvice.today), n0(bc.demandAdvice.cost)]]),
-      bc.demandAdvice.saving > 0 ? note(`A contract of ${n0(bc.demandAdvice.suggested)} kVA would have saved ${rupees(bc.demandAdvice.saving)} on demand charges over these ${bc.demandAdvice.months} months, before any deposit or fee for the change.`) : null] : null,
+      table(['Month', N('Contract kVA'), N('Actual MD kVA'), N('Billing demand kVA'), N('Above contract kVA'), N('Energy ₹/kWh'), N('Demand charge ₹'), N(`At ${n0(bc.demandAdvice.suggested)} kVA contract ₹`)],
+        bc.live.map(r => { const q = bc.demandAdvice.rows.find(v => v.month === r.month); return [r.month, n0(r.cd), n0(r.md), n0(r.billingDemand), n0(r.overKva), nd(r.eRate, 2), n0(r.demand), q ? n0(q.cost) : '—']; }),
+        [['Total', '', '', '', '', '', n0(bc.demandAdvice.today), n0(bc.demandAdvice.cost)]]),
+      bc.demandAdvice.saving > 0 ? note(`A contract of ${n0(bc.demandAdvice.suggested)} kVA would have saved ${rupees(bc.demandAdvice.saving)} over these ${bc.demandAdvice.months} months, energy and TOU slab changes included, before any deposit or fee for the change.`) : note('The present contract demand is the lowest cost found for these months.')] : null,
     sub('Graphs'),
     charts(
       chart({ title: 'Units consumed', unit: 'kWh', labels, series: [{ name: 'Units', values: bc.live.map(r => r.kwh) }], fmt: n0 }),
       chart({ title: 'Cost per unit', unit: '₹/kWh', labels, kind: 'line', series: [{ name: 'Rate', values: bc.live.map(r => r.rate) }] }),
-      chart({ title: 'Maximum demand', unit: 'kVA', labels, series: [{ name: 'Actual MD', values: bc.live.map(r => r.md) }], fmt: n0, refLine: bc.cd ? { value: bc.cd, label: `Contract ${n0(bc.cd)} kVA` } : null }),
+      chart({ title: 'Maximum demand', unit: 'kVA', labels, series: [{ name: 'Actual MD', values: bc.live.map(r => r.md) }, { name: 'Billing demand', values: bc.live.map(r => r.billingDemand) }], fmt: n0, refLine: bc.cd ? { value: bc.cd, label: `Contract ${n0(bc.cd)} kVA` } : null }),
       chart({ title: 'Power factor', unit: 'PF', labels, kind: 'line', series: [{ name: 'PF', values: bc.live.map(r => r.pf) }], fmt: v => nd(v, 3), refLine: { value: 0.95, label: 'Rebate starts above 0.95' } }),
       chart({ title: 'What the bill is made of', unit: '₹', labels, fmt: n0, series: [
         { name: 'Energy', values: bc.live.map(r => r.energy) }, { name: 'Fuel surcharge', values: bc.live.map(r => r.fuel) },

@@ -11,6 +11,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { openDb, tx } from '../lib/db.js';
 import { createDemoAudit } from '../lib/demo.js';
+import { createDemoLedger } from '../lib/demo-ledger.js';
 import { createServer } from '../server.js';
 
 const db = openDb(':memory:');
@@ -869,7 +870,12 @@ await step('demo company (made from the server): every app gets test data, marke
   await new Promise(r => setTimeout(r, 300));
   const data = await admin('GET', `/api/audits/${d.data.audit_id}/data`);
   const apps = Object.keys(data.data.apps).sort();
-  assert.deepEqual(apps, ['air', 'cool', 'dryer', 'heat', 'light', 'motor', 'power', 'pump', 'report', 'survey', 'textile', 'xmer']);
+  assert.deepEqual(apps, ['air', 'cool', 'dryer', 'heat', 'ledger', 'light', 'motor', 'power', 'pump', 'report', 'survey', 'textile', 'xmer']);
+  // Energy Ledger: bills, baseline and GHG for the same company, with the CEA grid factor.
+  assert.deepEqual(data.data.apps.ledger.map(r => r.kind).sort(), ['ledger_baseline', 'ledger_bills', 'ledger_ghg']);
+  assert.equal(d.data.ledger.bills, 12);
+  assert.ok(d.data.ledger.grid_ef > 0.5 && d.data.ledger.grid_ef < 1, String(d.data.ledger.grid_ef));
+  assert.equal(tx(db, () => { try { createDemoLedger(db, sa, d.data.audit_id, { ip: 'test' }); return 'made'; } catch (e) { return e.status; } }), 409); // not twice
   assert.ok(d.data.records >= 70, String(d.data.records));
   assert.equal(db.prepare('SELECT synthetic FROM audits WHERE id = ?').get(d.data.audit_id).synthetic, 1);
   assert.ok(d.data.pictures >= 60, String(d.data.pictures));
