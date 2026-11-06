@@ -71,6 +71,7 @@ export function createServer(db, { filesDir = config.filesDir } = {}) {
     '/ledger-ocr.js': ['ledger-ocr.js', 'text/javascript; charset=utf-8'],
     '/ledger-xlsx-worker.js': ['ledger-xlsx-worker.js', 'text/javascript; charset=utf-8'],
     '/ledger-factors.json': ['ledger-factors.json', 'application/json; charset=utf-8'],
+    '/ledger-tariffs.json': ['ledger-tariffs.json', 'application/json; charset=utf-8'],
     '/vendor/xlsx.full.min.js': ['vendor/xlsx.full.min.js', 'text/javascript; charset=utf-8'],
     // The bill reader runs here, not on a CDN, so it works under this page's security policy.
     ...Object.fromEntries(['tesseract.min.js', 'worker.min.js', 'tesseract-core-lstm.wasm.js', 'tesseract-core-simd-lstm.wasm.js', 'pdf.min.js', 'pdf.worker.min.js']

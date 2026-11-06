@@ -5,6 +5,7 @@
 //
 //   sudo -u ares DB_FILE=/var/lib/ares/ares.db node /opt/ares-ops/scripts/make-demo.mjs [<super admin login_id>]
 //   ... make-demo.mjs --ledger <audit id> [<login_id>]   adds only the Ledger part to an existing demo audit
+//   ... make-demo.mjs --ledger <audit id> --replace      makes the demo audit's Ledger part again (demo audits only)
 //
 // Without a login ID it uses the main Super Admin (the owner). FILES_DIR defaults to files/ next to the database.
 import path from 'node:path';
@@ -21,6 +22,8 @@ migrateCea(db); // the CEA versions table, as the server makes it on start
 const args = process.argv.slice(2);
 const li = args.indexOf('--ledger');
 const ledgerAudit = li >= 0 ? args.splice(li, 2)[1] : null;
+const ri = args.indexOf('--replace');
+const replace = ri >= 0 && !!args.splice(ri, 1);
 const loginId = args[0];
 const actor = loginId
   ? db.prepare("SELECT * FROM users WHERE login_id = ? AND role = 'super_admin'").get(loginId)
@@ -31,7 +34,7 @@ if (!actor) {
 }
 try {
   if (ledgerAudit) {
-    const l = createDemoLedger(db, actor, ledgerAudit, { ip: 'server' });
+    const l = createDemoLedger(db, actor, ledgerAudit, { ip: 'server', replace });
     console.log(`Energy Ledger added to ${ledgerAudit}: ${l.bills} bills, ${l.baseline_months} baseline months, ${l.ghg_lines} GHG lines, grid factor ${l.grid_ef} (CEA ${l.cea}).`);
   } else {
     const r = createDemoAudit(db, actor, { ip: 'server', filesDir });
