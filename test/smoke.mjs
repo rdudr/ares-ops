@@ -4,6 +4,8 @@ import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 import net from 'node:net';
 import fs from 'node:fs';
+import * as LC from '../public/ledger-calc.js';
+import { checkCea, latestOnPage } from '../lib/cea.js';
 import vm from 'node:vm';
 import os from 'node:os';
 import path from 'node:path';
@@ -523,7 +525,7 @@ await step('the Console edits and removes records, phones get the change; finali
   assert.equal((await admin('PUT', '/api/records/edit-record-1', { payload: { head: 1 } })).status, 409); // locked
   const list = await admin('GET', '/api/audits');
   assert.ok(list.data.audits.find(a => a.id === auditId).finalized_at);
-  assert.equal((await admin('POST', `/api/audits/${auditId}/reopen`)).status, 200);
+  assert.equal((await admin('POST', `/api/audits/${auditId}/reopen`, { note: 'Correcting a reading' })).status, 200);
   assert.ok((await app('GET', '/api/device/me')).data.audits.some(a => a.id === auditId));
 });
 
@@ -937,12 +939,203 @@ await step('audit page: refused and clashing saves are kept until solved; who wo
   assert.ok(ph && ph.photos === 1 && ph.arriving, JSON.stringify(st.photos));
 });
 
-await step('audit process: stages one at a time, the lead moves them, approval only by the approver, completed closes the audit', async () => {
+// ---------- Energy Ledger ----------
+await step('Energy Ledger: a bill works out to the rupee, with the demand above contract at its own rate', async () => {
+  // Invented figures. 750 kVA contract, 789 kVA recorded.
+  const b = LC.blankBills(); b.cfg.contractDemand = 750;
+  b.rows = [{ month: 'Apr-25', kwh: 100000, net: 100000, pf: 0.98, actualMD: 789, energyRate: 4.1, fppaRate: 2.4, todNight: 0, todPeak: 0 }];
+  const c = LC.billCalc(b);
+  assert.equal(c.rows[0].demand, 161645);  // 500 @ 150 + 250 @ 260 + 39 above contract @ 555
+  assert.equal(c.total.kwh, 100000);
+  assert.equal(c.overMonths, 1);
+});
+
+await step('Energy Ledger: the report and Excel keep the team bill table, all 33 columns in its order', async () => {
+  const src = fs.readFileSync(new URL('../public/ledger.js', import.meta.url), 'utf8');
+  const part = src.slice(src.indexOf('const BILL_SHEET'), src.indexOf('/** Heading groups'));
+  const heads = [...part.matchAll(/col\((?:null|'[^']+'), '([^']+)'/g)].map(m => m[1]);
+  assert.equal(heads.length, 33);
+  assert.deepEqual(heads.slice(25, 28), ['TOU DISC Unit', 'Rate Per KVA', 'TOU Disc']);
+  assert.deepEqual([heads[0], heads[1], heads[2], heads[31], heads[32]], ['Month', 'Total Unit Consumed', 'Total Bill Amount', 'Total Bill', 'Difference']);
+});
+
+await step('Energy Ledger: a misread demand figure stays quick to work out', async () => {
+  const b = LC.blankBills();
+  b.cfg.contractDemand = 750;
+  b.rows = Array.from({ length: 36 }, (_, i) => ({ id: `r${i}`, month: `Apr-${10 + i}`, kwh: 1000, actualMD: i ? 800 : 6321700 }));
+  const t = performance.now();
+  for (let i = 0; i < 50; i++) LC.billCalc(b);
+  assert.ok(performance.now() - t < 500, `${performance.now() - t} ms for 50 calculations`);
+});
+
+await step('Energy Ledger: TOU discount, printed or worked out, comes off the bill once', async () => {
+  const b = LC.blankBills();
+  b.cfg.contractDemand = 750; b.cfg.touDiscRate = 2;
+  b.rows = [
+    { id: 'a', month: 'Apr-25', kwh: 1000, actualMD: 700, energyRate: 4 },
+    { id: 'b', month: 'May-25', kwh: 1000, actualMD: 700, energyRate: 4, touDiscount: 500 },
+    { id: 'c', month: 'Jun-25', kwh: 1000, actualMD: 700, energyRate: 4, touDiscount: -500 },
+    { id: 'd', month: 'Jul-25', kwh: 1000, actualMD: 700, energyRate: 4, touDiscUnits: 300 },
+    { id: 'e', month: 'Aug-25', kwh: 1000, actualMD: 700, energyRate: 4, touDiscUnits: 300, touDiscount: 500 },
+  ];
+  const c = LC.billCalc(b), [a, m, j, u, both] = c.rows;
+  const off = r => a.totalCons - r.totalCons;
+  assert.deepEqual([off(m), off(j), off(u), off(both)], [500, 500, 600, 500]);
+  assert.equal(c.rebates.tou, 2100);
+  assert.equal(c.total.discUnits, 600);
+});
+
+await step('Energy Ledger: baseline, TOE and emissions from the same figures', async () => {
+  const b = LC.blankBaseline();
+  b.months = [{ y: 2025, m: 4 }]; b.grid['2025-04'] = 100000; b.production['2025-04'] = 50000;
+  b.fuels = [{ id: 'f', name: 'Coal', unit: 'Ton', gcv: 4000, ef: 2415.03994, values: { '2025-04': 10 } }];
+  const bc = LC.baselineCalc(b);
+  assert.ok(Math.abs(bc.total.elecToe - 8.6) < 1e-9);           // 100,000 x 860 / 1e7
+  assert.ok(Math.abs(bc.total.thermalToe - 4) < 1e-9);          // 10 x 1000 x 4000 / 1e7
+  assert.equal(bc.total.secKwh, 2);
+  const g = { ...LC.blankGhg(), gridEF: 0.675, reOffset: 5, lines: [{ id: 'l', type: 'fugitive', qty: 2, ef: 1300 }, { id: 'm', type: 'scope3', qty: 1000, ef: 1 }] };
+  const gc = LC.ghgCalc(bc, b, g);
+  assert.ok(Math.abs(gc.fuelT - 24.1503994) < 1e-6);
+  assert.ok(Math.abs(gc.s1 - (24.1503994 + 2.6)) < 1e-6);
+  assert.equal(gc.gross2, 67.5);
+  assert.equal(gc.s2, 62.5);
+  assert.equal(gc.s3, 1);
+  assert.ok(Math.abs(gc.total12 - (gc.s1 + 62.5)) < 1e-9);
+});
+
+await step('Energy Ledger: the bill reader takes the right number for each label, and loads nothing from a CDN', async () => {
+  const src = fs.readFileSync(new URL('../public/ledger-ocr.js', import.meta.url), 'utf8');
+  const { extractBill } = await import('../public/ledger-ocr.js');
+  const hits = extractBill('Bill Month: Apr-2025\nUnits Consumed 6,32,170\nPower Factor 0.996\nMaximum Demand 789 kVA\nContract Demand 750\nNet Amount Payable 51,19,031.90');
+  assert.equal(hits.kwh.value, 632170);
+  assert.equal(hits.pf.value, 0.996);
+  assert.equal(hits.actualMD.value, 789);
+  assert.equal(hits.contract.value, 750);
+  assert.equal(hits.net.value, 5119031.9);
+  assert.ok(!/https?:\/\/(cdn|cdnjs|tessdata)/.test(src.replace(/^\s*\/\/.*$/gm, '')), 'the reader must not load anything from a CDN');
+});
+
+await step('Energy Ledger: DEFRA library holds the workbook values', async () => {
+  const d = JSON.parse(fs.readFileSync(new URL('../public/ledger-factors.json', import.meta.url)));
+  const v = (g, n, u) => d.items.find(i => i.g === g && i.n === n && i.u === u)?.v;
+  assert.equal(v('Fuels', 'Coal (industrial)', 'tonnes'), 2415.03994);
+  assert.equal(v('Fuels', 'Diesel (100% mineral diesel)', 'litres'), 2.66155);
+  assert.equal(v('Fuels', 'Natural gas (100% mineral blend)', 'cubic metres'), 2.04987);
+  assert.equal(v('Refrigerants and gases', 'HFC-134a', 'kg'), 1300);
+  assert.equal(d.year, '2026');
+});
+
+await step('Energy Ledger: CEA Version 22.0 is held, with the factors of its User Guide', async () => {
+  const r = await admin('GET', '/api/ledger/cea');
+  assert.equal(r.status, 200);
+  assert.equal(r.data.current, '22.0');
+  const v = r.data.versions[0];
+  const f = LC.ceaFactor(v, '2025-26');
+  assert.deepEqual([f.value, f.version, f.exact], [0.675, '22.0', true]);
+  assert.equal(LC.ceaFactor(v, '2025-26', 'cm').value, 0.705);
+  assert.equal(LC.ceaFactor(v, '2025-26', 'average', false).value, 0.678);
+  assert.equal(LC.ceaFactor(v, '2024-25').value, 0.710);
+  const later = LC.ceaFactor(v, '2026-27'); // not published yet: the newest, and it says so
+  assert.deepEqual([later.value, later.fy, later.exact], [0.675, '2025-26', false]);
+  assert.equal(LC.ceaLabel({ basis: 'average', cea: { version: '22.0', published: 'August 2026', fy: '2025-26' } }),
+    'CEA CO2 Baseline Database Version 22.0 (August 2026), FY 2025-26, weighted average');
+});
+
+await step('Energy Ledger: the CEA watch tells us of a new version, and says when it could not look', async () => {
+  assert.equal(latestOnPage('<td>Version 21.0</td> <td>Version 22.0</td><td>Version 9.0</td>'), '22.0');
+  assert.equal(latestOnPage('<p>under maintenance</p>'), null);
+  const page = body => async () => new Response(body, { status: 200 });
+  let st = await checkCea(db, { fetchImpl: page('Version 22.0 Version 21.0') });
+  assert.deepEqual([st.ok, st.newer, st.latest], [true, false, '22.0']);
+  st = await checkCea(db, { fetchImpl: async () => new Response('', { status: 503 }) });
+  assert.equal(st.ok, false);
+  assert.match(st.error, /503/);
+  st = await checkCea(db, { fetchImpl: page('nothing here') });
+  assert.equal(st.ok, false);
+  st = await checkCea(db, { fetchImpl: page('Version 23.0 Version 22.0') });
+  assert.deepEqual([st.ok, st.newer, st.latest, st.current], [true, true, '23.0', '22.0']);
+  await checkCea(db, { fetchImpl: page('Version 23.0') }); // the log says it once
+  assert.equal(db.prepare("SELECT COUNT(*) AS n FROM activity WHERE action = 'cea.new_version'").get().n, 1);
+});
+
+await step('Energy Ledger: only the Super Admin adds a CEA version, and it must be newer and complete', async () => {
+  const add = b => admin('POST', '/api/ledger/cea/versions', b);
+  const row = { fy: '2026-27', cross_border: true, average: 0.65, om: 0.95, bm: 0.42, cm: 0.685 };
+  assert.equal((await add({ version: '21.0', published: 'x', rows: [row] })).status, 409);
+  assert.equal((await add({ version: 'new', published: 'x', rows: [row] })).status, 400);
+  assert.equal((await add({ version: '23.0', published: 'August 2027', rows: [] })).status, 400);
+  assert.equal((await add({ version: '23.0', published: 'August 2027', rows: [{ ...row, average: 650 }] })).status, 400);
+  const ok = await add({ version: '23.0', published: 'August 2027', guide_url: 'https://cea.nic.in/x', rows: [row] });
+  assert.equal(ok.status, 200);
+  assert.deepEqual([ok.data.current, ok.data.newer], ['23.0', false]);
+  db.prepare("DELETE FROM cea_versions WHERE version = '23.0'").run();
+  db.prepare("UPDATE cea_watch SET latest = '22.0', told = NULL").run();
+});
+
+await step('Energy Ledger: a company saves its data, a stale page is refused, it comes back with the audit data', async () => {
+  const au = (await admin('POST', '/api/audits', { client_name: 'Ledger Mills', sector: 'TX', site_name: 'Unit L', cluster: 'srt', fy: 'FY2025-26', title: 'Detailed energy audit' })).data.id;
+  const url = `/api/ledger/company/${au}`;
+  assert.deepEqual((await admin('GET', url)).data.records, {});
+  const payload = { ...LC.blankBills(), rows: [{ month: 'Apr-25', kwh: 1000, verified: true }] };
+  const first = await admin('PUT', `${url}/ledger_bills`, { payload, base_version: 0 });
+  assert.deepEqual([first.status, first.data.version], [200, 1]);
+  assert.equal((await admin('PUT', `${url}/ledger_bills`, { payload, base_version: 0 })).status, 409); // a page that never saw version 1
+  const second = await admin('PUT', `${url}/ledger_bills`, { payload: { ...payload, note: 'x' }, base_version: 1 });
+  assert.equal(second.data.version, 2);
+  assert.equal((await admin('PUT', `${url}/ledger_nope`, { payload })).status, 404);
+  assert.equal((await admin('GET', url)).data.records.ledger_bills.version, 2);
+  assert.equal((await admin('GET', '/api/ledger/summary')).data.companies[au].bills, 1);
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM record_versions WHERE record_id = ?').get(`led-bills-${au}`).n, 1); // the older one is kept
+  const pm = appClient((await appLogin('axita', ADMIN_PW, 'report')).data.token);
+  const feed = await pm('GET', `/api/audits/${au}/data`);
+  assert.equal(feed.data.apps.ledger[0].kind, 'ledger_bills');
+  assert.equal(feed.data.apps.ledger[0].payload.rows[0].kwh, 1000);
+  const anon = await fetch(`${base}${url}`);
+  assert.equal(anon.status, 401);
+});
+
+await step('Energy Ledger: its files are served, and only the OCR files may run WebAssembly', async () => {
+  const page = await fetch(`${base}/`);
+  assert.ok(!page.headers.get('content-security-policy').includes('wasm'));
+  for (const p of ['/ledger.js', '/ledger-calc.js', '/ledger-ocr.js', '/ledger-xlsx-worker.js', '/ledger-factors.json', '/icons/bills.png', '/vendor/xlsx.full.min.js', '/vendor/ocr/pdf.min.js', '/vendor/ocr/eng.traineddata.gz'])
+    assert.equal((await fetch(base + p)).status, 200, p);
+  assert.match((await fetch(`${base}/vendor/ocr/worker.min.js`)).headers.get('content-security-policy'), /wasm-unsafe-eval/);
+  assert.equal((await fetch(`${base}/vendor/ocr/../../server.js`)).status, 404);
+});
+
+
+await step('Energy Ledger: only people given it reach it; it is not GST Billing; saving bills is not field work', async () => {
+  const signIn = async (login_id, temp) => {
+    const c = consoleClient();
+    assert.equal((await c('POST', '/api/login', { login_id, password: temp })).status, 200);
+    assert.equal((await c('POST', '/api/change-password', { current: temp, next: `${login_id}-Pass-2026` })).status, 200);
+    return c;
+  };
+  const without = await admin('POST', '/api/users', { name: 'No Ledger', login_id: 'adm.noledger', role: 'head', apps: ['survey', 'bills'] });
+  const given = await admin('POST', '/api/users', { name: 'Ledger Admin', login_id: 'adm.ledger', role: 'head', apps: ['ledger'] });
+  const no = await signIn('adm.noledger', without.data.temp_password), yes = await signIn('adm.ledger', given.data.temp_password);
+  const id = (await yes('POST', '/api/audits', { client_name: 'Ledger Scope Mills', site_name: 'Unit 1', sector: 'TX', title: 'Energy audit', fy: 'FY2025-26' })).data.id;
+  const hidden = (await admin('POST', '/api/audits', { client_name: 'Other Mills', site_name: 'Unit 9', sector: 'TX', title: 'Energy audit', fy: 'FY2025-26' })).data.id;
+  for (const p of ['/api/ledger/cea', '/api/ledger/summary', `/api/ledger/company/${id}`]) assert.equal((await no('GET', p)).status, 403, p);
+  assert.equal((await no('PUT', `/api/ledger/company/${id}/ledger_bills`, { payload: { rows: [] } })).status, 403);
+  assert.ok(!(await no('GET', '/api/me')).data.my_apps.includes('ledger'));
+  assert.equal((await yes('GET', `/api/ledger/company/${hidden}`)).status, 404, 'not an audit they may see');
+  const saved = await yes('PUT', `/api/ledger/company/${id}/ledger_bills`, { payload: { rows: [{ month: 'Apr-25', kwh: 1000 }] } });
+  assert.equal(saved.status, 200, JSON.stringify(saved.data));
+  assert.ok((await yes('GET', '/api/ledger/summary')).data.companies[id]);
+  assert.ok(!(await yes('GET', '/api/ledger/summary')).data.companies[hidden]);
+  assert.equal(db.prepare('SELECT app FROM records WHERE audit_id = ?').get(id).app, 'ledger');
+  const pa = (await admin('GET', `/api/audits/${id}/pipeline`)).data.audit;
+  assert.equal(pa.records, 0, 'bills are not field records');
+  assert.equal(pa.next.ready, false, 'and do not move the audit on');
+});
+
+await step('audit process: six AR stages, one at a time; an Admin or Super Admin approves; Published closes the audit', async () => {
   const id = (await admin('POST', '/api/audits', { client_name: 'Stage Test Mills', site_name: 'Unit 2', sector: 'TX', title: 'Walkthrough energy audit',
     fy: 'FY2025-26', district: 'Surat', state: 'Gujarat', work_type: 'walkthrough' })).data.id;
   let pa = (await admin('GET', `/api/audits/${id}/pipeline`)).data.audit;
-  assert.equal(pa.stage, 'initiated');
-  assert.ok(!pa.stages.includes('detailed'), 'a walkthrough-only audit skips the detailed audit');
+  assert.equal(pa.stage, 'setup');
+  assert.deepEqual(pa.stages, ['setup', 'field', 'processing', 'review', 'approved', 'published']);
   const users = (await admin('GET', '/api/users')).data.users;
   const eng = users.find(u => u.login_id === 'fl.one'), eng2 = users.find(u => u.login_id === 'fl.two');
   assert.equal((await admin('POST', `/api/audits/${id}/assign`, { user_id: eng.id, assign: true, role: 'lead' })).status, 200);
@@ -950,19 +1143,18 @@ await step('audit process: stages one at a time, the lead moves them, approval o
   pa = (await admin('GET', `/api/audits/${id}/pipeline`)).data.audit;
   assert.deepEqual(pa.team.map(t => [t.id === eng2.id ? 'two' : 'one', t.role]).sort(), [['one', 'field'], ['two', 'lead']], 'one lead at a time');
   assert.equal((await admin('POST', `/api/audits/${id}/stage`, { to: 'processing' })).status, 200, 'a Super Admin may jump');
-  assert.equal((await admin('POST', `/api/audits/${id}/stage`, { to: 'initiated' })).status, 400, 'going back needs a note');
-  for (const to of ['draft', 'approval']) assert.equal((await admin('POST', `/api/audits/${id}/stage`, { to })).status, 200);
-  const ap = await admin('POST', `/api/audits/${id}/stage`, { to: 'final' });
-  assert.equal(ap.status, 403, 'only the approver approves'); assert.match(ap.data.error, /approves/);
-  db.prepare("UPDATE audits SET stage = 'final' WHERE id = ?").run(id);   // as if approved
-  assert.equal((await admin('POST', `/api/audits/${id}/stage`, { to: 'completed' })).status, 200);
-  assert.equal(db.prepare('SELECT status FROM audits WHERE id = ?').get(id).status, 'archived', 'completed finalises the audit');
-  assert.equal((await admin('POST', `/api/audits/${id}/stage`, { to: 'post_audit' })).status, 200);
-  assert.equal((await admin('POST', `/api/audits/${id}/post-audit`, { status: 'done', note: 'VFD fitted' })).status, 200);
-  assert.equal((await admin('POST', `/api/audits/${id}/reopen`)).status, 200);
+  assert.equal((await admin('POST', `/api/audits/${id}/stage`, { to: 'setup' })).status, 400, 'going back needs a note');
+  assert.equal((await admin('POST', `/api/audits/${id}/stage`, { to: 'review' })).status, 200);
+  const { moveStage } = await import('../lib/stages.js');
+  assert.throws(() => moveStage(db, id, 'approved', { id: eng2.id, role: 'engineer' }), /approves/, 'the audit lead cannot approve');
+  assert.equal((await admin('POST', `/api/audits/${id}/stage`, { to: 'approved' })).status, 200, 'a Super Admin approves');
+  assert.equal((await admin('POST', `/api/audits/${id}/stage`, { to: 'published' })).status, 200);
+  assert.equal(db.prepare('SELECT status FROM audits WHERE id = ?').get(id).status, 'archived', 'Published finalises the audit');
+  assert.equal((await admin('POST', `/api/audits/${id}/reopen`, {})).status, 400, 'reopening needs a reason');
+  assert.equal((await admin('POST', `/api/audits/${id}/reopen`, { note: 'Boiler readings to correct' })).status, 200);
   pa = (await admin('GET', `/api/audits/${id}/pipeline`)).data.audit;
   assert.equal(pa.stage, 'processing'); assert.equal(pa.status, 'in_field');
-  assert.ok(pa.history.length >= 6 && pa.history.some(h => h.note === 'Reopened'));
+  assert.ok(pa.history.length >= 5 && pa.history.some(h => h.note === 'Reopened: Boiler readings to correct'));
 });
 
 await step('tasks: process tasks per stage by role, data-entry targets that close on sync, ordinary tasks', async () => {
@@ -972,13 +1164,13 @@ await step('tasks: process tasks per stage by role, data-entry targets that clos
   const eng = users.find(u => u.login_id === 'fl.one');
   await admin('POST', `/api/audits/${id}/assign`, { user_id: eng.id, assign: true, role: 'lead' });
   let T = (await admin('GET', `/api/tasks?audit=${id}`)).data;
-  const team = T.tasks.find(t => t.auto_key === 'initiated:team');
+  const team = T.tasks.find(t => t.auto_key === 'setup:team');
   assert.ok(team && team.status === 'done', 'the team task closes once there is a lead');
-  assert.ok(T.tasks.some(t => t.auto_key === 'initiated:details'), 'process tasks of the stage appear');
-  assert.equal((await admin('POST', `/api/audits/${id}/stage`, { to: 'detailed' })).status, 200);
+  assert.ok(T.tasks.some(t => t.auto_key === 'setup:details'), 'process tasks of the stage appear');
+  assert.equal((await admin('POST', `/api/audits/${id}/stage`, { to: 'field' })).status, 200);
   T = (await admin('GET', `/api/tasks?audit=${id}`)).data;
-  assert.equal(T.tasks.find(t => t.auto_key === 'initiated:details').status, 'done', 'tasks of a passed stage close');
-  const field = T.tasks.find(t => t.auto_key === 'detailed:field-data');
+  assert.equal(T.tasks.find(t => t.auto_key === 'setup:details').status, 'done', 'tasks of a passed stage close');
+  const field = T.tasks.find(t => t.auto_key === 'field:field-data');
   assert.ok(field && field.assignee === eng.id, 'assigned to the lead');
   // a data-entry target, closed by the engineer's sync
   const made = await admin('POST', '/api/tasks', { audit_id: id, title: 'Record two compressors', app: 'air', record_kind: 'compressor', target: 2, assignee: eng.id });

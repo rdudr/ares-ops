@@ -12,6 +12,8 @@ import { registerDataRoutes } from './lib/routes-data.js';
 import { registerRecordRoutes } from './lib/routes-records.js';
 import { handleMcp } from './lib/mcp.js';
 import { registerBillingRoutes } from './lib/routes-billing.js';
+import { registerLedgerRoutes } from './lib/routes-ledger.js';
+import { migrateCea, watchCea } from './lib/cea.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
@@ -53,6 +55,8 @@ export function createServer(db, { filesDir = config.filesDir } = {}) {
   registerDeviceRoutes(router);
   registerDataRoutes(router, { filesDir });
   registerRecordRoutes(router, { filesDir });
+  registerLedgerRoutes(router);
+  migrateCea(db);
   registerBillingRoutes(router, { consoleCookie: COOKIE, secureCookies: config.secureCookies, billingHost: config.billingHost, consoleUrl: config.consoleUrl });
 
   const files = {
@@ -61,10 +65,21 @@ export function createServer(db, { filesDir = config.filesDir } = {}) {
     // Each app's overview at a company, worked out with the apps' own engines (tools/bundle-overview.mjs).
     '/overview.js': ['overview.js', 'text/javascript; charset=utf-8'],
     '/styles.css': ['styles.css', 'text/css; charset=utf-8'],
+    // Energy Ledger (a Console menu): loaded only when it is opened.
+    '/ledger.js': ['ledger.js', 'text/javascript; charset=utf-8'],
+    '/ledger-calc.js': ['ledger-calc.js', 'text/javascript; charset=utf-8'],
+    '/ledger-ocr.js': ['ledger-ocr.js', 'text/javascript; charset=utf-8'],
+    '/ledger-xlsx-worker.js': ['ledger-xlsx-worker.js', 'text/javascript; charset=utf-8'],
+    '/ledger-factors.json': ['ledger-factors.json', 'application/json; charset=utf-8'],
+    '/vendor/xlsx.full.min.js': ['vendor/xlsx.full.min.js', 'text/javascript; charset=utf-8'],
+    // The bill reader runs here, not on a CDN, so it works under this page's security policy.
+    ...Object.fromEntries(['tesseract.min.js', 'worker.min.js', 'tesseract-core-lstm.wasm.js', 'tesseract-core-simd-lstm.wasm.js', 'pdf.min.js', 'pdf.worker.min.js']
+      .map(f => [`/vendor/ocr/${f}`, [`vendor/ocr/${f}`, 'text/javascript; charset=utf-8']])),
+    '/vendor/ocr/eng.traineddata.gz': ['vendor/ocr/eng.traineddata.gz', 'application/gzip'],
     '/logo.png': ['logo.png', 'image/png'],
     '/hero.jpg': ['hero.jpg', 'image/jpeg'],
     // Each app's own logo (public/icons/<app code>.png), for cards, the menu and dialogs.
-    ...Object.fromEntries(['survey', 'motor', 'heat', 'textile', 'air', 'pump', 'cool', 'xmer', 'light', 'dryer', 'power', 'report', 'bills']
+    ...Object.fromEntries(['survey', 'motor', 'heat', 'textile', 'air', 'pump', 'cool', 'xmer', 'light', 'dryer', 'power', 'report', 'bills', 'ledger']
       .map(c => [`/icons/${c}.png`, [`icons/${c}.png`, 'image/png']])),
   };
 
@@ -82,7 +97,9 @@ export function createServer(db, { filesDir = config.filesDir } = {}) {
       if (!url.pathname.startsWith('/api/')) {
         const f = req.method === 'GET' && files[url.pathname];
         if (!f) throw new HttpError(404, 'Not found.');
-        res.writeHead(200, { 'Content-Type': f[1], 'Cache-Control': 'no-cache' });
+        // The OCR worker runs WebAssembly; only its own files get that permission, never the Console page.
+        if (url.pathname.startsWith('/vendor/ocr/')) res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; connect-src 'self' data:");
+        res.writeHead(200, { 'Content-Type': f[1], 'Cache-Control': url.pathname.startsWith('/vendor/') ? 'public, max-age=86400' : 'no-cache' });
         return res.end(readFileSync(path.join(here, 'public', f[0])));
       }
 
@@ -190,6 +207,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     db.prepare('DELETE FROM mcp_tokens WHERE COALESCE(revoked_at, expires_at) < ?').run(now - 90 * 864e5);
     db.prepare('DELETE FROM mcp_log WHERE at < ?').run(now - 365 * 864e5);
   }, 3600000).unref();
+  watchCea(db);
   server.listen(config.port, config.host, () => {
     console.log(`ARES Console running at http://${config.host === '0.0.0.0' ? 'localhost' : config.host}:${config.port}`);
     if (!db.prepare('SELECT 1 FROM users LIMIT 1').get()) {

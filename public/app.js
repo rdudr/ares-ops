@@ -329,6 +329,7 @@ const PAGES = [
   { id: 'team', label: 'Team & access', group: 'Manage', icon: 'team' },
   { id: 'audits', label: 'Audits', group: 'Manage', icon: 'audits' },
   { id: 'reports', label: 'Previous reports', group: 'Manage', icon: 'doc' },
+  { id: 'ledger', label: 'Energy Ledger', group: 'Manage', icon: 'doc', needs: 'ledger' },
   { id: 'apps', label: 'App console', group: 'Field apps', icon: 'apps' },
   { id: 'guide', label: 'Getting started', group: null, icon: 'guide' },
   { id: 'account', label: 'My account', group: null, icon: 'account' },
@@ -337,7 +338,7 @@ const PAGES = [
 ];
 const GROUPS = ['Monitor', 'Manage', 'Field apps', 'Tools'];
 // Field apps get a sub-page each (from /api/me), listed under "All apps".
-const menuPages = () => PAGES;
+const menuPages = () => PAGES.filter(p => !p.needs || mine(p.needs));
 // Each field app's data in the Console, listed under App console in the menu.
 const fieldPages = () => (state.apps || []).filter(a => a.field && mine(a.code)).map(a => ({ id: `apps/${a.code}`, label: a.name, icon: 'phone', code: a.code, sub: true }));
 const TOOLS = [
@@ -478,8 +479,8 @@ function shell(active, content) {
 
   const fieldMenu = dropdown(ddBtn('Field apps', on('apps')),
     () => [mi('#/apps', 'apps', 'App console'), fieldPages().map(p => mi(`#/${p.id}`, 'phone', p.label))]);
-  const moreMenu = dropdown(ddBtn('More', ['activity', 'team-activity', 'pipeline', 'guide', 'more'].includes(active)),
-    () => [mi('#/pipeline', 'audits', 'Companies'), mi('#/team-activity', 'team', 'Team activity'), mi('#/activity', 'activity', 'Activity log'),
+  const moreMenu = dropdown(ddBtn('More', ['activity', 'team-activity', 'pipeline', 'ledger', 'guide', 'more'].includes(active)),
+    () => [mi('#/pipeline', 'audits', 'Companies'), mine('ledger') && mi('#/ledger', 'doc', 'Energy Ledger'), mi('#/team-activity', 'team', 'Team activity'), mi('#/activity', 'activity', 'Activity log'),
       toolLinks().map(toolItem),
       mi('#/guide', 'guide', 'Getting started'), mi('/apps/', 'download', 'Download page', true)]);
   const account = dropdown(
@@ -562,15 +563,20 @@ async function route() {
   if (location.hash === '#/billing') { history.replaceState(null, '', '/#/overview'); return location.replace('/api/billing/sso'); }
   const [page, param, param2] = (location.hash.replace('#/', '') || 'overview').split('?')[0].split('/');
   state.query = new URLSearchParams(location.hash.split('?')[1] || '');
-  const fn = page === 'audit' && param ? h2 => auditPage(h2, decodeURIComponent(param))
+  const solo = page === 'ledger' && param && /[?&]solo\b/.test(location.hash);
+  const fn = page === 'ledger' && mine('ledger') ? h2 => loadLedger().then(m => (param ? m.ledgerCompany(h2, decodeURIComponent(param), ledgerHelpers(), { solo }) : m.ledgerHome(h2, ledgerHelpers())))
+    : page === 'audit' && param ? h2 => auditPage(h2, decodeURIComponent(param))
     : page === 'apps' && param && param2 ? h2 => appAuditPage(h2, decodeURIComponent(param), decodeURIComponent(param2))
     : page === 'apps' && param ? h2 => appPage(h2, decodeURIComponent(param))
       : ({ overview, pipeline: pipelinePage, 'team-activity': teamActivity, team, audits, tasks, activity, account, apps: appsPage, guide: guidePage, reports: reportsPage, more: morePage }[page] || overview);
   const holder = h('div', { class: 'page' }, h('p', { class: 'muted' }, 'Loading…'));
   const activeId = page === 'audit' ? 'audits' : page === 'apps' && param ? `apps/${param}` : page;
-  shell([...menuPages(), ...fieldPages()].some(p => p.id === activeId) || page === 'guide' ? activeId : 'overview', holder);
+  // Energy Ledger opened in its own window: the company's data and nothing around it.
+  if (solo) root.replaceChildren(holder);
+  else shell([...menuPages(), ...fieldPages()].some(p => p.id === activeId) || page === 'guide' ? activeId : 'overview', holder);
   try {
     await fn(holder);
+    if (page === 'overview' && mine('ledger')) loadLedger().then(m => m.overviewNotice(ledgerHelpers())).then(n => { if (n) holder.prepend(n); }).catch(() => {});
   } catch (ex) {
     if (ex.status !== 401) holder.replaceChildren(h('div', { class: 'err' }, ex.message));
   }
@@ -905,9 +911,10 @@ function morePage(holder) {
   const group = (title, rows, extra) => h('section', { class: 'card mgroup' }, h('div', { class: 'cap' }, h('h2', { class: 'kick' }, title), extra), rows);
   const tagline = code => state.apps.find(a => a.code === code)?.tagline;
   holder.replaceChildren(
-    pageHead(h('div', {}, h('h1', {}, 'More'))),
+    pageTitle({ title: 'More' }),
     group('Field apps', fieldPages().map(p => row(`#/${p.id}`, 'phone', p.label, tagline(p.id.slice(5)))), h('a', { href: '#/apps', class: 'small' }, 'App console')),
     group('Records', [row('#/pipeline', 'audits', 'Companies', 'Every company and its progress'), row('#/reports', 'doc', 'Previous reports', 'Finalised audits'),
+      mine('ledger') && row('#/ledger', 'doc', 'Energy Ledger', 'Bills, baseline and GHG per company'),
       row('#/team-activity', 'team', 'Team activity', 'Hours, records and who is working'), row('#/activity', 'activity', 'Activity log', 'Every sign-in, change and sync')]),
     group('Tools', toolLinks().map(t => {
       const r = row(t.href, 'external', t.label, tagline(t.app), true);
@@ -1091,7 +1098,7 @@ const APP_SHORT = { motor: 'Motor', heat: 'Boiler', textile: 'Dye', pump: 'Hydro
 const appShort = code => APP_SHORT[code] || appName(code);
 const appSym = code => icon(ICONS[`app-${code}`] ? `app-${code}` : 'apps');
 const firstName = name => name.split(/\s+/)[0];
-const STAGE_TONE = { initiated: 'draft', walkthrough: 'ok', detailed: 'ok', processing: 'proc', draft: 'proc', final: 'proc', approval: 'warn' };
+const STAGE_TONE = { setup: 'draft', field: 'ok', processing: 'proc', review: 'warn', approved: 'proc' };
 const stagePill = (key, lg) => h('span', { class: `spill ${lg ? 'lg ' : ''}${STAGE_TONE[key] || 'soft'}` }, STAGE_SHORT[key] || key);
 const timeOf = ms => new Date(ms).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' });
 const dayTime = ms => {
@@ -1208,7 +1215,7 @@ async function team(holder) {
             h('span', { class: 'd-only' }, '+ Add to an audit'), h('span', { class: 'm-only' }, '+ Add'))),
         audits.length || u.role === 'engineer'
           ? (audits.length ? audits.map(x => h('a', { class: 'aud', href: `#/audit/${encodeURIComponent(x.id)}` },
-            h('span', { class: 'tagpill' }, x.tag), h('span', { class: 'aud-t' }, x.a?.title || x.id), x.a && stagePill(x.a.stage || 'initiated')))
+            h('span', { class: 'tagpill' }, x.tag), h('span', { class: 'aud-t' }, x.a?.title || x.id), x.a && stagePill(x.a.stage || 'setup')))
             : h('p', { class: 'pp-note' }, 'Not on any audit yet.'))
           : h('p', { class: 'pp-note' }, u.role === 'head' ? 'Admins see the audits of their apps.' : 'Super Admins see every audit.'),
         u.role === 'engineer' && h('p', { class: 'pp-note d-only' }, 'Engineers see and add data only for these industries.')),
@@ -1346,17 +1353,16 @@ const CHECK = () => { const NS = 'http://www.w3.org/2000/svg', v = document.crea
   const pth = document.createElementNS(NS, 'path'); pth.setAttribute('d', 'M5 12.5l4.2 4.2L19 7'); v.append(pth); return v; };
 const stageOf = (P, key) => P.stages.find(s => s.key === key) || { key, label: key, short: key };
 const daysSince = ms => ms ? Math.max(0, Math.floor((Date.now() - ms) / 86400000)) : 0;
-const reachedAt = (a, key) => { const l = [...(a.history || [])].reverse().find(x => x.to_stage === key); return l ? l.at : (key === 'initiated' ? a.created_at : null); };
+const reachedAt = (a, key) => { const l = [...(a.history || [])].reverse().find(x => x.to_stage === key); return l ? l.at : (key === 'setup' ? a.created_at : null); };
 
 /** Where a stage stands for this company: done, current, waiting (approval), skipped or still to come. */
 function stageState(a, key) {
-  const cur = a.stages.indexOf(a.stage || 'initiated'), i = a.stages.indexOf(key);
+  const cur = a.stages.indexOf(a.stage || 'setup'), i = a.stages.indexOf(key);
   if (i < 0) return 'skip';
   if (i < cur) return 'done';
   if (i > cur) return 'todo';
-  if (key === 'approval') return 'wait';
-  if (key === 'completed') return 'done';
-  if (key === 'post_audit') return a.post_audit_status === 'done' ? 'done' : a.post_audit_status === 'not_done' ? 'bad' : 'cur';
+  if (key === 'review') return 'wait';
+  if (key === 'published') return 'done';
   return 'cur';
 }
 const STATE_WORD = { done: 'done', cur: 'in progress', wait: 'waiting for approval', bad: 'not done', skip: 'not needed (walkthrough audit)', todo: 'to come' };
@@ -1376,11 +1382,12 @@ function progressLine(a, P, { compact = false } = {}) {
     }));
 }
 
-/** May this person move the company on (as the server decides it): Super Admin, its lead, any Head when it has no lead. */
+/** Who approves a draft and moves audits on (as the server decides it): a Super Admin, an Admin who sees it, or its audit lead. */
+const canApproveStage = () => ['super_admin', 'head'].includes(state.me.role);
 function canMoveStage(a) {
-  if (state.me.role === 'super_admin') return true;
+  if (canApproveStage()) return true;
   const lead = (a.team || []).find(t => t.role === 'lead');
-  return lead ? lead.id === state.me.id : state.me.role === 'head';
+  return !!lead && lead.id === state.me.id;
 }
 async function moveTo(a, to, note, reload) {
   try { await api('POST', `/api/audits/${encodeURIComponent(a.id)}/stage`, { to, note: note || null }); toast('Audit moved on'); reload(); }
@@ -1398,35 +1405,25 @@ function sendBack(a, P, reload, onlyTo = null) {
     toast('Sent back'); reload();
   }, { submitLabel: 'Send back' });
 }
-function postAuditDialog(a, status, reload) {
-  openDialog(status === 'done' ? 'Post audit done' : 'Post audit: not done', f => {
-    f.append(field('Note', h('textarea', { name: 'note', rows: 3, placeholder: status === 'done' ? 'What the plant carried out' : 'What is still pending, and why' }), 'Details of the post audit come later; a short note is enough for now'));
-  }, async f => {
-    await api('POST', `/api/audits/${encodeURIComponent(a.id)}/post-audit`, { status, note: val(f, 'note') || null });
-    toast('Post audit recorded'); reload();
-  }, { submitLabel: 'Save' });
-}
-
 // ---------- Overview: every company and where it is in the process ----------
 const STAGE_GROUPS = [
   ['all', 'All', null],
-  ['field', 'Field work', ['initiated', 'walkthrough', 'detailed']],
-  ['report', 'Processing & report', ['processing', 'draft', 'final']],
-  ['approval', 'Approval', ['approval']],
-  ['done', 'Completed', ['completed']],
-  ['post', 'Post audit', ['post_audit']],
+  ['field', 'Draft & field', ['setup', 'field']],
+  ['report', 'Processing', ['processing']],
+  ['approval', 'Review & approval', ['review', 'approved']],
+  ['done', 'Published', ['published']],
 ];
 /** What needs someone now, company by company. */
 function pipelineAttention(P) {
-  const isApprover = P.approver && P.approver.id === state.me.id;
+  const approves = canApproveStage();
   const out = [];
   for (const a of P.audits) {
     const name = a.client_name || a.id, href = `#/audit/${encodeURIComponent(a.id)}`;
-    if (a.stage === 'approval') out.push({ tone: 'warn', a, text: isApprover ? 'Waiting for your approval' : `Waiting for ${P.approver ? P.approver.name : 'approval'}`, href, name });
+    if (a.stage === 'review') out.push({ tone: 'warn', a, text: approves ? 'Waiting for your approval' : 'Waiting for an Admin to approve', href, name });
     else if (a.issues) out.push({ tone: 'bad', a, text: `${a.issues} sync problem${a.issues > 1 ? 's' : ''}`, href, name });
-    else if (a.next && a.next.ready && a.next.next && a.stage !== 'post_audit') out.push({ tone: 'ok', a, text: `Ready for ${stageOf(P, a.next.next).label}`, href, name });
-    else if (!['completed', 'post_audit'].includes(a.stage) && daysSince(a.stage_at) > 14) out.push({ tone: 'warn', a, text: `${daysSince(a.stage_at)} days at ${stageOf(P, a.stage).short}`, href, name });
-    if (!(a.team || []).some(t => t.role === 'lead') && !['completed', 'post_audit'].includes(a.stage)) out.push({ tone: 'soft', a, text: 'No team lead yet', href, name });
+    else if (a.next && a.next.ready && a.next.next) out.push({ tone: 'ok', a, text: `Ready for ${stageOf(P, a.next.next).label}`, href, name });
+    else if (a.stage !== 'published' && daysSince(a.stage_at) > 14) out.push({ tone: 'warn', a, text: `${daysSince(a.stage_at)} days at ${stageOf(P, a.stage).short}`, href, name });
+    if (!(a.team || []).some(t => t.role === 'lead') && a.stage !== 'published') out.push({ tone: 'soft', a, text: 'No audit lead yet', href, name });
   }
   return out;
 }
@@ -1460,7 +1457,7 @@ async function pipelinePage(holder) {
 
   holder.replaceChildren(h('div', {},
     h('div', { class: 'head' },
-      h('div', {}, h('h1', {}, 'Companies'), h('p', { class: 'muted small' }, 'Every company and where it stands in the audit process, from initiation to post audit.')),
+      h('div', {}, h('h1', {}, 'Companies'), h('p', { class: 'muted small' }, 'Every company and where it stands in the audit process, from Draft to Published.')),
       h('div', { class: 'row' }, h('a', { class: 'btn ghost', href: '#/team-activity' }, 'Team activity'), h('button', { class: 'btn', onclick: newAudit }, 'New audit'))),
     // The process at a glance: how many companies are at each stage.
     h('section', { class: 'stagebar', 'aria-label': 'Companies at each stage' }, P.stages.map((st, i) => h('a', {
@@ -1489,12 +1486,12 @@ function companyRow(a, P, reload) {
         h('div', { style: 'min-width:0' }, h('b', {}, a.client_name || a.title), a.synthetic ? h('span', { class: 'pill warn', style: 'margin-left:6px' }, 'Demo') : null,
           h('div', { class: 'small muted' }, [a.site_name, a.work_type === 'walkthrough' ? 'Walkthrough audit' : 'Detailed audit', a.fy, a.id].filter(Boolean).join(' · ')))),
       h('div', { class: 'coteam' },
-        lead ? h('span', { class: 'av lead', title: `${lead.name} · team lead` }, initials(lead.name)) : h('span', { class: 'pill soft' }, 'No lead'),
+        lead ? h('span', { class: 'av lead', title: `${lead.name} · audit lead` }, initials(lead.name)) : h('span', { class: 'pill soft' }, 'No lead'),
         others.slice(0, 5).map(t => h('span', { class: 'av', title: `${t.name} · ${P.roles[t.role] || t.role}` }, initials(t.name))),
         others.length > 5 ? h('span', { class: 'small muted' }, `+${others.length - 5}`) : null)),
     progressLine(a, P, { compact: true }),
     h('div', { class: 'cofoot' },
-      h('span', { class: `pill ${a.stage === 'approval' ? 'warn' : a.next && a.next.ready ? 'ok' : 'soft'}` },
+      h('span', { class: `pill ${a.stage === 'review' ? 'warn' : a.next && a.next.ready ? 'ok' : 'soft'}` },
         `${stageOf(P, a.stage).label} · ${daysSince(a.stage_at)} d`),
       h('span', { class: 'small' }, a.next ? a.next.hint : ''),
       h('span', { class: 'cofacts small muted' }, `${a.records} records · ${a.apps} app${a.apps === 1 ? '' : 's'} · ${a.photos} photos${a.issues ? ` · ${a.issues} sync problem${a.issues > 1 ? 's' : ''}` : ''}`),
@@ -1508,7 +1505,7 @@ async function audits(holder) {
   const [{ audits: list }, { users }, P, { tasks: taskList }] = await Promise.all([api('GET', '/api/audits'), api('GET', '/api/users'), api('GET', '/api/pipeline'),
     api('GET', '/api/tasks').catch(() => ({ tasks: [] }))]);
   const piped = new Map(P.audits.map(x => [x.id, x]));
-  const stageKey = a => piped.get(a.id)?.stage || a.stage || 'initiated';
+  const stageKey = a => piped.get(a.id)?.stage || a.stage || 'setup';
   const running = list.filter(a => !CLOSED.has(a.status));
   const done = list.length - running.length;
   let stage = state.query.get('stage') || '';
@@ -1558,7 +1555,7 @@ async function audits(holder) {
     cardsM.replaceChildren(...(rows.length ? rows.map(a => {
       const late = taskList.filter(t => t.audit_id === a.id && isLate(t)).length;
       const href = `#/audit/${encodeURIComponent(a.id)}`, key = stageKey(a);
-      return h('article', { class: `acm${key === 'initiated' ? ' draft' : ''}` },
+      return h('article', { class: `acm${key === 'setup' ? ' draft' : ''}` },
         h('span', { class: 'acm-top' }, h('span', { class: 'tagpill bd' }, a.industry_tag), h('span', { class: 'aid' }, a.id), stagePill(key)),
         h('a', { class: 'atitle', href }, a.title), h('span', { class: 'asub' }, `${a.client_name} — ${a.site_name}`),
         h('span', { class: 'acm-st' }, h('span', { class: 'avstack' }, teamAvs(a)),
@@ -1570,7 +1567,7 @@ async function audits(holder) {
   holder.replaceChildren(
     pageTitle({
       kicker: 'Manage', title: 'Running ', em: 'audits',
-      sub: h('span', {}, h('span', { class: 'd-only' }, 'Each plant gets a system-made industry tag; the public site shows only the tag, never the client. The ★ team lead moves an audit through its stages; engineers see only the audits they are on.'),
+      sub: h('span', {}, h('span', { class: 'd-only' }, 'Each plant gets a system-made industry tag; the public site shows only the tag, never the client. The ★ audit lead moves an audit through its stages; engineers see only the audits they are on.'),
         h('span', { class: 'm-only' }, 'The public site shows only the tag, never the client.')),
       action: goBtn('New audit', 'plus', { onclick: newAudit }),
     }),
@@ -1585,7 +1582,7 @@ async function audits(holder) {
     h('p', { class: 'foot-note d-only' }, 'Move an audit to its next stage, finalise it or download its data from the audit page. ', h('a', { href: '#/pipeline' }, 'See every company'), ' with its progress line.'));
 }
 
-// Put someone on an audit with a role. The first person becomes the team lead unless changed.
+// Put someone on an audit with a role. The first person becomes the audit lead unless changed.
 function addPersonTo(a, users, P, reload) {
   const free = users.filter(u => u.status === 'active' && !(a.team || []).some(t => t.id === u.id) && (u.role !== 'super_admin' || state.me.role === 'super_admin'));
   const hasLead = (a.team || []).some(t => t.role === 'lead');
@@ -1761,7 +1758,7 @@ function problemsCard(st, a, rel, reload) {
     if (/closed/i.test(i.reason)) return closed
       ? [h('span', { class: 'small' }, 'The audit is finalised, so saves to it are refused. '), h('button', { type: 'button', class: 'btn sm', onclick: async () => {
         if (!confirm('Reopen this audit so the team can save to it again?')) return;
-        try { await api('POST', `/api/audits/${encodeURIComponent(a.id)}/reopen`); toast('Audit reopened: ask the team to sync again'); reload(); } catch (ex) { toast(ex.message); }
+        try { const note = (prompt('Why is this audit being reopened? (a short written reason)') || '').trim(); if (!note) return; await api('POST', `/api/audits/${encodeURIComponent(a.id)}/reopen`, { note }); toast('Audit reopened: ask the team to sync again'); reload(); } catch (ex) { toast(ex.message); }
       } }, 'Reopen audit')]
       : h('span', { class: 'small' }, `The audit is open again: ask ${who} to sync.`);
     if (/not assigned/i.test(i.reason)) return [h('span', { class: 'small' }, `${who} is not on this audit. `), h('button', { type: 'button', class: 'btn sm', onclick: async () => {
@@ -1853,21 +1850,18 @@ function appDataCard(code, recs, a, ov, openTasks, rel) {
 /** The buttons that move this company on, as the server allows them for this person. */
 function stageActions(a, P, reload) {
   const nx = a.next || {}, next = nx.next ? stageOf(P, nx.next) : null;
-  const isApprover = P.approver && P.approver.id === state.me.id, may = canMoveStage(a);
+  const approves = canApproveStage(), may = canMoveStage(a);
   const main = (label, fn) => h('button', { type: 'button', class: 'ah-next', onclick: fn }, label, icon('arrow'));
   const side = (label, fn) => h('button', { type: 'button', class: 'ah-next quiet', onclick: fn }, label);
   const out = [];
-  if (a.stage === 'approval') {
-    if (isApprover) out.push(main('Approve draft', () => moveTo(a, 'final', null, reload)), side('Send back to draft', () => sendBack(a, P, reload, 'draft')));
-    else if (may) out.push(side('Take back to draft', () => sendBack(a, P, reload, 'draft')));
-  } else if (a.stage === 'post_audit') {
-    if (may) out.push(main('Mark done', () => postAuditDialog(a, 'done', reload)), side('Not done', () => postAuditDialog(a, 'not_done', reload)));
+  if (a.stage === 'review') {
+    if (approves) out.push(main('Approve draft', () => moveTo(a, 'approved', null, reload)), side('Send back to Processing', () => sendBack(a, P, reload, 'processing')));
+    else if (may) out.push(side('Take back to Processing', () => sendBack(a, P, reload, 'processing')));
   } else if (next && may) {
-    const label = next.key === 'approval' ? `Send to ${P.approver ? firstName(P.approver.name) : 'approver'} for approval`
-      : next.key === 'completed' ? 'Mark completed' : `Move to ${next.short}`;
-    out.push(main(label, () => next.key === 'completed' ? finaliseAudit(a) : moveTo(a, next.key, null, reload)));
+    const label = next.key === 'review' ? 'Send for review' : next.key === 'published' ? 'Publish audit' : `Move to ${next.short}`;
+    out.push(main(label, () => next.key === 'published' ? finaliseAudit(a) : moveTo(a, next.key, null, reload)));
   }
-  if (may && a.stages.indexOf(a.stage) > 0 && a.stage !== 'approval') out.push(side('Go back', () => sendBack(a, P, reload)));
+  if (may && a.stages.indexOf(a.stage) > 0 && a.stage !== 'review') out.push(side('Go back', () => sendBack(a, P, reload)));
   return out;
 }
 
@@ -1887,7 +1881,7 @@ async function auditPage(holder, id) {
   const late = open.filter(isLate);
   const pq = (data.apps.power || []).filter(r => r.kind === 'pq_recording');
   const entries = Object.entries(data.apps);
-  const dataApps = entries.filter(([code, recs]) => code !== 'power' && code !== 'report' && recs.some(r => r.kind !== 'company_profile'));
+  const dataApps = entries.filter(([code, recs]) => code !== 'power' && code !== 'report' && code !== 'ledger' && recs.some(r => r.kind !== 'company_profile'));
   const total = entries.reduce((n, [, r]) => n + r.length, 0);
   const photos = data.files.filter(f => f.mime.startsWith('image/'));
   const others = data.files.filter(f => !f.mime.startsWith('image/'));
@@ -1909,7 +1903,7 @@ async function auditPage(holder, id) {
         finalised
           ? h('button', { type: 'button', class: 'ah-fin', onclick: async () => {
             if (!confirm('Reopen this audit? It returns to the running lists and its data can be changed again.')) return;
-            try { await api('POST', `/api/audits/${enc}/reopen`); toast('Audit reopened'); route(); } catch (ex) { toast(ex.message); }
+            try { const note = (prompt('Why is this audit being reopened? (a short written reason)') || '').trim(); if (!note) return; await api('POST', `/api/audits/${enc}/reopen`, { note }); toast('Audit reopened'); route(); } catch (ex) { toast(ex.message); }
           } }, 'Reopen', h('span', { class: 'go-ic', 'aria-hidden': 'true' }, icon('arrow')))
           : h('button', { type: 'button', class: 'ah-fin', onclick: () => finaliseAudit(a) }, 'Finalise audit', h('span', { class: 'go-ic', 'aria-hidden': 'true' }, icon('tick'))))),
     h('div', { class: 'ah-steps' },
@@ -1924,9 +1918,9 @@ async function auditPage(holder, id) {
       h('div', { class: 'ah-prog m-only' }, h('span', { class: 'ap-l' }, `Stage ${String(curIdx + 1).padStart(2, '0')} of ${String(pa.stages.length).padStart(2, '0')}`, h('b', {}, stageOf(PP, pa.stage).short)),
         h('span', { class: 'ap-bar', style: `grid-template-columns:repeat(${pa.stages.length},1fr)`, 'aria-hidden': 'true' }, pa.stages.map((_, i) => h('i', { class: i < curIdx ? 'done' : i === curIdx ? 'now' : null })))),
       h('div', { class: 'ah-move' }, stageActions(pa, PP, reload))),
-    h('p', { class: 'ah-hint' }, nx.ready && nx.next && pa.stage !== 'approval' ? h('span', { class: 'ah-ready' }, `Ready for ${stageOf(PP, nx.next).short}`) : null,
+    h('p', { class: 'ah-hint' }, nx.ready && nx.next && pa.stage !== 'review' ? h('span', { class: 'ah-ready' }, `Ready for ${stageOf(PP, nx.next).short}`) : null,
       `${daysSince(pa.stage_at)} day${daysSince(pa.stage_at) === 1 ? '' : 's'} at ${stageOf(PP, pa.stage).short}${nx.hint ? `. ${nx.hint}` : '.'}`,
-      !canMoveStage(pa) && pa.stage !== 'approval' ? ' Only the team lead or a Super Admin moves this audit on.' : ''));
+      !canMoveStage(pa) ? (pa.stage === 'review' ? ' Only an Admin or Super Admin approves.' : ' Only the audit lead, an Admin or a Super Admin moves this audit on.') : ''));
 
   // ---- the four counts ----
   const lastRec = entries.flatMap(([code, rs]) => rs.map(r => ({ code, r })))
@@ -1963,6 +1957,17 @@ async function auditPage(holder, id) {
     h('div', { class: 'ac-head' }, h('span', { class: 'ac-ic', 'aria-hidden': 'true' }, appSym('report')),
       h('span', { class: 'ac-nm' }, h('h3', {}, 'Report Studio'), h('span', {}, rpt ? `Version ${rpt.version} saved by ${rpt.updated_by_name || rpt.recorded_by} ${ago(rpt.saved_at)}` : 'No report saved yet; the apps’ data comes in by itself')),
       !finalised ? h('button', { class: 'obtn sm arrowed', type: 'button', onclick: () => openTool('report', a.id) }, 'Open in Report Studio', icon('external')) : null));
+  // Energy Ledger: this company's bills, baseline and GHG inputs, for those who have it.
+  const led = mine('ledger') ? await api('GET', '/api/ledger/summary').then(r => r.companies[a.id] || {}).catch(() => ({})) : null;
+  const ledgerCard = led && h('section', { class: 'acard' },
+    h('div', { class: 'ac-head' }, h('span', { class: 'ac-ic', 'aria-hidden': 'true' }, appIcon(null, 34, 'ledger')),
+      h('span', { class: 'ac-nm' }, h('h3', {}, 'Energy Ledger'), h('span', {}, 'Electricity bills with OCR, energy and water baseline, and GHG accounting')),
+      h('span', { class: 'ac-acts' }, h('a', { class: 'obtn sm', href: `#/ledger/${enc}` }, 'Open here'),
+        h('button', { class: 'obtn sm arrowed', type: 'button', onclick: () => window.open(`#/ledger/${enc}?solo`, '_blank', 'noopener') }, finalised ? 'View in a new window' : 'Enter data', icon('external')))),
+    h('div', { class: 'chips ac-chips' },
+      h('span', { class: `pill ${led.bills ? (led.verified === led.bills ? 'ok' : 'warn') : 'soft'}` }, led.bills ? `${led.bills} bills, ${led.verified} verified` : 'No bills yet'),
+      h('span', { class: `pill ${led.baseline ? 'ok' : 'soft'}` }, led.baseline ? `Baseline ${led.baseline} months` : 'No baseline yet'),
+      h('span', { class: 'pill soft' }, led.cea ? `CEA Version ${led.cea}` : 'GHG not started')));
   const companyCard_ = h('section', { class: 'acard' },
     h('div', { class: 'cap' }, h('h3', { class: 'cc-h' }, 'Company and plant'), h('span', { class: 'small muted' }, 'The apps fill their company setup from this')),
     h('div', { class: 'list' }, [
@@ -2008,11 +2013,11 @@ async function auditPage(holder, id) {
   });
   const unassigned = st.people.filter(p => !p.assigned && p.apps.length);
   const teamCard_ = h('section', { class: 'side-card pad24', 'aria-labelledby': 'h-crew' }, h('h2', { id: 'h-crew' }, 'Team on this audit'),
-    crew.length ? crew : h('p', { class: 'empty' }, 'Nobody yet. Add a team lead first: they move the audit through its stages.'),
+    crew.length ? crew : h('p', { class: 'empty' }, 'Nobody yet. Add an audit lead first: they move the audit through its stages.'),
     unassigned.map(p => h('div', { class: 'cr' }, h('span', { class: 'av s38 dim', 'aria-hidden': 'true' }, initials(p.name)),
       h('span', { class: 'cr-n' }, h('b', {}, p.name), h('span', {}, `Not assigned · ${p.apps.reduce((n, x) => n + x.records, 0)} records`)))),
     !finalised && h('button', { type: 'button', class: 'cr-add', onclick: () => addPersonTo(a, users, PP, reload) }, icon('plus'), 'Add a person'),
-    h('p', { class: 'pp-note cr-foot' }, PP.approver ? `The team lead moves this audit on; ${PP.approver.name} approves the draft.` : 'The team lead moves this audit on; the approver approves the draft.'));
+    h('p', { class: 'pp-note cr-foot' }, 'The audit lead moves this audit on; an Admin or Super Admin approves the draft.'));
   const ROLE_AT = { main: 'Plant main input', pcc: 'PCC panel', mcc: 'MCC panel' };
   const pqCard = h('section', { class: 'pqcard', 'aria-labelledby': 'h-pq' },
     h('div', { class: 'pq-h' }, h('span', { class: 'pq-ic', 'aria-hidden': 'true' }, appSym('power')),
@@ -2068,7 +2073,7 @@ async function auditPage(holder, id) {
       h('div', { class: 'a-main' }, h('div', { class: 'sec-h' }, h('span', { class: 'kicker' }, 'Data by app'), h('h2', {}, 'What has been collected')),
         appCards.length ? appCards : waiting.length ? null : h('div', { class: 'aempty' }, h('span', { class: 'ae-t' }, h('b', {}, 'No app has synced data for this audit yet.'),
           h('span', {}, 'Records appear here as soon as an engineer syncs from a field app.'))),
-        waiting, reportCard, finalised ? null : connectorCard(a), companyCard_, history),
+        waiting, ledgerCard, reportCard, finalised ? null : connectorCard(a), companyCard_, history),
       h('aside', { class: 'a-side' }, stillToCollect, teamCard_, pqCard)),
     photoSec));
 }
@@ -2154,7 +2159,7 @@ function showConnector(made) {
 // ---------- tasks ----------
 // ---------- tasks: process tasks, data-entry targets, ordinary tasks (lib/tasks.js) ----------
 const SOURCE = { process: 'Process', data: 'Data entry', manual: 'Task' };
-const STAGE_SHORT = { initiated: 'Initiated', walkthrough: 'Walkthrough', detailed: 'Detailed', processing: 'Processing', draft: 'Draft', approval: 'Approval', final: 'Final', completed: 'Completed', post_audit: 'Post audit' };
+const STAGE_SHORT = { setup: 'Draft', field: 'In field', processing: 'Processing', review: 'Review', approved: 'Approved', published: 'Published' };
 
 async function tasks(holder) {
   const [T, { audits: auditList }, { users }] = await Promise.all([api('GET', '/api/tasks'), api('GET', '/api/audits'), api('GET', '/api/users')]);
@@ -2300,7 +2305,7 @@ async function tasks(holder) {
 }
 
 function newTask(auditList, users, kinds, reload, preset = {}) {
-  const running = auditList.filter(a => !CLOSED.has(a.status) || a.stage === 'completed' || a.stage === 'post_audit');
+  const running = auditList.filter(a => !CLOSED.has(a.status));
   openDialog('New task', f => {
     const appSel = h('select', { name: 'app' }, h('option', { value: '' }, '—'), state.apps.filter(a => a.field || a.code === 'power').map(a => h('option', { value: a.code, selected: preset.app === a.code }, a.name)));
     const kindSel = h('select', { name: 'record_kind' }, h('option', { value: '' }, 'Any record of the app'));
@@ -2360,6 +2365,7 @@ const ACTION = {
   'task.created': 'added a task', 'task.status': 'moved a task', sync: 'synced data', 'setup.super_admin_created': 'set up the Console',
   'user.unlocked': 'unlocked a person', 'file.uploaded': 'uploaded a file', 'file.downloaded': 'downloaded a file',
   'admin.recovered': 'recovered an admin account on the server',
+  'ledger.saved': 'saved in Energy Ledger', 'cea.new_version': 'CEA published a new baseline version', 'cea.version_added': 'added a CEA baseline version',
   'audit.stage': 'moved an audit on', 'audit.stage_back': 'sent an audit back', 'audit.post_audit': 'recorded the post audit',
   'audit.finalised': 'completed an audit', 'audit.reopened': 'reopened an audit', 'task.edited': 'changed a task', 'task.removed': 'removed a task',
   'sync_issue.solved': 'marked a sync problem solved', 'record.edited': 'corrected a record', 'record.removed': 'removed a record',
@@ -2423,7 +2429,7 @@ async function releases() {
 const fmtSize = n => `${(n / 1e6).toFixed(1)} MB`;
 
 // The app's own logo (public/icons/<code>.png); a published release's icon otherwise; a phone at last.
-const ICON_CODES = new Set(['survey', 'motor', 'heat', 'textile', 'air', 'pump', 'cool', 'xmer', 'light', 'dryer', 'power', 'report', 'audit']);
+const ICON_CODES = new Set(['survey', 'motor', 'heat', 'textile', 'air', 'pump', 'cool', 'xmer', 'light', 'dryer', 'power', 'report', 'audit', 'ledger']);
 function appIcon(rel, size = 44, code = null) {
   const src = code && ICON_CODES.has(code) ? `/icons/${code}.png` : rel?.icon ? `/apps/${rel.icon}` : null;
   return src
@@ -2828,3 +2834,8 @@ async function reportsPage(holder) {
 }
 
 route();
+
+// Energy Ledger: a module of its own, loaded when it is opened (public/ledger.js).
+let ledgerLib = null;
+const loadLedger = () => (ledgerLib ||= import('/ledger.js').catch(ex => { ledgerLib = null; throw ex; }));
+const ledgerHelpers = () => ({ h, api, toast, icon, ago, fmtDate, field, logoImg, state });

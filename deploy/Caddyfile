@@ -87,6 +87,16 @@ api.arenergyservices.in {
 	handle /mcp {
 		import ares_backend
 	}
+	# The bill reader's worker runs WebAssembly: only its own files get that permission (server.js).
+	handle /vendor/ocr/* {
+		header {
+			Content-Security-Policy "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; connect-src 'self' data:"
+			X-Content-Type-Options nosniff
+			Cache-Control "public, max-age=86400"
+		}
+		root * /opt/ares-design
+		file_server
+	}
 	handle {
 		# The same headers the Node server sends with its pages (lib/http.js securityHeaders).
 		header {
