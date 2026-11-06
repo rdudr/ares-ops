@@ -231,13 +231,14 @@ export async function ledgerCompany(holder, id, helpers, { solo = false } = {}) 
   const [d, { audits }, factors, tariffs] = await Promise.all([
     x.api('GET', `/api/ledger/company/${encodeURIComponent(id)}`), x.api('GET', '/api/audits'), fetch('/ledger-factors.json').then(r => r.json()), fetch('/ledger-tariffs.json').then(r => r.json())]);
   Object.assign(L, {
-    id, solo, holder, factors, tariffs, cea: d.cea, watch: d.watch, ai: d.ai, audit: d.audit, company: audits.find(a => a.id === id) || {},
+    id, solo, holder, factors, tariffs, tryKva: null, cea: d.cea, watch: d.watch, ai: d.ai, audit: d.audit, company: audits.find(a => a.id === id) || {},
     bills: d.records.ledger_bills?.payload || K.blankBills(), baseline: d.records.ledger_baseline?.payload || K.blankBaseline(), ghg: d.records.ledger_ghg?.payload || K.blankGhg(),
     versions: Object.fromEntries(Object.values(KIND).map(k => [k, d.records[k]?.version || 0])), lastBy: Object.values(d.records).sort((a, b) => b.saved_at - a.saved_at)[0] || null,
     dirty: new Set(), stale: false, consent: false, error: null, tab: readTab(),
   });
   const contract = L.company.contract_demand_kva ?? null;
   if (L.bills.cfg.contractDemand === null && contract) L.bills.cfg.contractDemand = contract;
+  L.bills.cfg.supplyVolt ||= '11 / 22 kV';
   applyCea(false);
   drawCompany();
 }
@@ -289,6 +290,10 @@ async function flush() {
   L.saving = true; status();
   try {
     for (const kind of [...L.dirty]) {
+      if (kind === KIND.bills) { // Report Studio reads the rate and duty worked out here
+        const worked = new Map(calc().bc.rows.map(q => [q.id, q]));
+        for (const r of L.bills.rows) { r.tariffEnergyRate = worked.get(r.id)?.tariffERate ?? null; r.dutyWorked = worked.get(r.id)?.duty ?? null; }
+      }
       const payload = kind === KIND.bills ? L.bills : kind === KIND.baseline ? L.baseline : L.ghg;
       L.dirty.delete(kind);
       try {
@@ -416,6 +421,13 @@ function drawOverview(w) {
 }
 
 // ---------- bills ----------
+const BILL_COLS = [
+  ['kwh', 'Units kWh', 'wide'], ['net', 'Bill ₹', 'wide'], ['totConsBilled', 'Tot. consumption ₹', 'wide'], ['pf', 'PF'], ['contract', 'Contract kVA'], ['actualMD', 'Actual MD kVA'], ['energyRate', 'Energy ₹/kWh'],
+  ['fppaRate', 'FPPA ₹/kWh'], ['fppasVar', 'Variable FPPAS ₹', 'wide'], ['todNight', 'Night units', 'wide'], ['todPeak', 'TOU units', 'wide'], ['touDiscUnits', 'TOU disc. units', 'wide'], ['touDiscount', 'TOU disc. ₹', 'wide'],
+];
+const needsReview = r => r.src && Object.keys(r.src).length;
+const billCols = () => (K.ratesFor(L.bills.cfg, null).reactive ? [...BILL_COLS, ['kvarh', 'kVARh', 'wide']] : BILL_COLS);
+
 /** Rates of the order in plain lines, for the Bills tab and the report. */
 function rateLines(set, volt) {
   const c = set.cat, u = c.unit, band = (list, one) => list.map(([upto, r], i) => {
@@ -446,12 +458,115 @@ function rateLines(set, volt) {
   return lines;
 }
 const edN = () => Math.min(3, Math.max(1, num(L.bills.cfg.edTypes) || 1));
-const BILL_COLS = [
-  ['kwh', 'Units kWh', 'wide'], ['net', 'Bill ₹', 'wide'], ['totConsBilled', 'Tot. consumption ₹', 'wide'], ['pf', 'PF'], ['contract', 'Contract kVA'], ['actualMD', 'Actual MD kVA'], ['energyRate', 'Energy ₹/kWh'],
-  ['fppaRate', 'FPPA ₹/kWh'], ['fppasVar', 'Variable FPPAS ₹', 'wide'], ['todNight', 'Night units', 'wide'], ['todPeak', 'TOU units', 'wide'], ['touDiscUnits', 'TOU disc. units', 'wide'], ['touDiscount', 'TOU disc. ₹', 'wide'],
-];
-const needsReview = r => r.src && Object.keys(r.src).length;
-const billCols = () => (K.ratesFor(L.bills.cfg, null).reactive ? [...BILL_COLS, ['kvarh', 'kVARh', 'wide']] : BILL_COLS);
+/** Duty month by month, line by line, with the match against the bill. */
+function dutyCard() {
+  const n = edN(), rows = L.bills.rows, K_ = KIND.bills;
+  const find = (C, r) => C.bc.rows.find(q => q.id === r.id);
+  // An empty box shows, greyed, what was worked out for it; typing overrides it.
+  const auto = (r, key, what, i, cls, show, field) => {
+    const box = nin(r, key, K_, { 'aria-label': `ED ${i} ${what} ${r.month}`, class: `nin ${cls}` });
+    const set = C => { const v = find(C, r)?.edLines[i - 1]?.[field]; box.placeholder = v === null || v === undefined ? '' : show(v); };
+    set(calc()); L.live.push(set);
+    return x.h('td', {}, box);
+  };
+  const cells = r => {
+    if (n === 1) return [x.h('td', { class: 'n' }, live(C => n0(find(C, r)?.kwh))), x.h('td', { class: 'n' }, live(C => n0(find(C, r)?.totalCons))), x.h('td', { class: 'n' }, live(C => { const q = find(C, r); return q?.edLines[0] ? String(q.edLines[0].rate) : '—'; })), x.h('td', {}, nin(r, 'duty', K_, { 'aria-label': `Duty ${r.month}`, class: 'nin wide' }))];
+    return Array.from({ length: n }, (_, k) => k + 1).flatMap(i => [
+      auto(r, `edKwh${i}`, 'kWh', i, 'wide', v => n0(v), 'kwh'),
+      auto(r, `edCharge${i}`, 'charges', i, 'wide', v => n0(v), 'charge'),
+      auto(r, `edRate${i}`, 'rate', i, '', v => String(v), 'rate'),
+      auto(r, `edAmt${i}`, 'amount', i, 'wide', v => nd(v, 2), 'amount'),
+    ]);
+  };
+  const heads = n === 1 ? ['kWh', 'Consumption charges', 'ED rate', 'Amount as billed ₹'] : Array.from({ length: n }, (_, k) => k + 1).flatMap(i => [`${i}: kWh`, `${i}: Charges`, `${i}: ED rate`, `${i}: Amount`]);
+  return card('Electricity duty', n === 1
+    ? `One ED rate on this bill. If the bill prints two or three, choose that under Connection and tariff.${L.bills.cfg.edExemptUpto ? ` Duty exempted up to ${L.bills.cfg.edExemptUpto}.` : ''}`
+    : `${n} ED rates, as printed under Electricity Duty on the bill. Enter 1: Charges (or 1: kWh) and the rest is worked out from Tot. consumption, shown greyed. Type over any figure to use the bill's own.`,
+    rows.length ? scroll(x.h('table', { class: 'lg-t lg-edit' },
+      x.h('thead', {}, x.h('tr', {}, x.h('th', {}, 'Month'), heads.map(t => x.h('th', {}, t)), x.h('th', { class: 'n' }, 'Duty ₹'), x.h('th', {}, 'Exempted ₹'), x.h('th', { class: 'n' }, 'Diff. consumption ₹'), x.h('th', { class: 'n' }, 'Diff. bill ₹'), x.h('th', {}, 'Match'))),
+      x.h('tbody', {}, rows.map(r => x.h('tr', {}, x.h('td', {}, r.month), cells(r),
+        x.h('td', { class: 'n' }, live(C => nd(find(C, r)?.duty, 2))),
+        x.h('td', {}, nin(r, 'edExempt', K_, { 'aria-label': `Exempted ${r.month}`, class: 'nin wide' })),
+        x.h('td', { class: 'n' }, live(C => nd(find(C, r)?.diffCons, 2))),
+        x.h('td', { class: 'n' }, live(C => nd(find(C, r)?.diff, 2))),
+        x.h('td', {}, live(C => { const q = find(C, r); return !q?.hasData ? '—' : q.edProblems.length ? q.edProblems.join('; ') : 'Matches'; })))))))
+      : x.h('p', { class: 'empty' }, 'No bills yet.'));
+}
+function addLast12() {
+  const known = L.bills.rows.map(r => parseMonth(r.month)).filter(Boolean).sort((a, b) => a.y - b.y || a.m - b.m);
+  const now = new Date(), prev = { y: now.getMonth() ? now.getFullYear() : now.getFullYear() - 1, m: now.getMonth() || 12 };
+  const end = known.length ? known[known.length - 1] : prev;
+  for (let i = 11; i >= 0; i--) {
+    const t = end.y * 12 + end.m - 1 - i, label = monthLabel(Math.floor(t / 12), (t % 12) + 1);
+    if (!L.bills.rows.some(r => r.month === label)) addMonth(label, true);
+  }
+  touch(KIND.bills); drawCompany();
+}
+function tariffCard() {
+  const cfg = L.bills.cfg, K_ = KIND.bills, T = L.tariffs;
+  const other = cfg.supplier === 'OTHER' || !cfg.supplier;
+  const redraw = () => { if (cfg.supplier !== 'OTHER') K.applyTariff(cfg, T); touch(K_); drawCompany(); };
+  const suppliers = [{ v: '', t: 'Choose the supplier' }, ...T.suppliers.map(s => ({ v: s.code, t: `${s.code}, ${s.name}` })), { v: 'OTHER', t: 'Others: enter the tariff by hand' }];
+  const cats = other ? [] : K.categoriesFor(T, cfg.supplier);
+  const choose = () => { if (!cats.some(c => c.code === cfg.tariff)) cfg.tariff = (cats[0] || {}).code || cfg.tariff; redraw(); };
+  const set = other ? null : cfg.sets?.[0] || null;
+  const newest = other || !cfg.tariff ? null : K.ordersFor(T, cfg.supplier, cfg.tariff)[0];
+  const volts = set?.cat.voltage;
+  return card('Connection and tariff', other
+    ? 'Choose the supplier and the rates come from its tariff order. For a licensee not listed, Others takes the rates by hand.'
+    : `Rates as per ${set?.title || 'the tariff order'}. Each bill uses the order in force for its month.`,
+    x.h('div', { class: 'lg-form' },
+      x.field('Supplier', sel(cfg, 'supplier', K_, suppliers, choose)),
+      other ? x.field('Tariff category', tin(cfg, 'tariff', K_)) : x.field('Tariff category', sel(cfg, 'tariff', K_, cats.map(c => ({ v: c.code, t: c.name })), redraw)),
+      volts ? x.field('Supply voltage', sel(cfg, 'supplyVolt', K_, volts.map(v => ({ v: v[0], t: v[0] })), redraw)) : null,
+      x.field('Consumer no.', tin(cfg, 'consumerNo', K_)), x.field(`Contract demand ${set?.cat.unit || 'kVA'}`, nin(cfg, 'contractDemand', K_), 'A change during the year goes in that month’s Contract column'),
+      x.field('ED rates on the bill', sel(cfg, 'edTypes', K_, [{ v: 1, t: '1 rate' }, { v: 2, t: '2 rates' }, { v: 3, t: '3 rates' }], () => setTimeout(drawCompany)), 'How many ED Rate lines the bill prints'),
+      x.field(edN() > 1 ? 'ED rate 1' : 'Electricity duty rate', nin(cfg, 'dutyRate', K_), 'As on the bill: .15 or 15. Set by the State, not the tariff order'),
+      edN() > 1 ? x.field('ED rate 2', nin(cfg, 'edRate2', K_), 'As on the bill: .1 or 10') : null,
+      edN() > 2 ? x.field('ED rate 3', nin(cfg, 'edRate3', K_)) : null,
+      x.field('Night rebate ₹/kWh', nin(cfg, 'nightRebateRate', K_))),
+    other ? x.h('div', { class: 'lg-form', style: 'margin-top:12px' },
+      x.field('Supplier name', tin(cfg, 'otherName', K_, { oninput: e => { cfg.discom = e.target.value; } })), x.field('Tariff order, with date', tin(cfg, 'otherOrder', K_)),
+      x.field('Minimum billing, share of contract', nin(cfg, 'minBillingPct', K_)),
+      x.field('First slab kVA', nin(cfg, 'slabKva', K_)), x.field('First slab ₹/kVA', nin(cfg, 'slab1Rate', K_)),
+      x.field('Second slab up to kVA', nin(cfg, 'slab2Kva', K_), 'Empty if there are only two rates'), x.field('Second slab ₹/kVA', nin(cfg, 'slab2Rate', K_)), x.field('Rest ₹/kVA', nin(cfg, 'slab3Rate', K_)),
+      x.field('Above contract ₹/kVA', nin(cfg, 'excessRate', K_)),
+      x.field('Energy ₹/kWh, first slab', nin(cfg, 'eRate1', K_), 'Empty: type the rate on each bill'), x.field('First slab up to kVA', nin(cfg, 'eLimit1', K_), 'Empty for one flat rate'),
+      x.field('Energy ₹/kWh, second slab', nin(cfg, 'eRate2', K_)), x.field('Second slab up to kVA', nin(cfg, 'eLimit2', K_)), x.field('Energy ₹/kWh, rest', nin(cfg, 'eRate3', K_)),
+      x.field('TOU ₹/kWh', nin(cfg, 'touRate', K_)), x.field('TOU discount rate', nin(cfg, 'touDiscRate', K_), 'Used when the bill gives discount units but not the ₹'),
+      x.field('PF rebate, % for each 1% above 95', nin(cfg, 'pfRebate', K_)), x.field('HV/EHV rebate, share of energy', nin(cfg, 'ehvPct', K_)), x.field('Reactive ₹/kVARh', nin(cfg, 'reactiveRate', K_))) : null,
+    set && newest && newest.id !== set.id ? x.h('div', { class: 'lg-notice warn' }, x.h('div', {}, x.h('b', {}, 'A newer tariff order is held'), x.h('p', { class: 'small' }, newest.title)),
+      x.h('button', { class: 'btn sm', type: 'button', disabled: ro(), onclick: redraw }, 'Use it')) : null,
+    set ? x.h('details', { class: 'lg-rates' }, x.h('summary', {}, `Rates in ${set.cat.name}`),
+      x.h('div', { class: 'list' }, rateLines(set, cfg.supplyVolt).map(([k, v]) => x.h('div', {}, x.h('span', { class: 'muted' }, k), x.h('span', {}, v))))) : null);
+}
+/** Contract and billing demand month by month, with a what-if on any other contract demand. */
+function demandCard() {
+  const body = x.h('div');
+  const n = v => (v === null || v === undefined ? '—' : n0(v));
+  const draw = C => {
+    const c = C.bc, a = c.demandAdvice;
+    if (!a) { body.replaceChildren(x.h('p', { class: 'empty' }, 'Enter the contract demand and at least one month’s actual MD.')); return; }
+    const at = K.demandAt(c, L.tryKva ?? a.suggested);
+    body.replaceChildren(scroll(x.h('table', { class: 'lg-t' },
+      x.h('thead', {}, x.h('tr', {}, x.h('th', {}, 'Month'), ['Contract', 'Actual MD', 'Billing demand', 'Above contract', 'Unused', 'Energy ₹/kWh', 'Demand ₹', `At ${n0(at.kva)} kVA ₹`].map(t => x.h('th', { class: 'n' }, t)))),
+      x.h('tbody', {}, c.live.map(r => {
+        const q = at.rows.find(v => v.month === r.month);
+        return x.h('tr', {}, x.h('td', {}, r.month), [n(r.cd), n(r.md), n(r.billingDemand), r.overKva ? n(r.overKva) : '—', r.unusedKva ? n(r.unusedKva) : '—', r.eRate === null ? '—' : nd(r.eRate, 2), n(r.demand), q ? n(q.cost) : '—'].map(v => x.h('td', { class: 'n' }, v)));
+      })),
+      x.h('tfoot', {}, x.h('tr', {}, x.h('td', { colspan: 7 }, 'Total'), x.h('td', { class: 'n' }, n(at.today)), x.h('td', { class: 'n' }, n(at.cost)))))),
+    x.h('p', { class: 'small' }, at.saving >= 0.5
+      ? `At ${n0(at.kva)} kVA these ${at.months} months would have cost ${rupees(at.saving)} less, energy and TOU slab changes included, before any deposit or fee for the change.`
+      : at.saving <= -0.5 ? `At ${n0(at.kva)} kVA these ${at.months} months would have cost ${rupees(-at.saving)} more.` : `${n0(at.kva)} kVA costs the same as today for these months.`,
+    a.saving > 0.5 ? ` Lowest cost found: ${n0(a.suggested)} kVA.` : ' The present contract is already the lowest cost found.'));
+  };
+  const input = x.h('input', { class: 'nin', inputmode: 'decimal', 'aria-label': 'Try a contract demand', placeholder: 'kVA' });
+  input.addEventListener('input', () => { L.tryKva = num(input.value); draw(calc()); });
+  L.live.push(draw);
+  draw(calc());
+  return card('Demand', 'What each month was billed on, and what another contract demand would have done.',
+    x.h('div', { class: 'row', style: 'gap:8px;margin-bottom:8px' }, x.h('label', { class: 'small' }, 'Try a contract demand '), input), body);
+}
 
 function drawBills(w) {
   const cfg = L.bills.cfg, K_ = KIND.bills;
@@ -470,35 +585,34 @@ function drawBills(w) {
     x.h('div', { class: 'row', style: 'gap:8px' },
       x.h('button', { class: 'btn cta', type: 'button', disabled: ro(), onclick: () => file.click() }, 'Upload bills'),
       excelBtn,
+      x.h('button', { class: 'btn ghost', type: 'button', disabled: ro(), onclick: addLast12 }, 'Last 12 months'),
       x.h('button', { class: 'btn ghost', type: 'button', disabled: ro(), onclick: () => { addMonth(); drawCompany(); } }, 'Add a month'),
       x.h('button', { class: 'btn ghost', type: 'button', onclick: exportExcel }, 'Download Excel'), stat), file, xl));
 
-  w.append(card('Connection and tariff', 'One set for this connection. The defaults are DGVCL HTP-1; change anything that differs on this plant’s bill.',
-    x.h('div', { class: 'lg-form' },
-      x.field('Source of power', tin(cfg, 'discom', K_, { placeholder: 'DGVCL' })), x.field('Consumer no.', tin(cfg, 'consumerNo', K_)), x.field('Tariff', tin(cfg, 'tariff', K_)),
-      x.field('Contract demand kVA', nin(cfg, 'contractDemand', K_)), x.field('Minimum billing, share of contract', nin(cfg, 'minBillingPct', K_)),
-      x.field('First slab kVA', nin(cfg, 'slabKva', K_)), x.field('First slab ₹/kVA', nin(cfg, 'slab1Rate', K_)), x.field('Next slab ₹/kVA', nin(cfg, 'slab2Rate', K_)),
-      x.field('Above contract ₹/kVA', nin(cfg, 'excessRate', K_)), x.field('TOU ₹/kWh', nin(cfg, 'touRate', K_)), x.field('TOU discount rate per kVA', nin(cfg, 'touDiscRate', K_), 'Used when the bill gives TOU discount units but not the ₹'), x.field('Night rebate ₹/kWh', nin(cfg, 'nightRebateRate', K_)),
-      x.field('EHV rebate, share of energy', nin(cfg, 'ehvPct', K_)), x.field('Electricity duty, share', nin(cfg, 'dutyRate', K_)))));
+  w.append(tariffCard());
 
-  const rows = L.bills.rows;
-  w.append(card(`Monthly bills (${rows.length})`, 'Worked out is the bill from these figures and the tariff. Difference near zero means the reading and the tariff agree.',
+  const rows = L.bills.rows, cols = billCols();
+  w.append(card(['Monthly bills: ', live(C => `${C.bc.months}`), ' of 12 months entered'], 'Worked out is the bill from these figures and the tariff order. Leave Energy ₹/kWh empty to take it from the order. Difference near zero means the reading and the tariff agree.',
     rows.length ? scroll(x.h('table', { class: 'lg-t lg-edit' },
-      x.h('thead', {}, x.h('tr', {}, x.h('th', {}, 'Month'), billCols().map(c => x.h('th', {}, c[1])), x.h('th', { class: 'n' }, '₹/kWh'), x.h('th', { class: 'n' }, 'Worked out ₹'), x.h('th', { class: 'n' }, 'Difference ₹'), x.h('th', {}, 'Bill'))),
+      x.h('thead', {}, x.h('tr', {}, x.h('th', {}, 'Month'), cols.map(c => x.h('th', {}, c[1])), x.h('th', { class: 'n' }, '₹/kWh'), x.h('th', { class: 'n' }, 'Worked out ₹'), x.h('th', { class: 'n' }, 'Diff. consumption ₹'), x.h('th', { class: 'n' }, 'Diff. bill ₹'), x.h('th', {}, 'Bill'))),
       x.h('tbody', {}, rows.map(r => billRow(r))),
-      x.h('tfoot', {}, x.h('tr', {}, x.h('td', {}, 'Total'), billCols().map(c => x.h('td', { class: 'n' }, c[0] === 'kwh' ? live(C => n0(C.bc.total.kwh)) : c[0] === 'net' ? live(C => n0(C.bc.total.bill)) : '')),
-        x.h('td', { class: 'n' }, live(C => nd(C.bc.blended, 2))), x.h('td', { class: 'n' }, live(C => n0(C.bc.total.totalBill))), x.h('td'), x.h('td'))))) : x.h('p', { class: 'empty' }, 'No bills yet.')));
+      x.h('tfoot', {}, x.h('tr', {}, x.h('td', {}, 'Total'), cols.map(c => x.h('td', { class: 'n' }, c[0] === 'kwh' ? live(C => n0(C.bc.total.kwh)) : c[0] === 'net' ? live(C => n0(C.bc.total.bill)) : '')),
+        x.h('td', { class: 'n' }, live(C => nd(C.bc.blended, 2))), x.h('td', { class: 'n' }, live(C => n0(C.bc.total.totalBill))), x.h('td'), x.h('td'), x.h('td'))))) : x.h('p', { class: 'empty' }, 'No bills yet. Use Last 12 months to lay out the table.')));
+  w.append(dutyCard());
+  w.append(demandCard());
 }
 function billRow(r) {
   r.id ||= uid();
   const find = C => C.bc.rows.find(q => q.id === r.id);
-  const diffEl = live(C => { const q = find(C); return q ? nd(q.diff, 0) : '—'; });
+  const diffEl = live(C => { const q = find(C); return q ? nd(q.diff, 2) : '—'; });
+  const consEl = live(C => { const q = find(C); return q ? nd(q.diffCons, 2) : '—'; });
   const td = (k, wide) => x.h('td', {}, nin(r, k, KIND.bills, { 'aria-label': `${k} ${r.month || ''}`, class: `nin${wide ? ' wide' : ''}${r.src?.[k] ? ' read' : ''}`, title: r.src?.[k] ? `Read by ${r.src[k]}` : null }));
   return x.h('tr', {},
     x.h('td', {}, monthPicker(r)),
     billCols().map(c => td(c[0], c[2])),
     x.h('td', { class: 'n' }, live(C => { const q = find(C); return q ? nd(q.rate, 2) : '—'; })),
     x.h('td', { class: 'n' }, live(C => { const q = find(C); return q ? n0(q.totalBill) : '—'; })),
+    x.h('td', { class: 'n' }, consEl),
     x.h('td', { class: 'n' }, diffEl),
     x.h('td', { class: 'lg-acts' },
       x.h('button', { class: `pill ${r.verified ? 'ok' : needsReview(r) ? 'warn' : 'soft'} lg-pillbtn`, type: 'button', onclick: () => reviewBill(r) }, r.verified ? 'Verified' : 'Review'),
@@ -531,19 +645,60 @@ function sortBills() {
   L.bills.rows.sort((a, b) => { const p = parseMonth(a.month) || { y: 9999, m: 0 }, q = parseMonth(b.month) || { y: 9999, m: 0 }; return p.y - q.y || p.m - q.m; });
 }
 
+const digitsOf = v => String(v).replace(/\D/g, '').replace(/^0+/, '');
+/** The bill's consumer number differs from this connection's: the person decides. */
+function askConsumer(name, billNo, have) {
+  return new Promise(done => {
+    const finish = how => { dlg.close(); dlg.remove(); done(how); };
+    const dlg = x.h('dialog', { class: 'pick lg-dlg' }, x.h('div', { class: 'body' },
+      x.h('h2', {}, 'A different consumer number'),
+      x.h('p', {}, `${name} shows consumer no. ${billNo}. This company's connection is ${have}.`),
+      x.h('p', { class: 'small muted' }, 'It may be another connection of the same company, a misread number, or a bill from somewhere else.'),
+      x.h('div', { class: 'foot' },
+        x.h('button', { class: 'btn ghost', type: 'button', onclick: () => finish('another') }, 'Leave it out, add another bill'),
+        x.h('button', { class: 'btn cta', type: 'button', onclick: () => finish('continue') }, 'Continue with this bill'))));
+    dlg.addEventListener('cancel', e => { e.preventDefault(); finish('another'); }); // Esc leaves the bill out
+    document.body.append(dlg);
+    dlg.showModal();
+  });
+}
 async function ingestBills(files, stat) {
   const { readBills } = await import('./ledger-ocr.js');
   try {
     const bills = await readBills(files, t => { stat.textContent = t; });
     let added = 0, unread = 0, unsaved = 0;
+    const left = [];
+    let another = false;
     for (const b of bills) {
+      // A bill of another consumer does not join this connection without a person's say.
+      const billNo = String(b.fields.consumerNo ?? '').trim();
+      delete b.fields.consumerNo;
+      if (billNo) {
+        const have = String(L.bills.cfg.consumerNo ?? '').trim();
+        if (!have) L.bills.cfg.consumerNo = billNo;
+        else if (digitsOf(have) !== digitsOf(billNo)) {
+          const go = await askConsumer(b.name, billNo, have);
+          if (go === 'another') { another = true; left.push(b.name); continue; }
+        }
+      }
       const parsed = parseMonth(b.fields.month);
       const month = parsed ? monthLabel(parsed.y, parsed.m) : null;
       let row = month && L.bills.rows.find(r => r.month === month);
       if (!row) row = addMonth(month || undefined, true);
       for (const [k, v] of Object.entries(b.fields)) {
         if (k === 'month') continue;
-        if (k === 'contract') { if (L.bills.cfg.contractDemand === null) L.bills.cfg.contractDemand = num(v); continue; }
+        if (k === 'edTypes') { L.bills.cfg.edTypes = Math.max(num(L.bills.cfg.edTypes) || 1, v); continue; }
+        if (k === 'edExemptUpto') { L.bills.cfg.edExemptUpto = v; continue; }
+        if (k === 'supplyKv') {
+          const volt = v >= 132 ? '132 kV and above' : v >= 33 ? '33 / 66 kV' : '11 / 22 kV';
+          if (L.bills.cfg.supplyVolt !== volt) { L.bills.cfg.supplyVolt = volt; if (L.bills.cfg.sets?.length) K.applyTariff(L.bills.cfg, L.tariffs); }
+          continue;
+        }
+        if (k === 'contract') {
+          if (L.bills.cfg.contractDemand === null) L.bills.cfg.contractDemand = num(v);
+          if (num(row.contract) === null && num(v) !== L.bills.cfg.contractDemand) { row.contract = num(v); (row.src ||= {}).contract = b.sources[k]; }
+          continue;
+        }
         if (num(row[k]) === null) { row[k] = v; (row.src ||= {})[k] = b.sources[k]; }
       }
       row.verified = false;
@@ -554,7 +709,9 @@ async function ingestBills(files, stat) {
     }
     touch(KIND.bills);
     drawCompany();
-    x.toast(`${added} bill${added === 1 ? '' : 's'} read${unread ? `; ${unread} with few figures found` : ''}. Check each against the bill.${unsaved ? ` ${unsaved} picture${unsaved === 1 ? '' : 's'} could not be saved.` : ''}`);
+    if (left.length) x.toast(`Left out as another consumer's: ${left.join(', ')}.`);
+    if (another) document.querySelector('input[type=file][accept^="application/pdf"]')?.click();
+    x.toast(`${added} bill${added === 1 ? '' : 's'} read${unread ? `; ${unread} with few figures found` : ''}. Check each against the bill.${bills.skipped?.length ? ` Left out as not a bill: ${bills.skipped.join(', ')}.` : ''}${unsaved ? ` ${unsaved} picture${unsaved === 1 ? '' : 's'} could not be saved.` : ''}`);
   } catch (ex) { stat.textContent = ''; x.toast(ex.message); }
 }
 async function saveScan(dataUrl, month, name) {
@@ -572,8 +729,10 @@ async function saveScan(dataUrl, month, name) {
 
 const REVIEW_FIELDS = [
   ['kwh', 'Units consumed, kWh'], ['net', 'Bill amount, ₹'], ['pf', 'Power factor'], ['actualMD', 'Actual maximum demand, kVA'], ['energyRate', 'Energy rate, ₹/kWh'],
-  ['fppaRate', 'FPPA rate, ₹/kWh'], ['todNight', 'Night units'], ['todPeak', 'TOU units'], ['touDiscUnits', 'TOU discount units'], ['touDiscount', 'TOU discount, ₹'],
-  ['billingDemand', 'Billing demand as billed, kVA'], ['energyCharge', 'Energy charge as billed, ₹'], ['demandCharge', 'Demand charge as billed, ₹'], ['fuelSurcharge', 'Fuel surcharge as billed, ₹'], ['duty', 'Duty as billed, ₹'], ['kvah', 'kVAh'],
+  ['fppaRate', 'FPPA rate, ₹/kWh'], ['fppasVar', 'Variable FPPAS, ₹'], ['fppasPct', 'Variable FPPAS, %'], ['todNight', 'Night units'], ['todPeak', 'TOU units'], ['touDiscUnits', 'TOU discount units'], ['touDiscount', 'TOU discount, ₹'],
+  ['contract', 'Contract demand this month, kVA'], ['kvarh', 'Reactive energy, kVARh'],
+  ['edKwh1', 'ED line 1 kWh'], ['edCharge1', 'ED line 1 charges ₹'], ['edAmt1', 'ED line 1 amount ₹'], ['edKwh2', 'ED line 2 kWh'], ['edCharge2', 'ED line 2 charges ₹'], ['edAmt2', 'ED line 2 amount ₹'], ['edKwh3', 'ED line 3 kWh'], ['edCharge3', 'ED line 3 charges ₹'], ['edAmt3', 'ED line 3 amount ₹'],
+  ['billingDemand', 'Billing demand as billed, kVA'], ['totConsBilled', 'Total consumption charge as billed, ₹'], ['edExempt', 'ED exempted amount, ₹'], ['energyCharge', 'Energy charge as billed, ₹'], ['demandCharge', 'Demand charge as billed, ₹'], ['fuelSurcharge', 'Fuel surcharge as billed, ₹'], ['duty', 'Electricity duty as billed, ₹'], ['kvah', 'kVAh'],
 ];
 function reviewBill(r) {
   const liveBefore = L.live; L.live = [];
@@ -622,11 +781,11 @@ const BILL_SHEET = c => {
     col('FPPA Charges', 'Rs./kWh', r => r.fRate, 'n2'), col('FPPA Charges', 'Fuel Sur charge', r => r.fuel, 'n0', 'sum'),
     col('PF Rebate', '% of Energy Charge', r => r.pct, 'pct'), col('PF Rebate', 'PF Adj/Rebate', r => r.pfAdj, 'n0', 'sum'),
     col('Night Hour', 'Night Unit', r => r.night, 'n0', 'sum'), col('Night Hour', '% Night Unit', r => r.nightPct, 'pct'),
-    col('Night Hour', 'Rate', () => num(c.nightRebateRate) || 0, 'n2'), col('Night Hour', 'Night Rebate', r => r.nightRebate, 'n0', 'sum'),
-    col('EHV Rebate', 'EHV Energy Charges', r => r.energy, 'n0', 'sum'), col('EHV Rebate', '% EHV Rebate', () => num(c.ehvPct) || 0, 'pct'), col('EHV Rebate', 'EHV Charges', r => r.ehv, 'n0', 'sum'),
-    col('TOU Hour', 'TOU Unit', r => r.tou, 'n0', 'sum'), col('TOU Hour', '% TOU Units', r => r.touPct, 'pct'), col('TOU Hour', 'Rate', () => num(c.touRate) || 0, 'n2'),
-    col('TOU Hour', 'TOU Charges', r => r.touCharge, 'n0', 'sum'), col('TOU Hour', 'TOU DISC Unit', r => r.discUnits, 'n0', 'sum'), col('TOU Hour', 'Rate Per KVA', () => num(c.touDiscRate) || 0, 'n2'), col('TOU Hour', 'TOU Disc', r => r.touDiscount, 'n0', 'sum'),
-    col('Elec Duty', 'Total Consumption charge', r => r.totalCons, 'n0', 'sum'), col('Elec Duty', 'Rate', () => num(c.dutyRate) || 0, 'pct'), col('Elec Duty', 'ED Charge', r => r.duty, 'n0', 'sum'),
+    col('Night Hour', 'Rate', r => r.nightRate, 'n2'), col('Night Hour', 'Night Rebate', r => r.nightRebate, 'n0', 'sum'),
+    col('EHV Rebate', 'EHV Energy Charges', r => r.energy, 'n0', 'sum'), col('EHV Rebate', '% EHV Rebate', r => r.ehvPct, 'pct'), col('EHV Rebate', 'EHV Charges', r => r.ehv, 'n0', 'sum'),
+    col('TOU Hour', 'TOU Unit', r => r.tou, 'n0', 'sum'), col('TOU Hour', '% TOU Units', r => r.touPct, 'pct'), col('TOU Hour', 'Rate', r => r.touRate, 'n2'),
+    col('TOU Hour', 'TOU Charges', r => r.touCharge, 'n0', 'sum'), col('TOU Hour', 'TOU DISC Unit', r => r.discUnits, 'n0', 'sum'), col('TOU Hour', 'Rate Per KVA', r => r.discRate, 'n2'), col('TOU Hour', 'TOU Disc', r => r.touDiscount, 'n0', 'sum'),
+    col('Elec Duty', 'Total Consumption charge', r => r.totalCons, 'n0', 'sum'), col('Elec Duty', 'Rate', r => r.dutyRate, 'pct'), col('Elec Duty', 'ED Charge', r => r.duty, 'n0', 'sum'),
     col(null, 'Total Bill', r => r.totalBill, 'n2', 'sum'), col(null, 'Difference', r => r.diff, 'n2'),
   ];
 };
@@ -753,8 +912,12 @@ async function exportExcel() {
     ['Scope', 'Source', 'Quantity', 'Unit', 'Factor kgCO2e', 'tCO2e'],
     ...gc.fuels.map(f => ['Scope 1', f.name, f.qty, f.unit, f.ef, f.t]), ...gc.lines.map(l => [l.type === 'scope3' ? 'Scope 3' : 'Scope 1', l.name, num(l.qty), l.unit, num(l.ef), l.t]),
     ['Scope 2', 'Purchased electricity', gc.gridKwh, 'kWh', gc.gridEF, gc.gross2], ['Total Scope 1 + 2', '', '', '', '', gc.total12]];
+  const edSheet = [[`ELECTRICITY DUTY [${name}]`], ['Month', 'ED line', 'kWh', 'Consumption charges', 'ED rate', 'Amount', 'Exempted', 'Diff. consumption', 'Diff. bill', 'Check'],
+    ...bc.live.flatMap(r => (r.edLines.length ? r.edLines : [{ i: '', kwh: r.kwh, charge: r.totalCons, rate: r.dutyRate, amount: r.duty }]).map(l => [r.month, l.i, l.kwh, l.charge, l.rate, l.amount, r.edExempt || '', r.diffCons, r.diff, r.edProblems.join('; ') || 'Matches'])),
+    ['Total', '', bc.total.kwh, bc.total.totalCons, '', bc.total.duty]];
   const wb = XL.utils.book_new();
   XL.utils.book_append_sheet(wb, billSheet, 'Bills');
+  XL.utils.book_append_sheet(wb, XL.utils.aoa_to_sheet(edSheet), 'Electricity duty');
   XL.utils.book_append_sheet(wb, XL.utils.aoa_to_sheet(base), 'Baseline');
   XL.utils.book_append_sheet(wb, XL.utils.aoa_to_sheet(ghg), 'GHG');
   XL.writeFile(wb, `Energy Ledger ${name.replace(/[^\w ]+/g, '')}.xlsx`);

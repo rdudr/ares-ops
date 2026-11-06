@@ -1549,3 +1549,6 @@ button.ah-zip{background:none;cursor:pointer}
 .ac-acts{display:flex;gap:8px;flex-wrap:wrap;margin-left:auto}
 .ac-chips{margin-top:12px}
 .ac-ic img{display:block;border-radius:8px}
+
+/* Energy Ledger: the tariff order's rates, folded under the connection (from the KISEM console update) */
+.lg-rates{margin-top:12px}.lg-rates summary{cursor:pointer;font-weight:600}.lg-rates .list{margin-top:8px}
