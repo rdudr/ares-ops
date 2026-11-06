@@ -868,7 +868,7 @@ await step('demo company (made from the server): every app gets test data, marke
   await new Promise(r => setTimeout(r, 300));
   const data = await admin('GET', `/api/audits/${d.data.audit_id}/data`);
   const apps = Object.keys(data.data.apps).sort();
-  assert.deepEqual(apps, ['air', 'cool', 'dryer', 'heat', 'light', 'motor', 'power', 'pump', 'report', 'survey', 'textile', 'xmer']);
+  assert.deepEqual(apps, ['air', 'cool', 'dryer', 'heat', 'ledger', 'light', 'motor', 'power', 'pump', 'report', 'survey', 'textile', 'xmer']);
   assert.ok(d.data.records >= 70, String(d.data.records));
   assert.equal(db.prepare('SELECT synthetic FROM audits WHERE id = ?').get(d.data.audit_id).synthetic, 1);
   assert.ok(d.data.pictures >= 60, String(d.data.pictures));
