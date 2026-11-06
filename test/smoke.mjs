@@ -265,6 +265,7 @@ await step('a teammate on the audit can download the photo; other apps and outsi
 
 await step('read API returns an audit\'s records per app and its files', async () => {
   const r = await admin('GET', `/api/audits/${auditId}/data`);
+  assert.equal(r.data.audit.synthetic, false, 'audits say whether they are demo data (report connector gate)');
   assert.equal(r.status, 200);
   assert.equal(r.data.schema, 'ares.audit-data/v0');
   assert.equal(r.data.audit.industry_tag, 'TX-SRT-001');

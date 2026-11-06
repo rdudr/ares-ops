@@ -99,6 +99,13 @@ change made in the preview is a real change. The sign-in is separate (the cookie
 name). Server changes (`lib/`, `server.js`) on the branch do **not** reach the preview: they go live
 only when merged into `main`.
 
+## Report Studio connector (mcp.arenergyservices.in)
+
+Add an A record `mcp` pointing at the server, as for `ops` and `api`. Caddy gets the certificate once it
+resolves. The connector is a separate repo (`report_studio_ares`), installed with its own
+`deploy/deploy-ar.sh`: service `report-studio` on `127.0.0.1:8790`, data in `/var/lib/report-studio`.
+Until the conditions in `PostMan_MCP_Proposal.md` §7 are met it serves only audits marked demo.
+
 ## GST Billing (billing.arenergyservices.in)
 
 The open-source Free GST Billing Software (MIT, github.com/IamRamgarhia/Free-GST-Billing-Software),

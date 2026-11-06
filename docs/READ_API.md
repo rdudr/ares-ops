@@ -26,7 +26,7 @@ are assigned to. Anything else returns 404.
   "schema": "ares.audit-data/v0",
   "generated_at": 1792653650000,
   "audit": {
-    "id": "AU-2627-0001", "title": "Detailed energy audit", "fy": "FY2026-27", "status": "in_field",
+    "id": "AU-2627-0001", "title": "Detailed energy audit", "fy": "FY2026-27", "status": "in_field", "synthetic": false,
     "industry_tag": "TX-SRT-001", "sector": "TX", "cluster": "SRT", "site_name": "Unit 1",
     "client_name": "only for managers"
   },
