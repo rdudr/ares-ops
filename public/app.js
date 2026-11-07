@@ -1542,6 +1542,7 @@ async function audits(holder) {
       return h('tr', {},
         h('td', { class: 'tagc' }, h('span', { class: 'tagstack' }, h('span', { class: 'tagpill bd' }, a.industry_tag), h('span', { class: 'aid' }, a.id))),
         h('td', {}, h('a', { class: 'atitle', href }, a.title), a.synthetic ? h('span', { class: 'pill warn demo' }, 'Demo') : null,
+          !a.synthetic && a.ai_until > Date.now() && !['published', 'archived'].includes(a.status) ? h('span', { class: 'pill ok demo', title: 'The AI report connector may read this audit until then' }, `AI until ${fmtDay(a.ai_until)}`) : null,
           h('span', { class: 'asub' }, `${a.client_name} — ${a.site_name} · ${a.fy}`)),
         h('td', {}, stagePill(key, true), h('span', { class: 'sdays' }, `${daysSince(a.stage_at)} d`)),
         h('td', {}, h('span', { class: 'avstack' }, teamAvs(a),
@@ -1899,6 +1900,7 @@ async function auditPage(holder, id) {
         h('p', {}, [a.site_name, sector, a.fy, a.created_at && `started ${fmtDay(a.created_at)}`].filter(Boolean).join(' · '))),
       h('div', { class: 'ah-acts' },
         finalised ? null : h('button', { type: 'button', class: 'ah-zip', onclick: () => editAuditDetails({ ...a }) }, 'Edit details'),
+        aiAccessButton(a, finalised, reload),
         h('a', { class: 'ah-zip', href: `/api/audits/${enc}/export.zip` }, icon('download'), 'Download all (ZIP)'),
         finalised
           ? h('button', { type: 'button', class: 'ah-fin', onclick: async () => {
@@ -2082,13 +2084,29 @@ async function auditPage(holder, id) {
 // Claude connects with a personal token made here for this one audit. It sees only the cleaned
 // facts sheet under a code name, never the company, people, bills or photos; its drafts come back
 // to Report Studio as suggestions for the engineer to accept or reject.
+// AI access for a real company, on the audit's own page: the Super Admin turns it on for three days
+// (or more days, again from now) and off again; others see whether it is on.
+function aiAccessButton(a, finalised, reload) {
+  if (a.synthetic || finalised) return null;
+  const until = a.ai_until > Date.now() ? a.ai_until : null;
+  const when = until ? `${fmtDay(until)}, ${new Date(until).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' })}` : '';
+  if (state.me.role !== 'super_admin') return until ? h('span', { class: 'ah-zip', title: 'The AI report connector may read this audit until then' }, `AI access until ${when}`) : null;
+  const set = async on => {
+    if (!on && !confirm(`Turn off AI access for ${a.client_name || 'this company'}? Claude stops reading this audit at once.`)) return;
+    try { await api('POST', `/api/audits/${encodeURIComponent(a.id)}/ai-access`, { on }); toast(on ? 'AI access on for 3 days' : 'AI access off'); reload(); } catch (ex) { toast(ex.message); }
+  };
+  return until
+    ? h('button', { type: 'button', class: 'ah-zip', title: 'Click to turn AI access off now', onclick: () => set(false) }, `AI access until ${when} · Turn off`)
+    : h('button', { type: 'button', class: 'ah-zip', title: 'Lets the AI report connector read this audit for 3 days', onclick: () => set(true) }, 'Allow AI access (3 days)');
+}
+
 function connectorCard(a) {
   const box = h('section', { class: 'card', style: 'margin-top:16px' }, h('p', { class: 'muted small' }, 'Loading the AI report connector…'));
   const load = async () => {
     let d;
     try { d = await api('GET', `/api/audits/${encodeURIComponent(a.id)}/mcp`); } catch (ex) { box.replaceChildren(h('p', { class: 'err' }, ex.message)); return; }
     const superAdmin = state.me.role === 'super_admin';
-    const usable = d.enabled && (d.demo || d.real_allowed);
+    const usable = d.enabled && (d.demo || d.ai_open || d.real_allowed);
     const live = d.tokens.filter(t => !t.revoked_at && t.expires_at > Date.now());
     const makeToken = () => {
       let made = null;
@@ -2109,18 +2127,29 @@ function connectorCard(a) {
       if (!on && !confirm('Turn off demo for this audit? Every connector token of this audit stops working.')) return;
       try { await api('POST', `/api/audits/${encodeURIComponent(a.id)}/demo`, { demo: on }); load(); } catch (ex) { toast(ex.message); }
     };
+    const setAi = async on => {
+      if (!on && !confirm('Turn off AI access for this audit? Claude stops reading it at once.')) return;
+      try { await api('POST', `/api/audits/${encodeURIComponent(a.id)}/ai-access`, { on }); toast(on ? `AI access on for ${d.ai_days} days` : 'AI access off'); load(); } catch (ex) { toast(ex.message); }
+    };
     // Empty parts (null) are left out: replaceChildren would print them as the word "null".
     box.replaceChildren(...[
       h('div', { class: 'cap' }, h('h2', {}, 'AI report connector'),
         h('span', { class: 'row', style: 'gap:6px' },
           d.demo ? h('span', { class: 'pill warn' }, 'Demo audit') : h('span', { class: 'pill soft' }, 'Real audit'),
-          usable ? h('span', { class: 'pill ok' }, 'Available') : h('span', { class: 'pill soft' }, d.enabled ? 'Demo audits only' : 'Switched off'))),
+          !d.enabled ? h('span', { class: 'pill soft' }, 'Switched off')
+            : d.demo || d.real_allowed ? h('span', { class: 'pill ok' }, 'Available')
+            : d.ai_until ? h('span', { class: 'pill ok' }, `AI access until ${fmtDay(d.ai_until)}, ${new Date(d.ai_until).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' })}`)
+            : h('span', { class: 'pill soft' }, 'AI access off'))),
       h('p', { class: 'sub' }, `Claude can read this audit's figures (as ${d.handle}, never the company's name), suggest text, recommendations and charts, and save them to Report Studio as suggestions. `,
         'It never sees the company, address, people, phone numbers, consumer numbers, bills or photos, and nothing prints until an engineer accepts it.'),
       h('div', { class: 'row', style: 'gap:8px;margin-bottom:12px' },
         usable && h('button', { class: 'btn cta', type: 'button', onclick: makeToken }, 'Connect Claude'),
-        superAdmin && h('button', { class: 'btn ghost small', type: 'button', onclick: () => setDemo(!d.demo) }, d.demo ? 'Turn off demo' : 'Mark as demo audit'),
-        !usable && !superAdmin && h('span', { class: 'small muted' }, 'Only demo audits can use the connector for now; the Super Admin marks them.')),
+        superAdmin && d.enabled && !d.demo && !d.closed && h('button', { class: 'btn small', type: 'button', onclick: () => setAi(true) },
+          d.ai_until ? `Extend ${d.ai_days} days` : `Allow AI for ${d.ai_days} days`),
+        superAdmin && !d.demo && d.ai_until && h('button', { class: 'btn ghost small', type: 'button', onclick: () => setAi(false) }, 'Turn off AI access'),
+        superAdmin && (d.demo || !d.ai_until) && h('button', { class: 'btn ghost small', type: 'button', onclick: () => setDemo(!d.demo) }, d.demo ? 'Turn off demo' : 'Mark as demo audit'),
+        !usable && !superAdmin && h('span', { class: 'small muted' }, `AI access is off for this audit. The Super Admin can turn it on for ${d.ai_days} days at a time.`)),
+      !d.demo && h('p', { class: 'small muted', style: 'margin:-4px 0 12px' }, `For a real company, AI access lasts ${d.ai_days} days each time it is turned on, and ends at once when the audit is finished.`),
       live.length ? h('div', { class: 'ilist' }, live.map(t => h('div', { class: 'it' },
         h('div', { class: 'main-t' }, h('b', {}, t.label || 'Token'), h('span', {}, `${t.user_name} · made ${fmtDay(t.created_at)} · ${t.last_used_at ? `last used ${ago(t.last_used_at)}` : 'not used yet'} · ends ${fmtDay(t.expires_at)}`)),
         h('button', { class: 'btn small danger', type: 'button', onclick: () => revoke(t) }, 'Revoke')))) : null,

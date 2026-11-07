@@ -862,6 +862,41 @@ await step('AI connector: demo audits only, a personal token, and the privacy gu
   assert.equal((await rpc({ jsonrpc: '2.0', id: 3, method: 'tools/list' })).status, 401);
 });
 
+await step('AI access for a real audit: Super Admin only, three days at a time, ends when finished', async () => {
+  const real = await admin('POST', '/api/audits', { client_name: 'Kesar Polymers', sector: 'CH', site_name: 'Vapi Unit', district: 'Valsad', state: 'Gujarat', fy: 'FY2026-27', title: 'Flow study' });
+  const aid = real.data.id;
+  let d = (await admin('GET', `/api/audits/${aid}/mcp`)).data;
+  assert.equal(d.ai_open, false); assert.equal(d.ai_until, null); assert.equal(d.ai_days, 3);
+  assert.equal((await admin('POST', `/api/audits/${aid}/mcp/tokens`, { label: 'Claude' })).status, 409);
+  const t0 = Date.now();
+  const on = await admin('POST', `/api/audits/${aid}/ai-access`, { on: true });
+  assert.equal(on.status, 200);
+  assert.ok(Math.abs(on.data.ai_until - (t0 + 3 * 86400000)) < 60000, 'three days from now');
+  d = (await admin('GET', `/api/audits/${aid}/mcp`)).data;
+  assert.equal(d.ai_open, true); assert.equal(d.demo, false, 'no Demo mark needed');
+  const tok = await admin('POST', `/api/audits/${aid}/mcp/tokens`, { label: 'Claude' });
+  assert.equal(tok.status, 200);
+  // The read API and the apps' audit list tell the report connector.
+  const pm = appClient((await appLogin('axita', ADMIN_PW, 'report')).data.token);
+  assert.equal((await pm('GET', `/api/audits/${aid}/data`)).data.audit.ai_access, true);
+  assert.equal((await pm('GET', '/api/device/me')).data.audits.find(a => a.id === aid).ai_access, true);
+  // Time runs out: closed again, no button press needed.
+  db.prepare('UPDATE audits SET ai_until = ? WHERE id = ?').run(Date.now() - 1000, aid);
+  assert.equal((await admin('GET', `/api/audits/${aid}/mcp`)).data.ai_open, false);
+  assert.equal((await pm('GET', `/api/audits/${aid}/data`)).data.audit.ai_access, false);
+  // Turned off by hand: ends every token of the audit.
+  await admin('POST', `/api/audits/${aid}/ai-access`, { on: true });
+  assert.equal((await admin('POST', `/api/audits/${aid}/ai-access`, { on: false })).status, 200);
+  assert.ok(db.prepare('SELECT revoked_at FROM mcp_tokens WHERE id = ?').get(tok.data.id).revoked_at, 'token revoked');
+  // A finished audit closes at once and cannot be reopened.
+  await admin('POST', `/api/audits/${aid}/ai-access`, { on: true });
+  db.prepare("UPDATE audits SET status = 'archived' WHERE id = ?").run(aid);
+  assert.equal((await admin('GET', `/api/audits/${aid}/mcp`)).data.ai_open, false);
+  assert.equal((await admin('POST', `/api/audits/${aid}/ai-access`, { on: true })).status, 409);
+  const acts = db.prepare("SELECT action FROM activity WHERE target = ? AND action LIKE 'audit.ai_%'").all(aid).map(r => r.action);
+  assert.ok(acts.includes('audit.ai_on') && acts.includes('audit.ai_off'), 'logged');
+});
+
 await step('demo company (made from the server): every app gets test data, marked as demo; no button or route for it', async () => {
   assert.ok(!fs.readFileSync(new URL('../public/app.js', import.meta.url), 'utf8').includes('/api/demo-audit'), 'no Create demo company button');
   const sa = db.prepare("SELECT * FROM users WHERE role = 'super_admin' LIMIT 1").get();
