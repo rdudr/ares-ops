@@ -189,3 +189,37 @@ billing.arenergyservices.in {
 		}
 	}
 }
+
+# The public website (repo AR-Enterprise-website-design, published by its deploy/site.sh into
+# /var/www/ar-site). Static files only. The same rules as the .htaccess it had on Hostinger: no
+# internal documents, no folder listings, the same three headers. www goes to the bare name.
+www.arenergyservices.in {
+	redir https://arenergyservices.in{uri} permanent
+}
+
+arenergyservices.in {
+	encode gzip
+	header {
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+		X-Frame-Options SAMEORIGIN
+		-Server
+	}
+	@internal path_regexp internal (?i)^/(docs(/|$)|\.|.*\.md$|.*/\.)
+	respond @internal 404
+	header /assets/* Cache-Control "public, max-age=86400"
+	header /*.html Cache-Control "no-cache"
+	header / Cache-Control "no-cache"
+	root * /var/www/ar-site
+	try_files {path} {path}.html
+	file_server
+	handle_errors {
+		respond "{err.status_code} {err.status_text}" {err.status_code}
+	}
+	log {
+		output file /var/log/caddy/site-access.log {
+			roll_size 20MiB
+			roll_keep 5
+		}
+	}
+}

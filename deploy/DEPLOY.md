@@ -71,6 +71,7 @@ Every part on the server has its own pipeline, run on a push to `main`:
 | Pipeline | Repo | Deploys | Same as |
 |---|---|---|---|
 | `Deploy ARES` (`.github/workflows/deploy.yml`) | ares-ops | Console, sync API, Caddyfile, cron jobs | `bash deploy/deploy.sh` |
+| (by hand) `bash deploy/site.sh` in the website repo | AR-Enterprise-website-design | The public site arenergyservices.in, files in `/var/www/ar-site` (Caddy block here) | `bash deploy/site.sh` |
 | `Deploy Console preview` (`.github/workflows/deploy-design.yml`) | ares-ops, on a push to `design-change` that changes `public/` | Console pages of that branch to `/opt/ares-design` (api.arenergyservices.in); no restart, no data | `bash deploy/deploy-design.sh` |
 | `Deploy GST Billing` (`.github/workflows/deploy-billing.yml`) | ares-ops, only when `billing.sh` or `gst-billing.service` change; or run by hand with another upstream commit | GST Billing | `bash deploy/billing.sh` |
 | `Web app` (`.github/workflows/field-web.yml`, from the AR app kit) | each field app repo | that app at `/field/<app>/` | `bash deploy/field-web.sh <app>` |
