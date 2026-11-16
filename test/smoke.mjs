@@ -1364,6 +1364,41 @@ await step('report draft: the AI connector saves it, people review it, only an a
   assert.ok(db.prepare("SELECT 1 FROM activity WHERE action = 'login.ai_connector'").get(), 'the AI sign-in is logged as such');
 });
 
+await step('a company code is never given out twice: a removed company keeps its code, so a new one never inherits its data', async () => {
+  const mk = async name => (await admin('POST', '/api/audits', { client_name: name, sector: 'TX', site_name: 'Unit R', cluster: 'srt', fy: 'FY2027-28', title: 'Test' })).data.id;
+  const first = await mk('Code Reuse One Ltd');
+  // A removed demo company: its row goes, but the activity log (and any phone) still knows the code.
+  tx(db, () => {
+    db.exec('PRAGMA defer_foreign_keys = ON');
+    for (const { name } of db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'").all())
+      if (name !== 'audits' && db.prepare(`PRAGMA table_info("${name}")`).all().some(c => c.name === 'audit_id')) db.prepare(`DELETE FROM "${name}" WHERE audit_id = ?`).run(first);
+    db.prepare('DELETE FROM audits WHERE id = ?').run(first);
+  });
+  const next = await mk('Code Reuse Two Ltd');
+  assert.notEqual(next, first, "a new company must not get a removed company's code");
+  assert.ok(parseInt(next.slice(-4), 10) > parseInt(first.slice(-4), 10), `${next} comes after ${first}`);
+});
+
+await step("a sync for one company gets only that company back, and learns which held records are another company's", async () => {
+  const app = appClient((await appLogin('fl.two', p2.pw, 'air')).data.token);
+  const mk = async name => (await app('POST', '/api/device/audits', { client_name: name, site_name: 'Unit', sector: 'TX', cluster: 'srt' })).data.audit_id;
+  const A = await mk('Two Co Alpha'), B = await mk('Two Co Beta');
+  const now = Date.now(), aRec = crypto.randomUUID();
+  const s1 = await app('POST', '/api/sync', { audit_id: A, since: 0, records: [{ id: aRec, audit_id: A, kind: 'compressor', tag: 'C-2', taken_at: now, saved_at: now, payload: { tag: 'C-2' } }] });
+  assert.equal(s1.data.results[0].status, 'stored', JSON.stringify(s1.data.results));
+  const s2 = await app('POST', '/api/sync', { audit_id: B, since: 0, records: [], check_ids: [aRec, 'not-a-record'] });
+  assert.ok(!s2.data.records.some(r => r.audit_id !== B), JSON.stringify(s2.data.records.map(r => r.audit_id)));
+  assert.deepEqual(s2.data.elsewhere, [aRec]);
+  // An older app (no audit_id) still gets every company, as before, and no `elsewhere`.
+  const s3 = await app('POST', '/api/sync', { since: 0, records: [] });
+  assert.ok(s3.data.records.some(r => r.id === aRec) && !('elsewhere' in s3.data));
+  // The data feed says when each company was started.
+  const feed = await app('GET', `/api/audits/${B}/data`);
+  assert.equal(feed.status, 200); assert.equal(typeof feed.data.audit.created_at, 'number');
+  const prof = await app('GET', `/api/device/audit-profile?audit_id=${B}`);
+  if (prof.status === 200) assert.ok((prof.data.profile || prof.data).stage);
+});
+
 server.close();
 fs.rmSync(filesDir, { recursive: true, force: true });
 console.log(`\n${passed} checks passed`);
