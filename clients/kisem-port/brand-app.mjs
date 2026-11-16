@@ -17,11 +17,11 @@ const OPS = path.resolve(HERE, '..', '..');
 const sharp = createRequire('C:/Users/risha/Desktop/process/Xmer-Eff/node_modules/x.js')('sharp');
 
 const GREEN = '#0b4a22';
-const COLOURS = [
+export const COLOURS = [
   [/#1c3a8a/gi, GREEN], [/#15307a/gi, '#083a1a'], [/#15233f/gi, '#0f2a1a'], [/#2b2644/gi, '#0f2a1a'],
   [/rgba\(17,\s*12,\s*46,/g, 'rgba(8,30,16,'],
 ];
-const TEXT = [
+export const BRAND_TEXT = [
   [/Shree Mahadev Silk Mills Pvt\. Ltd\./g, 'Sample Textiles Pvt. Ltd.'], [/Shree%20Mahadev%20Silk%20Mills%20Pvt\.%20Ltd\./g, 'Sample%20Textiles%20Pvt.%20Ltd.'],
   [/Mahadev Silk Mills/g, 'Sample Textiles'], [/cmp-shree-mahadev/g, 'cmp-sample'],
   [/FoxKisemPhotos/g, 'BriefPhotos'], [/MLAKisemMotorPhotos/g, 'ARPhotos'],
@@ -55,7 +55,7 @@ export async function brandApp(code, dir) {
     if (!/\.(tsx?|mjs|css|json)$/.test(f) || f.endsWith('package-lock.json')) continue;
     const s = fs.readFileSync(f, 'utf8');
     let t = s;
-    for (const [a, b] of [...COLOURS, ...TEXT]) t = t.replace(a, b);
+    for (const [a, b] of [...COLOURS, ...BRAND_TEXT]) t = t.replace(a, b);
     if (t !== s) { fs.writeFileSync(f, t); changed++; }
   }
   return changed;

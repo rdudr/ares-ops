@@ -30,8 +30,9 @@ const DESK = 'C:/Users/risha/Desktop';
 const AR_APPS = `${DESK}/process/AR Apps`;
 
 // key: KISEM source, AR folder, app code, AR name, web slug, APK name, Android id, version.
+export { EXCLUDE, TEXT };
 export const APPS = {
-  survey: { src: `${DESK}/fox-kisen`, dest: 'ares-brief', code: 'survey', name: 'BRIEF', kisem: ['FOX'], slug: 'brief', apk: 'ar-brief', appId: 'com.arenterprise.brief' },
+  survey: { src: `${DESK}/fox-kisen`, dest: 'ares-brief', code: 'survey', name: 'BRIEF', kisem: ['GridMap', 'FOX'], slug: 'brief', apk: 'ar-brief', appId: 'com.arenterprise.brief' },
   motor: { src: `${DESK}/process/MLA - KISEM`, dest: 'ares-mla', code: 'motor', name: 'Motor Pulse', kisem: ['MLA-KISEM', 'MLA'], slug: 'mla', apk: 'ar-motor-pulse', appId: 'com.arenterprise.mla' },
   heat: { src: `${DESK}/thermo-X`, dest: 'ares-boiler', code: 'heat', name: 'Boiler & Fuel', kisem: ['THERMO-X', 'Thermo-X', 'ThermoX', 'Thermo X'], slug: 'boiler', apk: 'ar-boiler-fuel', appId: 'com.arenterprise.boilerfuel' },
   textile: { src: `${DESK}/Jet EFF`, dest: 'ares-jet', code: 'textile', name: 'Dye House', kisem: ['JET-Eff', 'JET EFF', 'Jet EFF', 'Jet-EFF', 'JET-EFF', 'JET Eff'], slug: 'jet', apk: 'ar-dye-house', appId: 'com.arenterprise.jet' },
@@ -50,7 +51,7 @@ const TEXT = /\.(ts|tsx|js|mjs|cjs|json|css|md|html|txt|yml|yaml)$|^\.(gitignore
 // Strings that must not change: file markers other copies of the app read back.
 const KEEP = [/Zero Degree v\d/g, /"MLA v\d"/g, /KISEM-EXPORT/g];
 
-function textEdits(s, cfg) {
+export function textEdits(s, cfg) {
   const kept = [];
   for (const re of KEEP) s = s.replace(re, m => { kept.push(m); return `\u0000${kept.length - 1}\u0000`; });
   s = s
@@ -58,6 +59,11 @@ function textEdits(s, cfg) {
     .replace(/(["'])\.\.?\/(?:\.\.\/)*fox\//g, m => m.replace('fox/', 'ares/'))
     .replace(/lib\/fox\//g, 'lib/ares/').replace(/components\/fox\//g, 'components/ares/')
     .replace(/NEXT_PUBLIC_FOX_CONSOLE_URL/g, 'NEXT_PUBLIC_ARES_API')
+    // KISEM's second address (foxauditiitgn.com, from 2026-11-16), then the first one.
+    .replace(/https:\/\/console\.foxauditiitgn\.com/g, 'https://api.arenergyservices.in')
+    .replace(/console\.foxauditiitgn\.com/g, 'ops.arenergyservices.in')
+    .replace(/https:\/\/[a-z]+\.foxauditiitgn\.com\/?/g, 'https://ops.arenergyservices.in/')
+    .replace(/foxauditiitgn\.com/g, 'arenergyservices.in')
     .replace(/https:\/\/console\.eassiitgn\.page/g, 'https://api.arenergyservices.in')
     .replace(/console\.eassiitgn\.page/g, 'ops.arenergyservices.in')
     .replace(/https:\/\/[a-z]+\.app\.eassiitgn\.page\/?/g, 'https://ops.arenergyservices.in/')
@@ -79,7 +85,7 @@ function textEdits(s, cfg) {
     s = s.replace(new RegExp(`(^|[^A-Za-z0-9_$.\\/-])${esc}(?![A-Za-z0-9_$(])`, 'g'), (m, pre) => pre + cfg.name);
   }
   // The kit's own names: the `fox` client object and its storage keys.
-  s = s.replace(/\bfox\b(?=[.,;:)\s}])/g, 'ares').replace(/\bfox(?= =| as\b)/g, 'ares').replace(/(["'`-])fox-(audit|work)/g, '$1ares-$2')
+  s = s.replace(/\bfox\b(?=[.,;:)\s}])/g, 'ares').replace(/\bfox(?= =| as\b)/g, 'ares').replace(/(["'`-])fox-(audit|work|epoch)/g, '$1ares-$2')
     .replace(/\bFOX\b/g, 'ARES')
     .replace(/AR · AR Energy Services/g, 'AR Energy Services')
     .replace(/placeholder="e\.g\. rishabh"/g, 'placeholder="Your Login ID"')
@@ -89,7 +95,7 @@ function textEdits(s, cfg) {
 }
 
 // <img src="/x.png"> works only at the site root; on /field/<slug>/ it needs the base path.
-function assetPaths(s) {
+export function assetPaths(s) {
   let changed = false;
   s = s.replace(/\bsrc="(\/[^"]+\.(?:png|jpg|jpeg|svg|webp|ico))"/g, (m, p) => { changed = true; return `src={asset("${p}")}`; });
   if (changed && !/import \{[^}]*\basset\b[^}]*\} from "@\/lib\/ares\/base-path"/.test(s)) {
