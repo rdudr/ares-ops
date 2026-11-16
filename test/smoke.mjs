@@ -1399,6 +1399,20 @@ await step("a sync for one company gets only that company back, and learns which
   if (prof.status === 200) assert.ok((prof.data.profile || prof.data).stage);
 });
 
+await step("a report draft older than its audit (an earlier company with the same code) never opens as this company's", async () => {
+  const { dropOlderDraft } = await import('../lib/routes-report.js');
+  const aid = (await admin('POST', '/api/audits', { client_name: 'Stale Draft Ltd', sector: 'TX', site_name: 'Unit S', cluster: 'srt', fy: 'FY2027-28', title: 'Test' })).data.id;
+  const audit = db.prepare('SELECT * FROM audits WHERE id = ?').get(aid);
+  const uid = db.prepare('SELECT id FROM users LIMIT 1').get().id, t = audit.created_at - 86400000;
+  db.prepare('INSERT INTO report_drafts (audit_id, template, created_by, created_at, updated_by, updated_at) VALUES (?, ?, ?, ?, ?, ?)').run(aid, 'walkthrough', uid, t, uid, t);
+  db.prepare('INSERT INTO report_draft_sections (audit_id, section_id, title, blocks, ai_blocks, proposed_by, proposed_at) VALUES (?, ?, ?, ?, ?, ?, ?)').run(aid, 'intro', 'Old', '[]', '[]', uid, t);
+  const r = await admin('GET', `/api/audits/${aid}/report-draft`);
+  assert.equal(r.status, 200, JSON.stringify(r.data));
+  assert.ok(!r.data.draft, JSON.stringify(r.data));
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM report_draft_sections WHERE audit_id = ?').get(aid).n, 0);
+  assert.equal(dropOlderDraft(db, audit), false);
+});
+
 server.close();
 fs.rmSync(filesDir, { recursive: true, force: true });
 console.log(`\n${passed} checks passed`);
