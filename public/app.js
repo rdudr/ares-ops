@@ -329,6 +329,7 @@ const PAGES = [
   { id: 'team', label: 'Team & access', group: 'Manage', icon: 'team' },
   { id: 'audits', label: 'Audits', group: 'Manage', icon: 'audits' },
   { id: 'reports', label: 'Previous reports', group: 'Manage', icon: 'doc' },
+  { id: 'report-studio', label: 'Report Studio', group: 'Tools', icon: 'doc' },
   { id: 'ledger', label: 'Energy Ledger', group: 'Manage', icon: 'doc', needs: 'ledger' },
   { id: 'apps', label: 'App console', group: 'Field apps', icon: 'apps' },
   { id: 'guide', label: 'Getting started', group: null, icon: 'guide' },
@@ -479,8 +480,8 @@ function shell(active, content) {
 
   const fieldMenu = dropdown(ddBtn('Field apps', on('apps')),
     () => [mi('#/apps', 'apps', 'App console'), fieldPages().map(p => mi(`#/${p.id}`, 'phone', p.label))]);
-  const moreMenu = dropdown(ddBtn('More', ['activity', 'team-activity', 'pipeline', 'ledger', 'guide', 'more'].includes(active)),
-    () => [mi('#/pipeline', 'audits', 'Companies'), mine('ledger') && mi('#/ledger', 'doc', 'Energy Ledger'), mi('#/team-activity', 'team', 'Team activity'), mi('#/activity', 'activity', 'Activity log'),
+  const moreMenu = dropdown(ddBtn('More', ['activity', 'team-activity', 'pipeline', 'ledger', 'report-studio', 'guide', 'more'].includes(active)),
+    () => [mi('#/pipeline', 'audits', 'Companies'), mi('#/report-studio', 'doc', 'Report Studio'), mine('ledger') && mi('#/ledger', 'doc', 'Energy Ledger'), mi('#/team-activity', 'team', 'Team activity'), mi('#/activity', 'activity', 'Activity log'),
       toolLinks().map(toolItem),
       mi('#/guide', 'guide', 'Getting started'), mi('/apps/', 'download', 'Download page', true)]);
   const account = dropdown(
@@ -568,7 +569,7 @@ async function route() {
     : page === 'audit' && param ? h2 => auditPage(h2, decodeURIComponent(param))
     : page === 'apps' && param && param2 ? h2 => appAuditPage(h2, decodeURIComponent(param), decodeURIComponent(param2))
     : page === 'apps' && param ? h2 => appPage(h2, decodeURIComponent(param))
-      : ({ overview, pipeline: pipelinePage, 'team-activity': teamActivity, team, audits, tasks, activity, account, apps: appsPage, guide: guidePage, reports: reportsPage, more: morePage }[page] || overview);
+      : ({ overview, pipeline: pipelinePage, 'team-activity': teamActivity, team, audits, tasks, activity, account, apps: appsPage, guide: guidePage, reports: reportsPage, 'report-studio': reportStudioPage, more: morePage }[page] || overview);
   const holder = h('div', { class: 'page' }, h('p', { class: 'muted' }, 'Loading…'));
   const activeId = page === 'audit' ? 'audits' : page === 'apps' && param ? `apps/${param}` : page;
   // Energy Ledger opened in its own window: the company's data and nothing around it.
@@ -916,11 +917,11 @@ function morePage(holder) {
     group('Records', [row('#/pipeline', 'audits', 'Companies', 'Every company and its progress'), row('#/reports', 'doc', 'Previous reports', 'Finalised audits'),
       mine('ledger') && row('#/ledger', 'doc', 'Energy Ledger', 'Bills, baseline and GHG per company'),
       row('#/team-activity', 'team', 'Team activity', 'Hours, records and who is working'), row('#/activity', 'activity', 'Activity log', 'Every sign-in, change and sync')]),
-    group('Tools', toolLinks().map(t => {
+    group('Tools', [row('#/report-studio', 'doc', 'Report Studio', 'Report drafts with Claude, reviewed per audit'), ...toolLinks().map(t => {
       const r = row(t.href, 'external', t.label, tagline(t.app), true);
       if (!NO_LAUNCH.has(t.code)) r.addEventListener('click', e => { e.preventDefault(); openTool(t.code); });
       return r;
-    })),
+    })]),
     group('Help', [row('#/guide', 'guide', 'Getting started', 'From new login to recording on site'), row('/apps/', 'download', 'Download page', 'Newest version of every field app', true)]),
     h('section', { class: 'card mgroup' },
       h('div', { class: 'macct' }, h('span', { class: 'av lg' }, initials(me.name)),
@@ -3053,6 +3054,35 @@ async function reportsPage(holder) {
         h('td', {}, a.report_file_id ? h('a', { href: `/api/files/${a.report_file_id}`, target: '_blank', rel: 'noopener' }, 'Open report') : h('span', { class: 'muted small' }, 'None attached')),
         h('td', {}, h('a', { class: 'btn ghost sm', href: `/api/audits/${encodeURIComponent(a.id)}/export.zip` }, icon('download'), 'ZIP'))))))
       : h('p', { class: 'empty' }, 'No audit has been finalised yet. Finalise one from its audit page once the report is made.')));
+}
+
+// Report Studio: every audit's report draft written with Claude, and how to connect Claude
+// (lib/routes-report.js). The review itself is on each audit's page, card "Report draft with Claude".
+async function reportStudioPage(holder) {
+  const d = await api('GET', '/api/report-drafts');
+  const stage = a => STAGE_SHORT[a.stage || 'setup'] || a.stage;
+  const progress = a => !a.sections ? h('span', { class: 'muted small' }, 'No draft yet')
+    : h('span', { class: 'small' }, `${a.accepted} of ${a.sections} accepted`, a.pending ? ` · ${a.pending} to review` : '', a.rejected ? ` · ${a.rejected} rejected` : '',
+      h('div', { class: 'muted' }, `${a.template === 'detailed' ? 'Detailed' : 'Walkthrough'} report · ${ago(a.draft_updated_at)}${a.draft_updated_by ? ` by ${a.draft_updated_by}` : ''}`));
+  const ai = a => a.synthetic ? h('span', { class: 'pill tag' }, 'Demo') : a.ai_access ? h('span', { class: 'pill tag' }, `AI until ${fmtDate(a.ai_until)}`) : h('span', { class: 'muted small' }, 'Off');
+  const withDraft = d.audits.filter(a => a.sections).length;
+  holder.replaceChildren(
+    h('div', { class: 'head' }, h('div', {}, h('h1', {}, 'Report Studio'),
+      h('p', { class: 'muted small' }, 'Claude writes the report from the field apps’ figures; your team accepts, edits or rejects each section on the audit’s page. ',
+        'Nothing prints as final until an Admin moves the audit to Approved. Claude can read an audit only while it is a demo or its AI access is on.')),
+      d.can_connect ? h('button', { class: 'btn cta', type: 'button', onclick: () => showReportConnector(d.connector_address, d.audits[0]?.id || 'AU-…') }, 'How to connect Claude')
+        : h('p', { class: 'muted small' }, 'To connect Claude, ask the Super Admin to give you Report Studio under Team & access.')),
+    h('div', { class: 'card scroll' }, d.audits.length ? h('table', {},
+      h('caption', { class: 'sr' }, `Audits and their report drafts: ${withDraft} with a draft`),
+      h('thead', {}, h('tr', {}, h('th', {}, 'Company'), h('th', {}, 'Audit'), h('th', {}, 'Stage'), h('th', {}, 'Report draft'), h('th', {}, 'AI access'), h('th', {}, ''))),
+      h('tbody', {}, d.audits.map(a => h('tr', {},
+        h('td', {}, h('b', {}, a.client_name), h('div', { class: 'small muted' }, a.site_name, ' · ', h('span', { class: 'pill tag' }, a.industry_tag))),
+        h('td', {}, a.title, h('div', { class: 'small muted' }, a.id, ' · ', a.fy)),
+        h('td', { class: 'small' }, stage(a)),
+        h('td', {}, progress(a), a.pdf_final ? h('div', { class: 'small' }, 'Final PDF printed') : null),
+        h('td', {}, ai(a)),
+        h('td', {}, h('a', { class: 'btn ghost sm', href: `#/audit/${encodeURIComponent(a.id)}` }, a.sections ? 'Review' : 'Open'))))))
+      : h('p', { class: 'empty' }, 'No audits yet. Register a company under Audits first.')));
 }
 
 route();

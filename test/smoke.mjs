@@ -1413,6 +1413,23 @@ await step("a report draft older than its audit (an earlier company with the sam
   assert.equal(dropOlderDraft(db, audit), false);
 });
 
+await step('Report Studio page: every audit with its report-draft progress; a stale draft is not counted', async () => {
+  const aid = (await admin('POST', '/api/audits', { client_name: 'Draft List Ltd', sector: 'TX', site_name: 'Unit D', cluster: 'srt', fy: 'FY2027-28', title: 'Test' })).data.id;
+  const uid = db.prepare('SELECT id FROM users LIMIT 1').get().id, t = Date.now() + 1000;
+  db.prepare('INSERT INTO report_drafts (audit_id, template, created_by, created_at, updated_by, updated_at) VALUES (?, ?, ?, ?, ?, ?)').run(aid, 'walkthrough', uid, t, uid, t);
+  for (const [sid, st] of [['intro', 'accepted'], ['motors', 'pending'], ['pumps', 'rejected']])
+    db.prepare('INSERT INTO report_draft_sections (audit_id, section_id, title, blocks, ai_blocks, status, proposed_by, proposed_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').run(aid, sid, sid, '[]', '[]', st, uid, t);
+  const r = await admin('GET', '/api/report-drafts');
+  assert.equal(r.status, 200, JSON.stringify(r.data));
+  assert.match(r.data.connector_address, /^https:\/\//);
+  assert.equal(r.data.can_connect, true);
+  const mineRow = r.data.audits.find(a => a.id === aid);
+  assert.deepEqual([mineRow.sections, mineRow.accepted, mineRow.pending, mineRow.rejected, mineRow.template], [3, 1, 1, 1, 'walkthrough']);
+  assert.ok(r.data.audits.every(a => !('ai_until' in a) || a.ai_until === null || typeof a.ai_until === 'number'));
+  const anon = await fetch(base + '/api/report-drafts');
+  assert.equal(anon.status, 401);
+});
+
 server.close();
 fs.rmSync(filesDir, { recursive: true, force: true });
 console.log(`\n${passed} checks passed`);
