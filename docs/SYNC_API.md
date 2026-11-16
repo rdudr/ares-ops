@@ -20,6 +20,10 @@ Returns `token`, `user`, `must_change_pw` and the `audits` this person may work 
 the app's secure storage and send it on every call as `Authorization: Bearer <token>`.
 The token lasts 7 days.
 
+The report connector adds `"ai": true` (with `"app": "report"`). That sign-in is then held by ARES to
+audits whose AI access is on and to the routes the connector needs (`docs/REPORT_DRAFT.md`); its
+`audits` list holds only those audits. Field apps never send it.
+
 If `must_change_pw` is true, show a "set your password" screen and call
 `POST /api/device/change-password` with `{ "current": "…", "next": "…" }` before anything else.
 

@@ -10,6 +10,7 @@ import { registerConsoleRoutes } from './lib/routes-console.js';
 import { registerDeviceRoutes } from './lib/routes-device.js';
 import { registerDataRoutes } from './lib/routes-data.js';
 import { registerRecordRoutes } from './lib/routes-records.js';
+import { registerReportRoutes } from './lib/routes-report.js';
 import { handleMcp } from './lib/mcp.js';
 import { registerBillingRoutes } from './lib/routes-billing.js';
 import { registerLedgerRoutes } from './lib/routes-ledger.js';
@@ -33,10 +34,13 @@ const config = {
   // GST Billing site (see lib/routes-billing.js) and the Console address it sends people to.
   billingHost: process.env.BILLING_HOST || 'billing.arenergyservices.in',
   consoleUrl: process.env.CONSOLE_URL || 'https://ops.arenergyservices.in',
+  // The report connector on this machine (report_studio_ares), for "Print the PDF" in the Console.
+  // Both must be set, the key to the same value as the connector's RS_INTERNAL_KEY.
+  reportConnector: { url: (process.env.REPORT_CONNECTOR_URL || '').replace(/\/$/, ''), key: process.env.REPORT_CONNECTOR_KEY || '' },
 };
 
 // What the app websites (field apps, Report Studio) may call from their own address.
-const APP_API = /^\/api\/(device\/|sync$|files(\/|$)|audits\/[^/]+\/data$|ai\/(status|bill-read)$|team-cards$)/;
+const APP_API = /^\/api\/(device\/|sync$|files(\/|$)|audits\/[^/]+\/data$|audits\/[^/]+\/report-draft(\/sections\/[^/]+)?$|ai\/(status|bill-read)$|team-cards$)/;
 
 // Exact origins from APP_ORIGINS, plus any https://<name>.arenergyservices.in (where AR app web builds live).
 // Nothing deeper, and nothing that merely ends in the name.
@@ -48,13 +52,14 @@ function allowedAppOrigin(origin) {
 
 const COOKIE = config.secureCookies ? '__Host-ares' : 'ares';
 
-export function createServer(db, { filesDir = config.filesDir } = {}) {
+export function createServer(db, { filesDir = config.filesDir, reportConnector = config.reportConnector } = {}) {
   const setupCode = crypto.randomBytes(6).toString('hex').toUpperCase();
   const router = createRouter();
   registerConsoleRoutes(router, { setupCode, filesDir });
   registerDeviceRoutes(router);
   registerDataRoutes(router, { filesDir });
   registerRecordRoutes(router, { filesDir });
+  registerReportRoutes(router, { connector: reportConnector });
   registerLedgerRoutes(router);
   migrateCea(db);
   registerBillingRoutes(router, { consoleCookie: COOKIE, secureCookies: config.secureCookies, billingHost: config.billingHost, consoleUrl: config.consoleUrl });
@@ -112,7 +117,7 @@ export function createServer(db, { filesDir = config.filesDir } = {}) {
         res.setHeader('Access-Control-Allow-Origin', req.headers.origin);
         if (req.method === 'OPTIONS') {
           res.writeHead(204, {
-            'Access-Control-Allow-Methods': 'GET, POST, PUT',
+            'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE',
             'Access-Control-Allow-Headers': 'Authorization, Content-Type, X-ARES-App',
             'Access-Control-Max-Age': '600',
           });
@@ -138,6 +143,9 @@ export function createServer(db, { filesDir = config.filesDir } = {}) {
       const deviceAuth = () => {
         const a = loadSession(db, bearer, 'device');
         if (!a) throw new HttpError(401, 'Please sign in again.', 'signed_out');
+        // The AI report connector's sign-in reaches only the routes made for it (opts.ai); each of
+        // those then serves only audits whose AI access is on.
+        if (a.session.ai && !opts.ai) throw new HttpError(403, 'Not available to the AI report connector.', 'ai_session');
         return { ...a, via: 'device' };
       };
       const consoleAuth = () => {

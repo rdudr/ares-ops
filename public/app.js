@@ -2075,15 +2075,16 @@ async function auditPage(holder, id) {
       h('div', { class: 'a-main' }, h('div', { class: 'sec-h' }, h('span', { class: 'kicker' }, 'Data by app'), h('h2', {}, 'What has been collected')),
         appCards.length ? appCards : waiting.length ? null : h('div', { class: 'aempty' }, h('span', { class: 'ae-t' }, h('b', {}, 'No app has synced data for this audit yet.'),
           h('span', {}, 'Records appear here as soon as an engineer syncs from a field app.'))),
-        waiting, ledgerCard, reportCard, finalised ? null : connectorCard(a), companyCard_, history),
+        waiting, ledgerCard, reportCard, reportDraftCard(a), finalised ? null : connectorCard(a), companyCard_, history),
       h('aside', { class: 'a-side' }, stillToCollect, teamCard_, pqCard)),
     photoSec));
 }
 
-// ---------- the AI report connector, per audit (lib/mcp.js) ----------
-// Claude connects with a personal token made here for this one audit. It sees only the cleaned
-// facts sheet under a code name, never the company, people, bills or photos; its drafts come back
-// to Report Studio as suggestions for the engineer to accept or reject.
+// ---------- the AI report connector, per audit ----------
+// Claude connects through the AR Report Studio connector (its own address, sign-in with the ARES
+// login). It sees the audit's figures as ranges under a code name, never the company, people, bills
+// or photos, and saves its draft to the card above for review. (The older token connector,
+// lib/mcp.js, is retired; its screens below show only if the server switches it back on.)
 // AI access for a real company, on the audit's own page: the Super Admin turns it on for three days
 // (or more days, again from now) and off again; others see whether it is on.
 function aiAccessButton(a, finalised, reload) {
@@ -2106,7 +2107,8 @@ function connectorCard(a) {
     let d;
     try { d = await api('GET', `/api/audits/${encodeURIComponent(a.id)}/mcp`); } catch (ex) { box.replaceChildren(h('p', { class: 'err' }, ex.message)); return; }
     const superAdmin = state.me.role === 'super_admin';
-    const usable = d.enabled && (d.demo || d.ai_open || d.real_allowed);
+    const aiOn = d.demo || d.ai_open;
+    const usable = d.enabled && (aiOn || d.real_allowed);
     const live = d.tokens.filter(t => !t.revoked_at && t.expires_at > Date.now());
     const makeToken = () => {
       let made = null;
@@ -2136,21 +2138,23 @@ function connectorCard(a) {
       h('div', { class: 'cap' }, h('h2', {}, 'AI report connector'),
         h('span', { class: 'row', style: 'gap:6px' },
           d.demo ? h('span', { class: 'pill warn' }, 'Demo audit') : h('span', { class: 'pill soft' }, 'Real audit'),
-          !d.enabled ? h('span', { class: 'pill soft' }, 'Switched off')
-            : d.demo || d.real_allowed ? h('span', { class: 'pill ok' }, 'Available')
+          d.demo || (d.enabled && d.real_allowed) ? h('span', { class: 'pill ok' }, 'Available')
             : d.ai_until ? h('span', { class: 'pill ok' }, `AI access until ${fmtDay(d.ai_until)}, ${new Date(d.ai_until).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' })}`)
             : h('span', { class: 'pill soft' }, 'AI access off'))),
-      h('p', { class: 'sub' }, `Claude can read this audit's figures (as ${d.handle}, never the company's name), suggest text, recommendations and charts, and save them to Report Studio as suggestions. `,
-        'It never sees the company, address, people, phone numbers, consumer numbers, bills or photos, and nothing prints until an engineer accepts it.'),
+      d.enabled ? h('p', { class: 'sub' }, `Claude can read this audit's figures (as ${d.handle}, never the company's name), suggest text, recommendations and charts, and save them to Report Studio as suggestions. `,
+        'It never sees the company, address, people, phone numbers, consumer numbers, bills or photos, and nothing prints until an engineer accepts it.')
+        : h('p', { class: 'sub' }, 'Claude reads this audit\'s figures as ranges, under a code name, and saves its draft to "Report draft with Claude" above for review. ',
+          'It never sees the company, address, people, phone numbers, consumer numbers, bills or photos, and nothing prints as final until an Admin approves the report.'),
       h('div', { class: 'row', style: 'gap:8px;margin-bottom:12px' },
         usable && h('button', { class: 'btn cta', type: 'button', onclick: makeToken }, 'Connect Claude'),
-        superAdmin && d.enabled && !d.demo && !d.closed && h('button', { class: 'btn small', type: 'button', onclick: () => setAi(true) },
+        !d.enabled && h('button', { class: aiOn ? 'btn cta' : 'btn ghost small', type: 'button', onclick: () => showReportConnector(d.connector_address, a.id) }, 'How to connect Claude'),
+        superAdmin && !d.demo && !d.closed && h('button', { class: 'btn small', type: 'button', onclick: () => setAi(true) },
           d.ai_until ? `Extend ${d.ai_days} days` : `Allow AI for ${d.ai_days} days`),
         superAdmin && !d.demo && d.ai_until && h('button', { class: 'btn ghost small', type: 'button', onclick: () => setAi(false) }, 'Turn off AI access'),
         superAdmin && (d.demo || !d.ai_until) && h('button', { class: 'btn ghost small', type: 'button', onclick: () => setDemo(!d.demo) }, d.demo ? 'Turn off demo' : 'Mark as demo audit'),
         !usable && !superAdmin && h('span', { class: 'small muted' }, `AI access is off for this audit. The Super Admin can turn it on for ${d.ai_days} days at a time.`)),
       !d.demo && h('p', { class: 'small muted', style: 'margin:-4px 0 12px' }, `For a real company, AI access lasts ${d.ai_days} days each time it is turned on, and ends at once when the audit is finished.`),
-      live.length ? h('div', { class: 'ilist' }, live.map(t => h('div', { class: 'it' },
+      d.enabled && live.length ? h('div', { class: 'ilist' }, live.map(t => h('div', { class: 'it' },
         h('div', { class: 'main-t' }, h('b', {}, t.label || 'Token'), h('span', {}, `${t.user_name} · made ${fmtDay(t.created_at)} · ${t.last_used_at ? `last used ${ago(t.last_used_at)}` : 'not used yet'} · ends ${fmtDay(t.expires_at)}`)),
         h('button', { class: 'btn small danger', type: 'button', onclick: () => revoke(t) }, 'Revoke')))) : null,
       d.log.length ? h('details', { style: 'margin-top:12px' }, h('summary', { class: 'small', style: 'cursor:pointer;font-weight:600' }, `What Claude asked for (${d.log.length} latest)`),
@@ -2160,6 +2164,26 @@ function connectorCard(a) {
   };
   load();
   return box;
+}
+
+// How a person adds the AR Report Studio connector in Claude. No token: they sign in with their ARES login.
+function showReportConnector(address, auditId) {
+  const dlg = h('dialog', {},
+    h('div', { class: 'body' },
+      h('h2', {}, 'Connect Claude to AR Report Studio'),
+      h('p', { class: 'muted small' }, 'One connection covers every audit you are on whose AI access is on. You do this once.'),
+      h('label', { class: 'f', style: 'margin-top:14px' }, 'Connector address', h('div', { class: 'secret' }, address)),
+      h('ol', { class: 'gsteps', style: 'margin-top:16px;font-size:14px' },
+        h('li', {}, 'In Claude: Settings › Connectors › Add custom connector.'),
+        h('li', {}, 'Name it "AR Report Studio" and paste the connector address.'),
+        h('li', {}, 'Claude opens the AR sign-in page. Sign in with your ARES Login ID and password, then choose Allow.'),
+        h('li', {}, `In a new chat, switch the connector on and ask, for example: "Draft the walkthrough report for ${auditId}."`),
+        h('li', {}, 'Come back to this page: the draft is under "Report draft with Claude". Accept, edit or reject each section.')),
+      h('div', { class: 'foot' },
+        h('button', { class: 'btn ghost', type: 'button', onclick: async () => { try { await navigator.clipboard.writeText(address); toast('Address copied'); } catch { toast('Copy not allowed here: select the text instead'); } } }, 'Copy address'),
+        h('button', { class: 'btn', type: 'button', onclick: () => { dlg.close(); dlg.remove(); } }, 'Done'))));
+  document.body.append(dlg);
+  dlg.showModal();
 }
 
 // The token, shown once, and how to add the connector in Claude.
@@ -2183,6 +2207,175 @@ function showConnector(made) {
         h('button', { class: 'btn', type: 'button', onclick: () => { dlg.close(); dlg.remove(); } }, 'Done'))));
   document.body.append(dlg);
   dlg.showModal();
+}
+
+// ---------- the report draft written with Claude, and its review (lib/routes-report.js) ----------
+// Claude's draft arrives here section by section. A person accepts, edits or rejects each one; an
+// Admin approves the report by moving the audit to Approved; only then does the final PDF print.
+// Figures are references ([[F.id]]) in the text and are shown here as the values that will print.
+const DRAFT_STATUS = { pending: ['warn', 'To review'], accepted: ['ok', 'Accepted'], rejected: ['bad', 'Rejected'] };
+const DRAFT_REF = /\[\[\s*([^\]]+?)\s*\]\]/g;
+
+function draftText(text, ctx) {
+  const t = String(text || ''), out = [];
+  let last = 0;
+  for (const m of t.matchAll(DRAFT_REF)) {
+    if (m.index > last) out.push(t.slice(last, m.index));
+    const ref = m[1];
+    if (ref === 'COMPANY') out.push(h('b', {}, ctx.company || 'the company'));
+    else if (ref === 'SITE') out.push(h('b', {}, ctx.site || 'the site'));
+    else {
+      const f = ref.startsWith('F.') ? (ctx.facts || {})[ref.slice(2)] : null;
+      out.push(f ? h('span', { class: 'rd-fig', title: `${f.label} (${ref})` }, f.display)
+        : h('span', { class: 'rd-fig bad', title: 'Not a figure of this audit' }, `[[${ref}]]`));
+    }
+    last = m.index + m[0].length;
+  }
+  if (last < t.length) out.push(t.slice(last));
+  return out;
+}
+
+function draftBlock(b, ctx) {
+  const slot = (kind, item, id, sub) => h('div', { class: 'rd-slot' }, icon('doc'),
+    h('span', {}, h('b', {}, `${kind}: ${item ? item.title : id}`), h('span', {}, item ? sub : 'No longer in this audit')));
+  const fact = ref => { const f = ref && (ctx.facts || {})[ref.slice(2)]; return f ? f.display : null; };
+  switch (b.type) {
+    case 'text': return b.text.split(/\n\s*\n/).filter(x => x.trim()).map(x => h('p', {}, draftText(x.trim(), ctx)));
+    case 'list': return h(b.ordered ? 'ol' : 'ul', { class: 'rd-list' }, b.items.map(i => h('li', {}, draftText(i, ctx))));
+    case 'table': { const t = (ctx.tables || {})[b.id]; return slot('Table', t, b.id, t && `${t.rows} rows, printed from the audit's own data`); }
+    case 'charts': return b.ids.map(id => slot('Chart', (ctx.charts || {})[id], id, 'Drawn from the logged data'));
+    case 'photos': return h('div', { class: 'rd-photos' }, b.ids.map(id => {
+      const ph = (ctx.photos || {})[id];
+      return h('figure', {}, ph && ph.file_id ? h('img', { src: `/api/files/${ph.file_id}`, alt: ph.caption || 'Photo', loading: 'lazy' }) : h('div', { class: 'rd-nophoto' }, 'Photo'),
+        h('figcaption', {}, ph ? [ph.kind === 'thermal' ? 'Thermal · ' : '', ph.caption] : `${id}: no longer in this audit`));
+    }));
+    case 'recommendations': return b.items.map((r, i) => h('div', { class: `rd-reco${r.dropped ? ' dropped' : ''}` },
+      h('div', { class: 'rd-reco-h' }, h('b', {}, `${i + 1}. `, draftText(r.title, ctx)), r.dropped ? h('span', { class: 'pill soft' }, 'Left out of the report') : null),
+      r.observation ? h('p', {}, h('span', { class: 'muted' }, 'Observation: '), draftText(r.observation, ctx)) : null,
+      r.measure ? h('p', {}, h('span', { class: 'muted' }, 'Measure: '), draftText(r.measure, ctx)) : null,
+      h('p', { class: 'small muted' }, [r.term && `${r.term === 'short' ? 'Short' : 'Long'} term`, `Saving ${fact(r.saving) || '—'}`, `Investment ${fact(r.investment) || '—'}`, `Payback ${fact(r.payback) || '—'}`].filter(Boolean).join(' · '))));
+    default: return null;
+  }
+}
+
+// The words of a section in boxes; tables, charts and photos stay as they are. Saving accepts the section.
+function editDraftSection(url, sec, ctx, done) {
+  const boxes = [];
+  const area = (value, rows) => h('textarea', { rows, spellcheck: 'true', value });
+  const dlg = openDialog(`Edit: ${sec.title}`, f => {
+    f.append(h('p', { class: 'muted small' }, 'Figures are written as [[F.…]] and are filled in from the audit\'s data when the report prints. Leave them as they are, or move them with their brackets. A number typed here prints exactly as typed.'));
+    sec.blocks.forEach((b, i) => {
+      if (b.type === 'text') { const t = area(b.text, Math.min(14, 3 + Math.ceil(b.text.length / 90))); boxes.push(() => ({ type: 'text', text: t.value })); f.append(field('Text', t)); }
+      else if (b.type === 'list') {
+        const t = area(b.items.join('\n'), Math.min(12, b.items.length + 2));
+        boxes.push(() => ({ ...b, items: t.value.split('\n').map(x => x.trim()).filter(Boolean) }));
+        f.append(field('List, one item on each line', t));
+      } else if (b.type === 'recommendations') {
+        const rows = b.items.map((r, n) => {
+          const title = h('input', { type: 'text', value: r.title, maxlength: 300 }), obs = area(r.observation || '', 3), mea = area(r.measure || '', 3);
+          const drop = h('input', { type: 'checkbox', checked: !!r.dropped });
+          f.append(h('fieldset', { class: 'rd-edit-reco' }, h('legend', {}, `Recommendation ${n + 1}`), field('Title', title), field('Observation', obs), field('Measure', mea),
+            h('label', { class: 'rd-check' }, drop, 'Leave this recommendation out of the report')));
+          return () => ({ ...r, title: title.value, observation: obs.value, measure: mea.value, dropped: drop.checked });
+        });
+        boxes.push(() => ({ ...b, items: rows.map(r => r()) }));
+      } else {
+        boxes.push(() => b);
+        f.append(h('div', { class: 'rd-edit-fixed' }, draftBlock(b, ctx)));
+      }
+    });
+  }, async () => {
+    await api('POST', `${url}/sections/${encodeURIComponent(sec.id)}`, { action: 'edit', revision: sec.revision, blocks: boxes.map(b => b()) });
+    toast('Saved and accepted');
+    done();
+  }, { submitLabel: 'Save and accept' });
+  dlg.classList.add('wide');
+}
+
+function reportDraftCard(a) {
+  const box = h('section', { class: 'acard rd', 'aria-labelledby': 'h-rd' }, h('p', { class: 'muted small' }, 'Loading the report draft…'));
+  const url = `/api/audits/${encodeURIComponent(a.id)}/report-draft`;
+  const openIds = new Set();
+  const head = (sub, ...acts) => h('div', { class: 'ac-head' }, h('span', { class: 'ac-ic', 'aria-hidden': 'true' }, appSym('report')),
+    h('span', { class: 'ac-nm' }, h('h3', { id: 'h-rd' }, 'Report draft with Claude'), h('span', {}, sub)), h('span', { class: 'ac-acts' }, acts));
+  const load = async () => {
+    let d;
+    try { d = await api('GET', url); } catch (ex) { box.replaceChildren(h('p', { class: 'err' }, ex.message)); return; }
+    const dr = d.draft;
+    if (!dr) {
+      box.replaceChildren(head('No draft yet'),
+        h('p', { class: 'small muted rd-lead' }, d.audit.ai_access
+          ? `Ask Claude, with the AR Report Studio connector on: "Draft the report for ${a.id}". The draft is saved here, section by section, for you to accept, edit or reject. Nothing prints as final until an Admin approves it.`
+          : 'Claude can draft the report once AI access is on for this audit (the Super Admin turns it on above). The draft is then saved here for review.'));
+      return;
+    }
+    const ctx = dr.context || {}, n = dr.sections.length, c = dr.counts;
+    const act = async (sec, body, done) => {
+      try { await api('POST', `${url}/sections/${encodeURIComponent(sec.id)}`, { revision: sec.revision, ...body }); toast(done); }
+      catch (ex) { toast(ex.message); }
+      load();
+    };
+    const reject = sec => openDialog(`Reject: ${sec.title}`, f => f.append(
+      field('What is wrong?', h('textarea', { name: 'comment', rows: 4, required: true, maxlength: 1000 }), 'Claude reads this when it is asked to revise the section. Do not write the company\'s or a person\'s name here.')),
+      async f => { await api('POST', `${url}/sections/${encodeURIComponent(sec.id)}`, { action: 'reject', revision: sec.revision, comment: val(f, 'comment') }); toast('Section rejected'); load(); },
+      { submitLabel: 'Reject section' });
+    const print = async e => {
+      const btn = e.currentTarget, label = btn.textContent;
+      btn.disabled = true; btn.textContent = 'Printing…';
+      try {
+        const r = await api('POST', `${url}/print`);
+        toast(r.final ? `Final report printed${r.pages ? `, ${r.pages} pages` : ''}` : `Draft printed${r.pages ? `, ${r.pages} pages` : ''}`);
+      } catch (ex) { toast(ex.message); }
+      btn.disabled = false; btn.textContent = label;
+      load();
+    };
+    const discard = async () => {
+      if (!confirm('Discard the whole draft? Every section, accepted or not, is removed. This cannot be undone.')) return;
+      try { await api('DELETE', url); toast('Draft discarded'); } catch (ex) { toast(ex.message); }
+      load();
+    };
+    const guide = dr.final_ok ? ['ok', 'Approved. The final report prints from this text. To change a word, send the audit back to Review first.']
+      : d.audit.stage === 'approved' ? ['warn', `The audit is Approved, but ${c.pending + c.rejected} section${c.pending + c.rejected === 1 ? ' is' : 's are'} not accepted, so only a DRAFT prints. Send the audit back to Review to finish.`]
+      : n && c.accepted === n ? ['ok', 'Every section is accepted. An Admin now approves the report by moving this audit to Approved; then the final PDF prints.']
+      : ['soft', 'Accept, edit or reject each section. Until an Admin approves the report, every PDF is stamped DRAFT.'];
+    const sections = dr.sections.map(sec => {
+      const [tone, label] = DRAFT_STATUS[sec.status];
+      const canEdit = d.can.review && !dr.frozen;
+      const det = h('details', { class: 'rd-sec', open: openIds.has(sec.id), ontoggle: e => { if (e.currentTarget.open) openIds.add(sec.id); else openIds.delete(sec.id); } },
+        h('summary', {}, h('span', { class: 'rd-t' }, sec.title), sec.edited ? h('span', { class: 'pill soft' }, 'Edited') : null, h('span', { class: `pill ${tone}` }, label)),
+        h('div', { class: 'rd-body' },
+          sec.status === 'rejected' && sec.comment ? h('p', { class: 'rd-why' }, h('b', {}, `Rejected${sec.reviewed_by_name ? ` by ${sec.reviewed_by_name}` : ''}: `), sec.comment,
+            h('span', { class: 'small' }, 'Ask Claude to "revise the rejected sections", or edit it here.')) : null,
+          sec.blocks.map(b => draftBlock(b, ctx)),
+          h('p', { class: 'small muted' }, [`Written with Claude by ${sec.proposed_by_name || 'the team'} ${ago(sec.proposed_at)}`, sec.revision > 1 && `version ${sec.revision}`,
+            sec.reviewed_at && sec.status !== 'pending' && `${sec.status} by ${sec.reviewed_by_name || 'the team'} ${ago(sec.reviewed_at)}`].filter(Boolean).join(' · ')),
+          canEdit ? h('div', { class: 'rd-acts' },
+            sec.status !== 'accepted' ? h('button', { type: 'button', class: 'btn small', onclick: () => act(sec, { action: 'accept' }, 'Section accepted') }, 'Accept') : null,
+            h('button', { type: 'button', class: 'obtn sm', onclick: () => editDraftSection(url, sec, ctx, load) }, 'Edit'),
+            sec.status !== 'rejected' ? h('button', { type: 'button', class: 'obtn sm bad', onclick: () => reject(sec) }, 'Reject') : null,
+            sec.status === 'accepted' ? h('button', { type: 'button', class: 'obtn sm', title: 'Lets Claude rewrite it, or you look at it again', onclick: () => act(sec, { action: 'reopen' }, 'Open for review again') }, 'Review again') : null) : null));
+      return det;
+    });
+    const hl = (dr.settings.highlights || []).map(x => { const f = (ctx.facts || {})[x.fact.slice(2)]; return `${x.label}: ${f ? f.display : x.fact}`; });
+    box.replaceChildren(...[
+      head(`${dr.template === 'detailed' ? 'Detailed report' : 'Walkthrough report'} · ${c.accepted} of ${n} sections accepted · changed ${ago(dr.updated_at)}${dr.updated_by_name ? ` by ${dr.updated_by_name}` : ''}`,
+        dr.pdf ? h('a', { class: 'obtn sm', href: dr.pdf.url, target: '_blank', rel: 'noopener' }, dr.pdf.final ? 'Open the final PDF' : `Open the draft PDF (${fmtDay(dr.pdf.at)})`) : null,
+        d.can.print ? h('button', { type: 'button', class: `obtn sm${dr.final_ok ? ' dark' : ''}`, onclick: print }, dr.final_ok ? 'Print the final PDF' : 'Print a draft PDF') : null),
+      h('div', { class: 'chips ac-chips' },
+        c.pending ? h('span', { class: 'pill warn' }, `${c.pending} to review`) : null,
+        c.accepted ? h('span', { class: 'pill ok' }, `${c.accepted} accepted`) : null,
+        c.rejected ? h('span', { class: 'pill bad' }, `${c.rejected} rejected`) : null,
+        dr.note ? h('span', { class: 'pill soft' }, dr.note) : null),
+      h('p', { class: `rd-guide ${guide[0]}` }, guide[1]),
+      dr.pdf && dr.pdf.note ? h('p', { class: 'note' }, dr.pdf.note) : null,
+      !d.can.print ? h('p', { class: 'small muted' }, 'To get the PDF, ask Claude: "Print the report". It is stored here, with the audit\'s files.') : null,
+      hl.length ? h('p', { class: 'small' }, h('span', { class: 'muted' }, 'On the cover: '), hl.join(' · ')) : null,
+      h('div', { class: 'rd-secs' }, sections),
+      d.can.discard && !dr.frozen ? h('div', { class: 'rd-foot' }, h('button', { type: 'button', class: 'obtn sm', onclick: discard }, 'Discard this draft')) : null,
+    ].filter(x => x != null && x !== false));
+  };
+  load();
+  return box;
 }
 
 // ---------- tasks ----------

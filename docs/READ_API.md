@@ -26,7 +26,8 @@ are assigned to. Anything else returns 404.
   "schema": "ares.audit-data/v0",
   "generated_at": 1792653650000,
   "audit": {
-    "id": "AU-2627-0001", "title": "Detailed energy audit", "fy": "FY2026-27", "status": "in_field", "synthetic": false,
+    "id": "AU-2627-0001", "title": "Detailed energy audit", "fy": "FY2026-27", "status": "in_field", "stage": "processing",
+    "work_type": "walkthrough", "synthetic": false, "ai_access": false,
     "industry_tag": "TX-SRT-001", "sector": "TX", "cluster": "SRT", "site_name": "Unit 1",
     "client_name": "only for managers"
   },
@@ -51,14 +52,14 @@ are assigned to. Anything else returns 404.
 }
 ```
 
+- With the report connector's AI sign-in the call answers `403 ai_access_off` unless the audit's AI
+  access is on, and the response adds `sensitive`: what the connector must mask (`lib/ai-terms.js`,
+  `docs/REPORT_DRAFT.md`).
 - Records are sorted by app, kind, tag and time. `payload` is exactly what the app synced.
 - Fetch a file's bytes with `GET <url>` using the same sign-in.
 - For column-style access inside the database (dashboard queries), see the per-app views in
   `lib/views.sql`.
 
-## Storing AI drafts and chat sessions (proposal)
+## AI drafts
 
-Save them as ordinary records through `POST /api/sync` with a `report` token: `app: "report"`,
-`kind: "draft"` or `kind: "chat"`, `audit_id` set, and the content in `payload`. They then get
-versions, conflict handling, permissions and the activity log for free, and come back through this
-read API under `apps.report`. To be confirmed with the AI side.
+The report draft written with Claude has its own routes and review: `docs/REPORT_DRAFT.md`.
