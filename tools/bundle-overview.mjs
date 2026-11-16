@@ -6,7 +6,7 @@
 //   AR_APPS=/path/to/"AR Apps" node tools/bundle-overview.mjs
 //
 // Run it whenever an app changes its calculations, then commit public/overview.js.
-// Each app folder must be on its `oracle` branch.
+// Each app folder must be on its `main` branch (or `kit-v2` while a port is being checked).
 import { build } from "esbuild";
 import fs from "node:fs";
 import path from "node:path";
@@ -33,7 +33,7 @@ for (const [code, dir] of Object.entries(APPS)) {
   if (!fs.existsSync(dir)) throw new Error(`${code}: app folder not found at ${dir}`);
   const git = (cmd) => execSync(`git ${cmd}`, { cwd: dir }).toString().trim();
   const branch = git("branch --show-current");
-  if (branch !== "oracle") throw new Error(`${code}: ${dir} is on "${branch}", not "oracle"`);
+  if (!["main", "kit-v2"].includes(branch)) throw new Error(`${code}: ${dir} is on "${branch}", not "main"`);
   version.push(`${code}@${git("rev-parse --short HEAD")}`);
 }
 
