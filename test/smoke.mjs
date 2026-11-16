@@ -776,6 +776,13 @@ await step('signing out of an app ends that app pass at once', async () => {
   assert.equal((await c('GET', '/api/device/me')).status, 401);
 });
 
+await step('the old /mcp connector is retired: it answers 410 and points to the new address', async () => {
+  const r = await fetch(base + '/mcp', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize', params: {} }) });
+  assert.equal(r.status, 410);
+  assert.match((await r.json()).error, /mcp\.arenergyservices\.in/);
+  process.env.MCP_CONNECTOR = 'on'; // the next two steps test it as it was, switched back on
+});
+
 await step('AI connector: demo audits only, a personal token, and the privacy guard', async () => {
   // A demo audit with a facts sheet (as Report Studio saves it), where one equipment label carries the company name.
   const demo = await admin('POST', '/api/audits', { client_name: 'Navrang Dyeing Works', sector: 'TX', site_name: 'Sachin Unit', district: 'Surat', state: 'Gujarat', fy: 'FY2026-27', title: 'Detailed energy audit' });
@@ -1246,6 +1253,115 @@ await step('a record bounced between two copies of an app is refused after 15 sa
   const refused = got.find(x => x.status === 'refused');
   assert.ok(refused && /too often/.test(refused.reason), JSON.stringify(got.map(x => x.status)));
   assert.ok(db.prepare('SELECT version FROM records WHERE id = ?').get(id).version <= 16);
+});
+
+await step('report draft: the AI connector saves it, people review it, only an approved report prints as final', async () => {
+  const aid = (await admin('POST', '/api/audits', { client_name: 'Kiran Polyfab Pvt. Ltd.', sector: 'TX', site_name: 'Pandesara Unit', district: 'Surat', state: 'Gujarat',
+    pincode: '394221', fy: 'FY2026-27', title: 'Walkthrough energy audit', work_type: 'walkthrough' })).data.id;
+  const aiLogin = async app => { const r = await fetch(base + '/api/device/login', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ login_id: 'axita', password: ADMIN_PW, app, device_id: 'report-studio', ai: true }) }); return { status: r.status, data: await r.json() }; };
+  assert.equal((await aiLogin('air')).status, 400, 'only the report connector signs in as AI');
+  const signin = await aiLogin('report');
+  assert.equal(signin.status, 200);
+  const ai = appClient(signin.data.token);
+  const draftUrl = `/api/audits/${aid}/report-draft`;
+
+  // The AI sign-in is held to audits whose AI access is on, by ARES itself.
+  assert.deepEqual(signin.data.audits.filter(a => !a.ai_access), [], 'told only of open audits');
+  assert.ok(!(await ai('GET', '/api/device/me')).data.audits.some(a => a.id === aid));
+  const closed = await ai('GET', `/api/audits/${aid}/data`);
+  assert.equal(closed.status, 403); assert.equal(closed.data.code, 'ai_access_off');
+  assert.equal((await ai('GET', draftUrl)).status, 403);
+  assert.equal((await ai('POST', '/api/sync', { records: [] })).data.code, 'ai_session', 'no field data through the AI sign-in');
+  assert.equal((await ai('GET', '/api/device/audit-profile?audit_id=' + aid)).status, 403);
+  assert.equal((await admin('POST', `/api/audits/${aid}/ai-access`, { on: true })).status, 200);
+  assert.ok((await ai('GET', '/api/device/me')).data.audits.some(a => a.id === aid && a.stage === 'setup'));
+  const data = (await ai('GET', `/api/audits/${aid}/data`)).data;
+  assert.ok(data.sensitive.company.includes('Kiran Polyfab Pvt. Ltd.'));
+  assert.ok(data.sensitive.words.includes('kiran') && data.sensitive.words.includes('polyfab') && !data.sensitive.words.includes('unit'));
+  assert.ok(data.sensitive.ids.includes('394221') && data.sensitive.people.some(n => /axita/i.test(n)));
+  const human = appClient((await appLogin('axita', ADMIN_PW, 'report')).data.token);
+  assert.equal((await human('GET', `/api/audits/${aid}/data`)).data.sensitive, undefined, 'only the AI sign-in gets the mask list');
+
+  // Saving: references must exist, the AI cannot review its own text.
+  const context = { company: 'Kiran Polyfab Pvt. Ltd.', site: 'Pandesara Unit', facts: { 'main.pf.avg': { label: 'Average power factor', display: '0.93' }, 'bills.kwh': { label: 'Units', display: '1,20,000 kWh' } },
+    tables: { 'T.motors': { title: 'Motors', rows: 4 } }, charts: {}, photos: {} };
+  const sec = (id, text) => ({ id, title: id, blocks: [{ type: 'text', text }] });
+  assert.equal((await human('PUT', draftUrl, { template: 'walkthrough', context, sections: [sec('summary', 'x')] })).status, 403, 'a person\'s sign-in does not save AI drafts');
+  assert.equal((await ai('PUT', draftUrl, { template: 'walkthrough', context, sections: [sec('summary', 'PF is [[F.nope]].')] })).status, 400, 'unknown figure');
+  assert.equal((await ai('PUT', draftUrl, { template: 'walkthrough', context, sections: [{ id: 'summary', blocks: [{ type: 'script', text: 'x' }] }] })).status, 400, 'unknown block');
+  const saved = await ai('PUT', draftUrl, { template: 'walkthrough', context, note: 'First pass', settings: { cover: 'geda', highlights: [{ fact: 'F.bills.kwh', label: 'Units a year' }] },
+    sections: [sec('summary', 'Power factor at [[COMPANY]] is [[F.main.pf.avg]].'), sec('utilities', 'Units are [[F.bills.kwh]].'),
+      { id: 'measures', title: 'Measures', blocks: [{ type: 'table', id: 'T.motors' }, { type: 'recommendations', items: [{ title: 'Fix PF', observation: 'Low', measure: 'APFC', term: 'short', saving: null }, { title: 'Second', observation: '', measure: '' }] }] }] });
+  assert.equal(saved.status, 200); assert.deepEqual(saved.data.saved, ['summary', 'utilities', 'measures']);
+  assert.deepEqual(saved.data.draft.counts, { pending: 3, accepted: 0, rejected: 0 });
+  const secUrl = id => `${draftUrl}/sections/${id}`;
+  assert.equal((await ai('POST', secUrl('summary'), { action: 'accept' })).status, 403, 'the AI never accepts');
+  assert.equal((await ai('DELETE', draftUrl)).status, 403);
+
+  // People review on the audit's page (the Console here; the same calls work from Report Studio).
+  assert.equal((await admin('POST', secUrl('summary'), { action: 'accept' })).status, 200);
+  assert.equal((await admin('POST', secUrl('utilities'), { action: 'reject' })).status, 400, 'a rejection says why');
+  assert.equal((await admin('POST', secUrl('utilities'), { action: 'reject', comment: 'Give the months covered' })).status, 200);
+  const edit = blocks => admin('POST', secUrl('measures'), { action: 'edit', blocks });
+  assert.equal((await edit([{ type: 'text', text: 'See [[F.made.up]]' }])).status, 400, 'an edit cannot point at a figure that is not there');
+  const edited = await edit([{ type: 'table', id: 'T.motors' }, { type: 'recommendations', items: [{ title: 'Improve the power factor', observation: 'It is [[F.main.pf.avg]].', measure: 'Service the APFC panel', term: 'short' }, { title: 'Second', dropped: true }] }]);
+  assert.equal(edited.status, 200);
+  let d = (await admin('GET', draftUrl)).data;
+  assert.deepEqual(d.draft.counts, { pending: 0, accepted: 2, rejected: 1 });
+  const m = d.draft.sections.find(x => x.id === 'measures');
+  assert.ok(m.edited && m.ai_blocks[1].items[0].title === 'Fix PF' && m.blocks[1].items[1].dropped, 'the edit, what the AI wrote, and the dropped recommendation are all kept');
+  assert.equal(d.can.review, true); assert.equal(d.draft.final_ok, false);
+  assert.equal((await ai('GET', draftUrl)).data.draft.sections.find(x => x.id === 'utilities').comment, 'Give the months covered', 'the AI reads why, to revise');
+
+  // The AI revises what was rejected; accepted text is not its to change.
+  const again = await ai('PUT', draftUrl, { template: 'walkthrough', context, sections: [sec('summary', 'Rewritten.'), sec('utilities', 'Units over the year are [[F.bills.kwh]].')] });
+  assert.deepEqual(again.data.saved, ['utilities']); assert.deepEqual(again.data.kept, ['summary']);
+  assert.equal((await ai('PUT', draftUrl, { template: 'detailed', context, sections: [sec('summary', 'x')] })).status, 409, 'another kind of report needs the draft discarded first');
+  assert.equal((await admin('POST', secUrl('utilities'), { action: 'accept', revision: 1 })).status, 409, 'a stale page is told');
+  assert.equal((await admin('POST', secUrl('utilities'), { action: 'accept', revision: 2 })).status, 200);
+
+  // A PDF: stored with the audit by the connector. "Final" only once an Admin has approved.
+  const pdf = Buffer.from('%PDF-1.4\n% test\n');
+  const store = async (bytes, kind = 'scan', mime = 'application/pdf') => {
+    const id = crypto.randomUUID();
+    const r = await ai('POST', '/api/files', { id, audit_id: aid, kind, mime, size: bytes.length, sha256: sha(bytes), caption: 'Draft report', name: 'draft.pdf' });
+    if (r.status === 200) await putChunk(signin.data.token, id, 0, bytes);
+    return { id, status: r.status };
+  };
+  assert.equal((await store(PNG, 'photo', 'image/png')).status, 403, 'the AI sign-in stores report PDFs only');
+  const f1 = await store(pdf);
+  assert.equal((await ai('POST', `${draftUrl}/pdf`, { file_id: f1.id, final: true, pages: 3 })).data.code, 'not_approved');
+  assert.equal((await ai('POST', `${draftUrl}/pdf`, { file_id: f1.id, final: false, pages: 3 })).status, 200);
+  assert.equal((await admin('GET', draftUrl)).data.draft.pdf.final, false);
+  assert.equal((await admin('POST', `${draftUrl}/print`)).status, 503, 'Console printing needs the connector set up');
+
+  assert.equal((await admin('POST', `/api/audits/${aid}/stage`, { to: 'review' })).status, 200);
+  assert.equal((await admin('GET', draftUrl)).data.draft.final_ok, false, 'in Review: not approved yet');
+  assert.equal((await admin('POST', `/api/audits/${aid}/stage`, { to: 'approved' })).status, 200);
+  d = (await ai('GET', draftUrl)).data;
+  assert.equal(d.draft.final_ok, true); assert.equal(d.draft.frozen, true);
+  assert.equal((await ai('PUT', draftUrl, { template: 'walkthrough', context, sections: [sec('utilities', 'Changed after approval.')] })).data.code, 'report_approved');
+  assert.equal((await admin('POST', secUrl('summary'), { action: 'reopen' })).data.code, 'report_approved');
+  const f2 = await store(Buffer.from('%PDF-1.4\n% final\n'));
+  assert.equal((await ai('POST', `${draftUrl}/pdf`, { file_id: f2.id, final: true, pages: 4 })).status, 200);
+
+  // Every tool call of the connector is on the audit's page, with the older connector's calls.
+  assert.equal((await human('POST', '/api/ai/log', { audit_id: aid, tool: 'get_facts', bytes: 10 })).status, 403);
+  assert.equal((await ai('POST', '/api/ai/log', { audit_id: aid, tool: 'get_facts', bytes: 2048, sha256: sha(pdf), ok: true })).status, 200);
+  assert.equal((await ai('POST', '/api/ai/log', { audit_id: aid, tool: 'get_photos', bytes: 0, blocked: true, ok: false })).status, 200);
+  const log = (await admin('GET', `/api/audits/${aid}/mcp`)).data;
+  assert.ok(log.log.some(l => l.tool === 'get_facts' && l.bytes === 2048) && log.log.some(l => l.blocked));
+  assert.match(log.connector_address, /^https:\/\/mcp\./);
+
+  // Publish attaches the approved report by itself, and closes the audit to the AI.
+  assert.equal((await admin('POST', `/api/audits/${aid}/stage`, { to: 'published' })).status, 200);
+  assert.equal(db.prepare('SELECT report_file_id FROM audits WHERE id = ?').get(aid).report_file_id, f2.id);
+  assert.equal((await ai('GET', `/api/audits/${aid}/data`)).status, 403, 'a published audit is closed to the AI');
+  const acts = db.prepare("SELECT action FROM activity WHERE target = ? AND action LIKE 'report.%'").all(aid).map(r => r.action);
+  for (const a of ['report.draft_saved', 'report.section_accepted', 'report.section_rejected', 'report.section_edited', 'report.draft_printed', 'report.final_printed'])
+    assert.ok(acts.includes(a), `${a} is in the activity log`);
+  assert.ok(db.prepare("SELECT 1 FROM activity WHERE action = 'login.ai_connector'").get(), 'the AI sign-in is logged as such');
 });
 
 server.close();

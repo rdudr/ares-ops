@@ -105,7 +105,11 @@ only when merged into `main`.
 Add an A record `mcp` pointing at the server, as for `ops` and `api`. Caddy gets the certificate once it
 resolves. The connector is a separate repo (`report_studio_ares`), installed with its own
 `deploy/deploy-ar.sh`: service `report-studio` on `127.0.0.1:8790`, data in `/var/lib/report-studio`.
-Until the conditions in `PostMan_MCP_Proposal.md` §7 are met it serves only audits marked demo.
+It serves demo audits and real audits while their AI access is on; ARES enforces the same on its side.
+Drafts come back to the audit's page for review (`docs/REPORT_DRAFT.md`). For the Console's "Print"
+button, set `REPORT_CONNECTOR_URL=http://127.0.0.1:8790` and `REPORT_CONNECTOR_KEY` here, and the same
+key as `RS_INTERNAL_KEY` in the connector's `/etc/report-studio/internal.env`; without them the button
+is hidden. The older `/mcp` connector answers 410 unless `MCP_CONNECTOR=on`.
 
 ## GST Billing (billing.arenergyservices.in)
 

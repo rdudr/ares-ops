@@ -1552,3 +1552,43 @@ button.ah-zip{background:none;cursor:pointer}
 
 /* Energy Ledger: the tariff order's rates, folded under the connection (from the KISEM console update) */
 .lg-rates{margin-top:12px}.lg-rates summary{cursor:pointer;font-weight:600}.lg-rates .list{margin-top:8px}
+
+/* Report draft with Claude: review on the audit page (lib/routes-report.js) */
+.rd .rd-lead{margin-top:12px;max-width:74ch}
+.rd-guide{margin-top:12px;border-radius:12px;padding:10px 14px;font-size:13.5px;background:var(--fill);color:var(--label)}
+.rd-guide.ok{background:var(--green-tint)}.rd-guide.warn{background:var(--orange-tint)}
+.rd-secs{margin-top:10px}
+.rd-sec{border-top:1px solid var(--sep-2)}
+.rd-sec summary{display:flex;align-items:center;gap:8px;min-height:52px;padding:8px 0;cursor:pointer;font-weight:600;font-size:15px}
+.rd-sec summary .rd-t{flex:1;min-width:0}
+.rd-sec summary:focus-visible{outline:2px solid var(--olive-2);outline-offset:2px;border-radius:8px}
+.rd-body{padding:2px 0 16px;font-size:14.5px;line-height:1.6;max-width:78ch}
+.rd-body p{margin:0 0 10px}
+.rd-list{margin:0 0 10px;padding-left:22px}
+.rd-fig{background:var(--green-tint);border-radius:6px;padding:1px 5px;font-variant-numeric:tabular-nums;white-space:nowrap;cursor:help}
+.rd-fig.bad{background:var(--red-tint);color:var(--red)}
+.rd-slot{display:flex;gap:10px;align-items:center;background:var(--fill);border-radius:12px;padding:9px 12px;margin:0 0 10px;font-size:13.5px}
+.rd-slot svg{width:18px;height:18px;flex:none}
+.rd-slot > span{display:grid}.rd-slot > span > span{color:var(--label-2);font-size:13px}
+.rd-photos{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;margin:0 0 10px}
+.rd-photos figure{margin:0}
+.rd-photos img,.rd-nophoto{display:block;width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:10px;background:var(--fill)}
+.rd-nophoto{display:grid;place-items:center;color:var(--label-2);font-size:13px}
+.rd-photos figcaption{font-size:12.5px;color:var(--label-2);margin-top:4px}
+.rd-reco{border:1px solid var(--sep);border-radius:14px;padding:12px 14px;margin:0 0 10px}
+.rd-reco.dropped{opacity:.55}
+.rd-reco-h{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:6px}
+.rd-reco p:last-child{margin-bottom:0}
+.rd-why{background:var(--red-tint);border-radius:12px;padding:10px 14px}
+.rd-acts{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.rd-foot{display:flex;justify-content:flex-end;border-top:1px solid var(--sep-2);padding-top:14px;margin-top:4px}
+dialog.wide{width:min(860px,94vw)}
+dialog.wide textarea{width:100%;resize:vertical;line-height:1.5}
+.rd-edit-reco{border:1px solid var(--sep);border-radius:14px;padding:12px 14px;margin-top:14px}
+.rd-edit-reco legend{font-weight:600;font-size:13px;padding:0 6px}
+.rd-edit-fixed{margin-top:14px}
+.rd-check{display:flex;gap:8px;align-items:center;margin-top:12px;font-size:13.5px;min-height:32px}
+.rd .ac-head{flex-wrap:wrap}
+.rd .ac-nm{flex:1 1 200px}
+.rd-why .small{display:block;margin-top:4px}
+@media (max-width: 640px){ .rd .ac-acts{flex-basis:100%;margin-left:0} .rd .ac-acts > *{flex:1 1 auto;text-align:center} }
