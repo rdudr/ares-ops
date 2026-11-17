@@ -5,7 +5,8 @@
 #   bash deploy/ci/install.sh ar ~/.ssh/ares_ci_ops.pub                          # key for ares-ops
 #   bash deploy/ci/install.sh ar ~/.ssh/ares_ci_ops.pub ~/.ssh/ares_ci_field.pub # and for the field apps
 #
-# The ops key may deploy ARES (code only) and the Console preview; the field key only a field web app.
+# The ops key may deploy ARES (code only), the Console preview and field web apps; the field key only a
+# field web app.
 # Neither gets a shell: the key's forced command runs /usr/local/sbin/ares-ci-run, the only thing the
 # user may run with sudo. This does not touch ~ubuntu/.ssh/authorized_keys: remove the old CI key there
 # yourself once the GitHub secrets hold the new keys.

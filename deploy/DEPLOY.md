@@ -86,7 +86,7 @@ is put back (the failed one stays in `<folder>.failed`) and the run fails.
 **The CI user cannot take root.** Pipelines log in as `ares-ci`, which has no shell: each SSH key is
 bound to a forced command, `sudo -n /usr/local/sbin/ares-ci-run --key ops|field`, and that installer is
 all the user may run with sudo (`deploy/ci/sudoers`). The tarball comes on standard input. The `ops` key
-may deploy ARES and the Console preview, the `field` key only a field web app. CI never installs server
+may deploy ARES, the Console preview and the field web apps; the `field` key only a field web app. CI never installs server
 configuration (the systemd unit, the Caddyfile, cron jobs, the installer itself, the sudoers rule): a
 push that changes one of them is refused by CI before anything is touched ("this deploy changes server
 configuration"), and a person finishes it with `bash deploy/deploy.sh` from a clean `main`, which

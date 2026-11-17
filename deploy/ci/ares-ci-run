@@ -11,7 +11,7 @@
 #   - The CI user `ares-ci`, through the forced command of its SSH key (deploy/ci/sudoers):
 #       sudo -n /usr/local/sbin/ares-ci-run --key ops|field
 #     The request is read from SSH_ORIGINAL_COMMAND and only the forms above are accepted. The `ops` key
-#     may run ops and design, the `field` key only field. CI never installs server configuration (the
+#     may run all three, the `field` key only field. CI never installs server configuration (the
 #     systemd unit, the Caddyfile, cron jobs, this script, the sudoers rule): if a deploy changes one of
 #     them it is refused before anything is touched, and a person deploys it with deploy/deploy.sh.
 #     So a leaked CI key can replace the Console's code (which runs as the `ares` user), not take root.
