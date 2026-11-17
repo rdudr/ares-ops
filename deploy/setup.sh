@@ -40,9 +40,10 @@ systemctl restart ares-ops
 echo "== Caddy site"
 install -d -o caddy -g caddy /var/log/caddy
 install -m 644 /opt/ares-ops/deploy/Caddyfile /etc/caddy/Caddyfile
-chmod 755 /opt/ares-ops/deploy/ar-apps-sync.sh
+install -d -m 755 /usr/local/lib/ares
+install -m 755 /opt/ares-ops/deploy/ar-apps-sync.sh /usr/local/lib/ares/ar-apps-sync.sh
 install -m 644 /opt/ares-ops/deploy/ar-apps.cron /etc/cron.d/ar-apps
-/opt/ares-ops/deploy/ar-apps-sync.sh
+/usr/local/lib/ares/ar-apps-sync.sh
 systemctl enable caddy
 systemctl reload caddy || systemctl restart caddy
 

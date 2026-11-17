@@ -4,7 +4,8 @@
 # If the new version does not answer, the previous one is put back.
 #
 # Repository secrets (Settings > Secrets and variables > Actions):
-#   AR_DEPLOY_KEY     private half of the CI deploy key ("ares-cicd-deploy", ed25519)
+#   AR_DEPLOY_KEY     private half of the CI deploy key for user ares-ci (deploy/ci/install.sh): the
+#                     "ops" key in ares-ops, the "field" key in the field app repos
 #   AR_KNOWN_HOSTS    the server's host key line: ssh-keyscan -t ed25519 130.210.60.79
 # Optional repository variable AR_HOST if the server's address ever changes.
 name: Web app
@@ -67,32 +68,11 @@ jobs:
           install -d -m 700 ~/.ssh
           printf '%s\n' "$AR_DEPLOY_KEY" > ~/.ssh/ar_deploy && chmod 600 ~/.ssh/ar_deploy
           printf '%s\n' "$AR_KNOWN_HOSTS" > ~/.ssh/known_hosts
-          printf 'Host ar\n  HostName %s\n  User ubuntu\n  IdentityFile ~/.ssh/ar_deploy\n  IdentitiesOnly yes\n  StrictHostKeyChecking yes\n' "$AR_HOST" > ~/.ssh/config
+          printf 'Host ar\n  HostName %s\n  User ares-ci\n  IdentityFile ~/.ssh/ar_deploy\n  IdentitiesOnly yes\n  StrictHostKeyChecking yes\n' "$AR_HOST" > ~/.ssh/config
 
       - name: Deploy
         env:
           SLUG: ${{ steps.build.outputs.slug }}
         run: |
-          scp -q "$RUNNER_TEMP/web.tgz" "ar:/tmp/field-$SLUG.tgz"
-          ssh ar "SLUG=$SLUG bash -s" <<'REMOTE'
-          set -euo pipefail
-          d=/opt/ar-field/$SLUG
-          sudo install -d /opt/ar-field
-          sudo rm -rf "$d.new" && sudo mkdir -p "$d.new"
-          sudo tar -xzf "/tmp/field-$SLUG.tgz" -C "$d.new" && rm -f "/tmp/field-$SLUG.tgz"
-          sudo chmod -R a+rX "$d.new"
-          sudo rm -rf "$d.old"
-          if [ -d "$d" ]; then sudo mv "$d" "$d.old"; fi
-          sudo mv "$d.new" "$d"
-          url="https://ops.arenergyservices.in/field/$SLUG/"
-          code=$(curl -s -o /dev/null -w '%{http_code}' --resolve ops.arenergyservices.in:443:127.0.0.1 "$url" || true)
-          if [ "$code" != 200 ]; then
-            echo "!! $url answered HTTP $code"
-            if [ -d "$d.old" ]; then
-              echo "!! putting the previous version back"
-              sudo rm -rf "$d.failed" && sudo mv "$d" "$d.failed" && sudo mv "$d.old" "$d"
-            fi
-            exit 1
-          fi
-          echo "live: $url"
-          REMOTE
+          # The server's installer (ares-ops deploy/ci/ares-ci-run): swap, check, put the old version back on failure.
+          ssh ar "sudo -n /usr/local/sbin/ares-ci-run field $SLUG" < "$RUNNER_TEMP/web.tgz"

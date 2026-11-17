@@ -46,6 +46,9 @@ ssh -i ~/.ssh/ares_vps_ed25519 ubuntu@SERVER_IP \
 
 (On Oracle the user is `ubuntu`; on a Hostinger VPS it is `root`, without `sudo`.)
 
+Then set up the deploy installer and the CI user, which every later deploy goes through:
+`bash deploy/ci/install.sh ar ~/.ssh/ares_ci_ops.pub` (see "Automatic deploys" below).
+
 Then open https://ops.arenergyservices.in — the HTTPS certificate is issued automatically on the
 first visit once DNS points at the server. Get the one-time setup code with
 `sudo journalctl -u ares-ops | grep 'setup code'` and create the Super Admin.
@@ -73,23 +76,47 @@ Every part on the server has its own pipeline, run on a push to `main`:
 | `Deploy ARES` (`.github/workflows/deploy.yml`) | ares-ops | Console, sync API, Caddyfile, cron jobs | `bash deploy/deploy.sh` |
 | (by hand) `bash deploy/site.sh` in the website repo | AR-Enterprise-website-design | The public site arenergyservices.in, files in `/var/www/ar-site` (Caddy block here) | `bash deploy/site.sh` |
 | `Deploy Console preview` (`.github/workflows/deploy-design.yml`) | ares-ops, on a push to `design-change` that changes `public/` | Console pages of that branch to `/opt/ares-design` (api.arenergyservices.in); no restart, no data | `bash deploy/deploy-design.sh` |
-| `Deploy GST Billing` (`.github/workflows/deploy-billing.yml`) | ares-ops, only when `billing.sh` or `gst-billing.service` change; or run by hand with another upstream commit | GST Billing | `bash deploy/billing.sh` |
+| (by hand) `bash deploy/billing.sh` | ares-ops | GST Billing (installs a service, so never from CI) | |
 | `Web app` (`.github/workflows/field-web.yml`, from the AR app kit) | each field app repo | that app at `/field/<app>/` | `bash deploy/field-web.sh <app>` |
 | `Android APK` (`.github/workflows/android-apk.yml`, from the AR app kit) | each field app repo | signed APK to the download page | `node scripts/android-apk.mjs` |
 
 ARES and the web apps are health-checked after the swap; if they don't answer, the previous version
 is put back (the failed one stays in `<folder>.failed`) and the run fails.
 
-Secrets, the same in every repo that deploys (Settings → Secrets and variables → Actions):
+**The CI user cannot take root.** Pipelines log in as `ares-ci`, which has no shell: each SSH key is
+bound to a forced command, `sudo -n /usr/local/sbin/ares-ci-run --key ops|field`, and that installer is
+all the user may run with sudo (`deploy/ci/sudoers`). The tarball comes on standard input. The `ops` key
+may deploy ARES and the Console preview, the `field` key only a field web app. CI never installs server
+configuration (the systemd unit, the Caddyfile, cron jobs, the installer itself, the sudoers rule): a
+push that changes one of them is refused by CI before anything is touched ("this deploy changes server
+configuration"), and a person finishes it with `bash deploy/deploy.sh` from a clean `main`, which
+validates and installs it. A leaked CI key can therefore replace the Console's code (which runs as the
+`ares` user), not the server. Packages are installed with `--ignore-scripts`. Every run is logged in
+`/var/log/ares-ci.log`. The cron job runs the installed `/usr/local/lib/ares/ar-apps-sync.sh`, never a
+file from a deploy.
 
-- `AR_DEPLOY_KEY`: the private half of the CI key `ares-cicd-deploy` (ed25519). Its public half is in
-  `~ubuntu/.ssh/authorized_keys` on the server, with port, agent and X11 forwarding switched off.
+Setting it up (once; again to change keys):
+
+```bash
+ssh-keygen -t ed25519 -N '' -C ares-ci-ops   -f ~/.ssh/ares_ci_ops
+ssh-keygen -t ed25519 -N '' -C ares-ci-field -f ~/.ssh/ares_ci_field     # when field repos get CI
+bash deploy/ci/install.sh ar ~/.ssh/ares_ci_ops.pub ~/.ssh/ares_ci_field.pub
+```
+
+Then put each private key in its repos' `AR_DEPLOY_KEY` secret and remove the old `ares-cicd-deploy`
+line from `~ubuntu/.ssh/authorized_keys` on the server.
+
+Secrets in every repo that deploys (Settings → Secrets and variables → Actions):
+
+- `AR_DEPLOY_KEY`: the private half of the `ops` key (ares-ops) or the `field` key (field app repos),
+  ed25519. The public halves are in `~ares-ci/.ssh/authorized_keys` on the server.
 - `AR_KNOWN_HOSTS`: the server's host key, `ssh-keyscan -t ed25519 130.210.60.79` (fingerprint
   `SHA256:/oe/CDTYOmtvNeiAI174EG1Nl3/YgeAM52HQe4M9UTs`; check it before saving).
 - Optional variable `AR_HOST` if the address changes.
 
 To pause automatic deploys, disable the workflow in the repo's Actions tab. Manual deploys with the
-scripts keep working. To revoke the key, remove its line from `~ubuntu/.ssh/authorized_keys`.
+scripts keep working (they go through the same installer with your own login). To revoke a key, remove
+its line from `~ares-ci/.ssh/authorized_keys`.
 
 ### Console preview (api.arenergyservices.in)
 
@@ -142,9 +169,17 @@ bash deploy/pull-backup.sh                  # saves to ~/ares-backups, keeps 30
 bash deploy/pull-backup.sh ar "G:/My Drive/ARES backups"   # or into a Google Drive folder
 ```
 
-It downloads the newest backup and runs a **restore test** each time: it unpacks the copy and opens the
-database ("Restore test passed: … people, … audits, … records, … files"). Run it daily, for example
-with Windows Task Scheduler:
+It downloads the newest backup (database, uploaded files, GST Billing's data) and runs a **restore
+test** each time: it unpacks the copy and opens the database ("Restore test passed: … people, … audits,
+… records, … files"). It runs every night on the workstation `mangora` (a separate VM), from its crontab:
+
+```
+30 21 * * * cd /home/ubuntu/ar-energy/ares-ops && bash deploy/pull-backup.sh ar /home/ubuntu/ares-backups >> /home/ubuntu/ares-backups/pull.log 2>&1
+```
+
+Both VMs are in the same Oracle account and region (Mumbai), so this protects against losing the server,
+not against losing the account: keep a second copy elsewhere too (a Google Drive folder on a laptop), for
+example with Windows Task Scheduler:
 
 ```
 schtasks /Create /SC DAILY /ST 21:00 /TN "ARES backup" /TR "\"C:\Program Files\Git\bin\bash.exe\" -lc 'cd /c/Users/risha/Desktop/process/ares-ops && bash deploy/pull-backup.sh'"

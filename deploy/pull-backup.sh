@@ -1,6 +1,6 @@
 #!/bin/bash
-# Off-server backup: copies the newest server backup (database + uploaded files) to this computer,
-# then proves it can be restored by unpacking it and opening the database.
+# Off-server backup: copies the newest server backup (database, uploaded files and GST Billing's data)
+# to this computer, then proves it can be restored by unpacking it and opening the database.
 #
 #   bash deploy/pull-backup.sh                 # host "ar", saves to ~/ares-backups
 #   bash deploy/pull-backup.sh ar D:/backups   # other folder (e.g. a synced Google Drive folder)
@@ -18,7 +18,7 @@ STAMP=$(ssh "$HOST" 'sudo ls -1 /var/backups/ares | sed -n "s/^ares-\(.*\)\.db\.
 [ -n "$STAMP" ] || { echo "No backup found on the server." >&2; exit 1; }
 
 OUT="$DEST/ares-$STAMP.tgz"
-ssh "$HOST" "sudo tar -czf - -C /var/backups/ares ares-$STAMP.db.gz \$(sudo test -d /var/backups/ares/files-$STAMP && echo files-$STAMP)" > "$OUT.part"
+ssh "$HOST" "sudo tar -czf - -C /var/backups/ares ares-$STAMP.db.gz \$(sudo test -d /var/backups/ares/files-$STAMP && echo files-$STAMP) \$(sudo test -f /var/backups/ares/billing-$STAMP.tar.gz && echo billing-$STAMP.tar.gz)" > "$OUT.part"
 mv "$OUT.part" "$OUT"
 
 # Restore test on a scratch copy.
@@ -37,6 +37,11 @@ if (ok !== 'ok') { console.error('Restore test FAILED: ' + ok); process.exit(1);
 console.log('Restore test passed: ' + n('users') + ' people, ' + n('audits') + ' audits, ' + n('records') + ' records, ' + n('files') + ' files.');
 " "$DBPATH"
 FILES=$(find "$T" -path "*/files-$STAMP/*" -type f | wc -l)
-echo "Saved $OUT ($(du -h "$OUT" | cut -f1)), including $FILES uploaded file(s)."
+BILLING="no GST Billing data"
+if [ -f "$T/billing-$STAMP.tar.gz" ]; then
+  tar -tzf "$T/billing-$STAMP.tar.gz" >/dev/null || { echo "Restore test FAILED: billing-$STAMP.tar.gz is damaged" >&2; exit 1; }
+  BILLING="GST Billing's data ($(tar -tzf "$T/billing-$STAMP.tar.gz" | grep -vc '/$') files)"
+fi
+echo "Saved $OUT ($(du -h "$OUT" | cut -f1)), including $FILES uploaded file(s) and $BILLING."
 
 ls -1t "$DEST"/ares-*.tgz 2>/dev/null | tail -n +31 | xargs -r rm -f

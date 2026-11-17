@@ -20,15 +20,7 @@ for pair in $ALL; do
   echo "== building $slug"
   (cd "$APPS_DIR/$dir" && rm -rf out && node scripts/web-build.mjs --base "field/$slug" | tail -1)
   tar -czf "$TMP/$slug.tgz" -C "$APPS_DIR/$dir/out" .
-  scp -q "$TMP/$slug.tgz" "$HOST:/tmp/field-$slug.tgz"
-  ssh "$HOST" "set -e
-    sudo install -d /opt/ar-field
-    sudo rm -rf /opt/ar-field/$slug.new && sudo mkdir -p /opt/ar-field/$slug.new
-    sudo tar -xzf /tmp/field-$slug.tgz -C /opt/ar-field/$slug.new && rm -f /tmp/field-$slug.tgz
-    sudo chmod -R a+rX /opt/ar-field/$slug.new
-    sudo rm -rf /opt/ar-field/$slug.old
-    if [ -d /opt/ar-field/$slug ]; then sudo mv /opt/ar-field/$slug /opt/ar-field/$slug.old; fi
-    sudo mv /opt/ar-field/$slug.new /opt/ar-field/$slug"
+  ssh "$HOST" "sudo -n /usr/local/sbin/ares-ci-run field $slug" < "$TMP/$slug.tgz"
   echo "   live: https://ops.arenergyservices.in/field/$slug/"
 done
 echo "== done"

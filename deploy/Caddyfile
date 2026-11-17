@@ -3,6 +3,25 @@
 # from main; api.arenergyservices.in serves the app API (/api/) the same way, but its Console pages
 # are the preview of the design-change branch (static files in /opt/ares-design, deploy/deploy-design.sh).
 
+# Headers for the static apps this server hands out itself (APK page, field apps, Grid Lens, Report
+# Studio). The Node server sends its own with the Console and the API (lib/http.js securityHeaders).
+# Each path adds its own Content-Security-Policy.
+(static_headers) {
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options nosniff
+		X-Frame-Options SAMEORIGIN
+		Referrer-Policy no-referrer
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+	}
+}
+
+# The field apps and Grid Lens: Next.js and Vite builds with inline start-up scripts; they sync with
+# ARES on api. and ops. Nothing else is loaded from another site except Google Fonts.
+(app_csp) {
+	header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob:; media-src 'self' data: blob:; connect-src 'self' https://api.arenergyservices.in https://ops.arenergyservices.in data: blob:; worker-src 'self' blob:; manifest-src 'self'; frame-ancestors 'self'; base-uri 'self'; form-action 'self'; object-src 'none'"
+}
+
 # Shared by both names: APK page, field web apps, Power Quality analyser, access log.
 (ares_common) {
 	encode gzip
@@ -12,6 +31,8 @@
 		@hidden path /.* */.*
 		respond @hidden 404
 		root * /var/www/ar-apps
+		import static_headers
+		header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; frame-ancestors 'self'; base-uri 'self'; form-action 'self'; object-src 'none'"
 		# Installed apps read apps.json to offer updates, from their own origin.
 		header /apps.json Access-Control-Allow-Origin *
 		header /apps.json Cache-Control "no-cache"
@@ -22,6 +43,8 @@
 	redir /field /#/apps
 	handle_path /field/* {
 		root * /opt/ar-field
+		import static_headers
+		import app_csp
 		header /*/sw.js Cache-Control "no-cache"
 		header /*/manifest.webmanifest Content-Type application/manifest+json
 		header /*/_next/static/* Cache-Control "public, max-age=31536000, immutable"
@@ -37,6 +60,7 @@
 		@hidden path /.* */.*
 		respond @hidden 404
 		root * /opt/ar-report
+		import static_headers
 		header {
 			Cache-Control "no-cache"
 			Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' data: blob:; worker-src 'self' blob:; frame-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'; object-src 'none'"
@@ -64,6 +88,8 @@
 	}
 	handle_path /pqa/* {
 		root * /opt/ares-power/web
+		import static_headers
+		import app_csp
 		try_files {path} /index.html
 		header /assets/* Cache-Control "public, max-age=31536000, immutable"
 		header /index.html Cache-Control "no-cache"
@@ -164,7 +190,10 @@ mcp.arenergyservices.in {
 # only Super Admins and Heads signed in to the Console get through.
 billing.arenergyservices.in {
 	encode gzip
+	# Applied last and replacing what ARES or the app already sent, so each header appears once
+	# (two Strict-Transport-Security headers make SSL Labs mark HSTS invalid).
 	header {
+		defer
 		X-Content-Type-Options nosniff
 		X-Frame-Options SAMEORIGIN
 		Referrer-Policy no-referrer
@@ -217,10 +246,15 @@ www.arenergyservices.in {
 
 arenergyservices.in {
 	encode gzip
+	# HSTS without includeSubDomains: this name's rule must not reach subdomains it does not serve.
+	# The page loads Google Fonts, Unsplash pictures and one Pixabay video; WhatsApp opens in a new tab.
 	header {
+		Strict-Transport-Security "max-age=31536000"
+		Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: https://images.unsplash.com; media-src 'self' https://cdn.pixabay.com; connect-src 'self'; frame-ancestors 'self'; base-uri 'self'; form-action 'self'; object-src 'none'"
 		X-Content-Type-Options nosniff
 		Referrer-Policy strict-origin-when-cross-origin
 		X-Frame-Options SAMEORIGIN
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
 		-Server
 	}
 	@internal path_regexp internal (?i)^/(docs(/|$)|\.|.*\.md$|.*/\.)

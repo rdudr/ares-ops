@@ -1,0 +1,5 @@
+# Installed as /etc/sudoers.d/ares-ci (root, 0440) by deploy/ci/install.sh and by a person's deploy.
+# The CI user may run the deploy installer only, in exactly the two forms its SSH keys force
+# (~ares-ci/.ssh/authorized_keys). The installer reads the request from SSH_ORIGINAL_COMMAND.
+Defaults!/usr/local/sbin/ares-ci-run env_keep += "SSH_ORIGINAL_COMMAND"
+ares-ci ALL=(root) NOPASSWD: /usr/local/sbin/ares-ci-run --key ops, /usr/local/sbin/ares-ci-run --key field

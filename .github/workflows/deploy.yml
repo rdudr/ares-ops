@@ -3,7 +3,8 @@
 # a health check that puts the previous version back if the Console does not answer.
 #
 # Repository secrets (Settings > Secrets and variables > Actions):
-#   AR_DEPLOY_KEY     private half of the CI deploy key ("ares-cicd-deploy", ed25519)
+#   AR_DEPLOY_KEY     private half of the CI deploy key for user ares-ci (deploy/ci/install.sh): the
+#                     "ops" key in ares-ops, the "field" key in the field app repos
 #   AR_KNOWN_HOSTS    the server's host key line: ssh-keyscan -t ed25519 130.210.60.79
 # Optional repository variable AR_HOST if the server's address ever changes.
 name: Deploy ARES
@@ -19,7 +20,6 @@ on:
       - 'deploy/billing.sh'
       - 'deploy/gst-billing.service'
       - 'deploy/field-web.sh'
-      - '.github/workflows/deploy-billing.yml'
       - 'deploy/deploy-design.sh'
       - '.github/workflows/deploy-design.yml'
   workflow_dispatch:
@@ -66,7 +66,7 @@ jobs:
           install -d -m 700 ~/.ssh
           printf '%s\n' "$AR_DEPLOY_KEY" > ~/.ssh/ar_deploy && chmod 600 ~/.ssh/ar_deploy
           printf '%s\n' "$AR_KNOWN_HOSTS" > ~/.ssh/known_hosts
-          printf 'Host ar\n  HostName %s\n  User ubuntu\n  IdentityFile ~/.ssh/ar_deploy\n  IdentitiesOnly yes\n  StrictHostKeyChecking yes\n' "$AR_HOST" > ~/.ssh/config
+          printf 'Host ar\n  HostName %s\n  User ares-ci\n  IdentityFile ~/.ssh/ar_deploy\n  IdentitiesOnly yes\n  StrictHostKeyChecking yes\n' "$AR_HOST" > ~/.ssh/config
 
       - name: Deploy
         run: bash deploy/deploy.sh ar

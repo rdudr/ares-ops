@@ -19,25 +19,7 @@ TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT
 tar -czf "$TMP/ares-design.tgz" -C public .
 
-echo "== uploading to $HOST"
-scp -q "$TMP/ares-design.tgz" "$HOST:/tmp/ares-design.tgz"
-
 echo "== installing on $HOST"
-ssh "$HOST" 'set -e
-  sudo rm -rf /opt/ares-design.new
-  sudo mkdir -p /opt/ares-design.new
-  sudo tar -xzf /tmp/ares-design.tgz -C /opt/ares-design.new
-  rm -f /tmp/ares-design.tgz
-  sudo chown -R root:root /opt/ares-design.new
-  sudo chmod -R u=rwX,go=rX /opt/ares-design.new
-  sudo rm -rf /opt/ares-design.old
-  if [ -d /opt/ares-design ]; then sudo mv /opt/ares-design /opt/ares-design.old; fi
-  sudo mv /opt/ares-design.new /opt/ares-design
-  code=$(curl -s -o /dev/null -w "%{http_code}" --resolve api.arenergyservices.in:443:127.0.0.1 https://api.arenergyservices.in/ || true)
-  echo "preview answers: HTTP $code"
-  if [ "$code" != 200 ] && [ -d /opt/ares-design.old ]; then
-    sudo rm -rf /opt/ares-design && sudo mv /opt/ares-design.old /opt/ares-design
-    echo "preview did not answer: previous pages put back"
-    exit 1
-  fi'
+# The server's installer (deploy/ci/ares-ci-run): swap /opt/ares-design, check, put the old pages back on failure.
+ssh "$HOST" "sudo -n /usr/local/sbin/ares-ci-run design" < "$TMP/ares-design.tgz"
 echo "== done: https://api.arenergyservices.in"

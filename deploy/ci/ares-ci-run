@@ -1,0 +1,226 @@
+#!/bin/bash
+# Installs a deploy on the AR server. Installed as /usr/local/sbin/ares-ci-run (root:root 0755) by
+# deploy/ci/install.sh; the copy in /usr/local/sbin is the one that runs, never the one in a tarball.
+# The tarball comes on standard input.
+#
+#   ops <commit> [--config]   ARES (/opt/ares-ops): code, packages, restart, health check, roll back
+#   design                    Console preview pages (/opt/ares-design)
+#   field <app>               a field web app (/opt/ar-field/<app>)
+#
+# Two kinds of caller:
+#   - The CI user `ares-ci`, through the forced command of its SSH key (deploy/ci/sudoers):
+#       sudo -n /usr/local/sbin/ares-ci-run --key ops|field
+#     The request is read from SSH_ORIGINAL_COMMAND and only the forms above are accepted. The `ops` key
+#     may run ops and design, the `field` key only field. CI never installs server configuration (the
+#     systemd unit, the Caddyfile, cron jobs, this script, the sudoers rule): if a deploy changes one of
+#     them it is refused before anything is touched, and a person deploys it with deploy/deploy.sh.
+#     So a leaked CI key can replace the Console's code (which runs as the `ares` user), not take root.
+#   - A person with sudo (deploy/deploy.sh from a workstation): sudo ares-ci-run ops <commit> --config.
+set -euo pipefail
+umask 022
+export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+LOG=/var/log/ares-ci.log
+WORK=/var/lib/ares-ci
+CALLER="${SUDO_USER:-root}"
+FIELD_APPS="brief jet pump air boiler cooling mla xmer light dryer"
+MAX_BYTES=$((300 * 1024 * 1024))
+
+die() { echo "!! $*" >&2; log "refused: $*"; exit "${2:-2}"; }
+log() { printf '%s %s %s\n' "$(date -u +%FT%TZ)" "$CALLER" "$*" >> "$LOG" 2>/dev/null || true; }
+
+# --- who is asking, and what for ------------------------------------------------------------------
+KEY=""
+if [ "${1:-}" = --key ]; then
+  KEY="${2:-}"
+  [ "$CALLER" = ares-ci ] || die "--key is only for the CI user"
+  case "$KEY" in ops|field) ;; *) die "unknown key $KEY" ;; esac
+  REQ="${SSH_ORIGINAL_COMMAND:-}"
+  REQ="${REQ#sudo -n /usr/local/sbin/ares-ci-run }"
+  [[ "$REQ" =~ ^[a-z0-9\ -]{1,80}$ ]] || die "request not accepted: ${REQ:0:80}"
+  read -r -a ARGS <<< "$REQ"
+else
+  [ "$(id -u)" = 0 ] || die "run with sudo"
+  ARGS=("$@")
+fi
+VERB="${ARGS[0]:-}"
+CONFIG=0
+case "$VERB" in
+  ops)
+    COMMIT="${ARGS[1]:-}"
+    [[ "$COMMIT" =~ ^[0-9a-f]{7,40}(-dirty)?$ ]] || die "ops needs a commit"
+    [ "${ARGS[2]:-}" = --config ] && CONFIG=1
+    [ "${#ARGS[@]}" -le $((2 + CONFIG)) ] || die "too many arguments"
+    [ -z "$KEY" ] || [ "$KEY" = ops ] || die "this key cannot deploy ARES"
+    [ "$CONFIG" = 0 ] || [ -z "$KEY" ] || die "CI cannot install server configuration"
+    ;;
+  design)
+    [ "${#ARGS[@]}" = 1 ] || die "design takes no arguments"
+    [ -z "$KEY" ] || [ "$KEY" = ops ] || die "this key cannot deploy the preview"
+    ;;
+  field)
+    SLUG="${ARGS[1]:-}"
+    [ "${#ARGS[@]}" = 2 ] && [[ " $FIELD_APPS " == *" $SLUG "* ]] || die "field needs one of: $FIELD_APPS"
+    ;;
+  *) die "usage: ares-ci-run ops <commit> [--config] | design | field <app>" ;;
+esac
+
+# One deploy at a time.
+install -d -m 700 "$WORK"
+exec 9>"$WORK/lock"
+flock -w 900 9 || die "another deploy is still running"
+
+# --- the tarball ----------------------------------------------------------------------------------
+TGZ="$WORK/incoming.tgz"
+rm -f "$TGZ"
+head -c $((MAX_BYTES + 1)) > "$TGZ"
+[ "$(stat -c %s "$TGZ")" -le "$MAX_BYTES" ] || die "upload larger than $((MAX_BYTES / 1024 / 1024)) MB"
+gzip -t "$TGZ" 2>/dev/null || die "upload is not a gzip tarball"
+log "start: ${ARGS[*]}"
+
+unpack() {  # unpack <dir>: fresh folder, files owned by root, nobody else may write
+  rm -rf "$1" && mkdir -p "$1"
+  tar -xzf "$TGZ" -C "$1" --no-same-owner --no-same-permissions --no-overwrite-dir
+  chown -R root:root "$1" && chmod -R u=rwX,go=rX "$1"
+}
+
+# swap <live> <new> <url> [--resolve host]: old copy kept in <live>.old, put back if <url> does not answer 200.
+swap_static() {
+  local live="$1" new="$2" url="$3" host="$4" code
+  rm -rf "$live.old"
+  if [ -d "$live" ]; then mv "$live" "$live.old"; fi
+  mv "$new" "$live"
+  code=$(curl -s -o /dev/null -w '%{http_code}' --resolve "$host:443:127.0.0.1" "$url" || true)
+  echo "$url answers: HTTP $code"
+  if [ "$code" != 200 ]; then
+    if [ -d "$live.old" ]; then rm -rf "$live.failed" && mv "$live" "$live.failed" && mv "$live.old" "$live"; echo "!! previous version put back"; fi
+    log "failed: ${ARGS[*]} (HTTP $code)"
+    exit 1
+  fi
+}
+
+case "$VERB" in
+design)
+  unpack /opt/ares-design.new
+  swap_static /opt/ares-design /opt/ares-design.new https://api.arenergyservices.in/ api.arenergyservices.in
+  rm -f "$TGZ"; log "done: design"; exit 0 ;;
+field)
+  install -d /opt/ar-field
+  unpack "/opt/ar-field/$SLUG.new"
+  swap_static "/opt/ar-field/$SLUG" "/opt/ar-field/$SLUG.new" "https://ops.arenergyservices.in/field/$SLUG/" ops.arenergyservices.in
+  rm -f "$TGZ"; log "done: field $SLUG"; exit 0 ;;
+esac
+
+# --- ops ------------------------------------------------------------------------------------------
+# Server configuration that comes with the code: file in the tarball -> where it is installed.
+CONFIG_FILES=(
+  "deploy/ares-ops.service:/etc/systemd/system/ares-ops.service:644"
+  "deploy/Caddyfile:/etc/caddy/Caddyfile:644"
+  "deploy/backup.sh:/etc/cron.daily/ares-backup:755"
+  "deploy/ar-apps.cron:/etc/cron.d/ar-apps:644"
+  "deploy/ar-apps-sync.sh:/usr/local/lib/ares/ar-apps-sync.sh:755"
+  "deploy/ci/ares-ci-run:/usr/local/sbin/ares-ci-run:755"
+  "deploy/ci/sudoers:/etc/sudoers.d/ares-ci:440"
+)
+changed_config() {  # changed_config <tree>: prints each configuration file that differs from the installed one
+  local entry src dst
+  for entry in "${CONFIG_FILES[@]}"; do
+    IFS=: read -r src dst _ <<< "$entry"
+    [ -f "$1/$src" ] || { echo "$src (missing from the deploy)"; continue; }
+    cmp -s "$1/$src" "$dst" || echo "$src"
+  done
+}
+check_config() {  # check_config <tree>: the new sudoers rule and Caddyfile must be valid
+  if [ -f "$1/deploy/ci/sudoers" ]; then
+    visudo -cqf "$1/deploy/ci/sudoers" || { echo "!! deploy/ci/sudoers does not pass visudo"; return 1; }
+  fi
+  caddy validate --config "$1/deploy/Caddyfile" --adapter caddyfile >/dev/null 2>&1 \
+    || { echo "!! the new Caddyfile does not validate"; chown -R caddy:caddy /var/log/caddy; return 1; }
+  # validate runs as root and may create new log files: they must stay writable by caddy.
+  chown -R caddy:caddy /var/log/caddy
+}
+install_config() {  # install_config <tree>
+  local entry src dst mode
+  install -d -m 755 /usr/local/lib/ares
+  for entry in "${CONFIG_FILES[@]}"; do
+    IFS=: read -r src dst mode <<< "$entry"
+    [ -f "$1/$src" ] && install -m "$mode" -o root -g root "$1/$src" "$dst"
+  done
+  return 0
+}
+
+NEW=/opt/ares-ops.new
+unpack "$NEW"
+[ -f "$NEW/server.js" ] && [ -f "$NEW/package.json" ] || die "this is not an ARES tarball"
+CHANGED=$(changed_config "$NEW")
+if [ -n "$CHANGED" ] && [ "$CONFIG" = 0 ]; then
+  rm -rf "$NEW" "$TGZ"
+  echo "!! this deploy changes server configuration, which CI may not install:"
+  printf '     %s\n' $CHANGED
+  echo "   Deploy it by hand from a clean main: bash deploy/deploy.sh"
+  log "refused: ops $COMMIT changes configuration: $(echo $CHANGED)"
+  exit 3
+fi
+if [ -n "$CHANGED" ] && ! check_config "$NEW"; then
+  rm -rf "$NEW" "$TGZ"
+  log "refused: ops $COMMIT configuration does not validate"
+  exit 1
+fi
+
+# Packages, before the swap so a failed install leaves the running version alone. No install scripts:
+# nothing from the registry runs as root.
+( cd "$NEW" && npm ci --omit=dev --ignore-scripts --no-audit --no-fund --loglevel=error )
+chown -R root:root "$NEW"
+echo "$COMMIT $(date -u +%FT%TZ)" > "$NEW/DEPLOYED"
+rm -rf /opt/ares-ops.old
+if [ -d /opt/ares-ops ]; then mv /opt/ares-ops /opt/ares-ops.old; fi
+mv "$NEW" /opt/ares-ops
+rm -f "$TGZ"
+
+# A copy of the database before the new code starts (it may add columns or tables).
+if [ -f /var/lib/ares/ares.db ]; then
+  install -d -m 700 /var/backups/ares
+  sqlite3 /var/lib/ares/ares.db ".backup /var/backups/ares/pre-deploy-$(date +%Y%m%d-%H%M%S).db" 2>/dev/null \
+    || cp /var/lib/ares/ares.db "/var/backups/ares/pre-deploy-$(date +%Y%m%d-%H%M%S).db"
+fi
+
+if [ ! -f /etc/systemd/system/ares-ops.service ] || ! command -v caddy >/dev/null; then
+  # First deploy on a new server (a person's, CONFIG=1 since nothing is installed yet): full setup.
+  bash /opt/ares-ops/deploy/setup.sh
+  install_config /opt/ares-ops
+  systemctl daemon-reload
+  systemctl restart ares-ops
+else
+  if [ -n "$CHANGED" ]; then
+    echo "== installing server configuration: $(echo $CHANGED)"
+    install_config /opt/ares-ops
+  fi
+  systemctl daemon-reload
+  systemctl restart ares-ops
+  systemctl reload caddy
+fi
+# AR apps download page: copy of the APK repo (the installed script, never one from the tarball).
+/usr/local/lib/ares/ar-apps-sync.sh || echo "(apps page sync failed; cron retries every 5 minutes)"
+
+# The Console must answer within 20 s; otherwise put the previous version back.
+code=000
+for _ in $(seq 1 10); do
+  sleep 2
+  code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/ || true)
+  [ "$code" = 200 ] && break
+done
+echo "service: $(systemctl is-active ares-ops), console answers locally: HTTP $code"
+if [ "$code" != 200 ] && [ -d /opt/ares-ops.old ]; then
+  echo "!! health check failed: putting the previous version back"
+  rm -rf /opt/ares-ops.failed
+  mv /opt/ares-ops /opt/ares-ops.failed
+  mv /opt/ares-ops.old /opt/ares-ops
+  [ -n "$CHANGED" ] && install_config /opt/ares-ops || true
+  systemctl daemon-reload
+  systemctl restart ares-ops
+  systemctl reload caddy
+  echo "!! rolled back; the failed version is in /opt/ares-ops.failed"
+  log "failed: ops $COMMIT health check, rolled back"
+  exit 1
+fi
+[ "$code" = 200 ] || { log "failed: ops $COMMIT health check, nothing to roll back to"; exit 1; }
+log "done: ops $COMMIT$([ -n "$CHANGED" ] && echo " with configuration: $(echo $CHANGED)")"
