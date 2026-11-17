@@ -28,6 +28,24 @@
 		try_files {path} {path}/index.html {path}index.html
 		file_server
 	}
+	# Report Studio, the report editor (repo report_studio_ares, folder postman/, published by its
+	# deploy/deploy-studio.sh into /opt/ar-report): one self-contained page. It runs inline scripts and
+	# reads bills with the Console's own OCR files (/vendor/ocr/, WebAssembly in a worker); nothing is
+	# fetched from another site, so the policy allows only this address.
+	redir /report /report/
+	handle_path /report/* {
+		@hidden path /.* */.*
+		respond @hidden 404
+		root * /opt/ar-report
+		header {
+			Cache-Control "no-cache"
+			Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' data: blob:; worker-src 'self' blob:; frame-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'; object-src 'none'"
+			X-Content-Type-Options nosniff
+			Referrer-Policy no-referrer
+		}
+		try_files {path} /index.html
+		file_server
+	}
 	# Power Quality analyser (repo ares-power): the web app at /pqa/, its server at /pqa/api/.
 	# Analyser exports can be large, so only this path accepts big uploads.
 	redir /pqa /pqa/

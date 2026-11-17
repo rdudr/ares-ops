@@ -111,6 +111,13 @@ button, set `REPORT_CONNECTOR_URL=http://127.0.0.1:8790` and `REPORT_CONNECTOR_K
 key as `RS_INTERNAL_KEY` in the connector's `/etc/report-studio/internal.env`; without them the button
 is hidden. The older `/mcp` connector answers 410 unless `MCP_CONNECTOR=on`.
 
+## Report Studio (ops.arenergyservices.in/report/)
+
+The report editor (repo `report_studio_ares`, folder `postman/`), opened from an audit's page with "Open in
+Report Studio" (`lib/apps.js`, app `report`). One static page in `/opt/ar-report`, served by Caddy at
+`/report/` on both names (`Caddyfile`, `ares_common`); published with `bash deploy/deploy-studio.sh` in that
+repo. No service and no restart: the route arrives with an ARES deploy, the page with its own.
+
 ## GST Billing (billing.arenergyservices.in)
 
 The open-source Free GST Billing Software (MIT, github.com/IamRamgarhia/Free-GST-Billing-Software),
