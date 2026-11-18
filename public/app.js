@@ -508,7 +508,47 @@ function shell(active, content) {
     h('a', { href: '#/tasks', ...cur('tasks') }, icon('tasks'), 'Tasks', h('span', { class: 'dbadge', hidden: true, 'aria-hidden': 'true' })), dockLink('team', 'team', 'Team'),
     h('a', { href: '#/more', class: inDock ? null : 'on', 'aria-current': active === 'more' ? 'page' : null }, icon('more'), 'More'));
 
-  root.replaceChildren(h('div', { class: 'shell' }, h('header', { class: 'hero' }, nav, heroSlot), h('main', { class: 'main' }, content)), dock);
+  root.replaceChildren(h('div', { class: 'shell' }, sideNav(active, on, me, badge),
+    h('div', { class: 'col' }, h('header', { class: 'hero' }, nav, heroSlot), h('main', { class: 'main' }, content))), dock);
+}
+
+// Desktop: the menu down the left side (phones keep the top bar and the dock). Field apps and More are
+// groups that open on a click; the one holding the current page starts open.
+function sideNav(active, on, me, topBadge) {
+  const cur = id => on(id) ? { class: 'on', 'aria-current': 'page' } : {};
+  const item = (id, ic, label, extra) => h('a', { href: `#/${id}`, ...cur(id) }, icon(ic), h('span', {}, label), extra);
+  const sideItem = a => { a.removeAttribute('role'); return a; };
+  // The overdue count: same number as the top bar's, copied when it arrives.
+  const badge = h('span', { class: 'nbadge', hidden: true });
+  new MutationObserver(() => { badge.textContent = topBadge.textContent.replace('overdue: ', ''); badge.hidden = topBadge.hidden; })
+    .observe(topBadge, { childList: true, subtree: true, attributes: true });
+  const group = (label, isOpen, items) => h('details', { class: 'sn-group', open: isOpen || null },
+    h('summary', {}, h('span', {}, label), icon('chevron')), h('div', { class: 'sn-items' }, items));
+  const moreIds = ['pipeline', 'report-studio', 'ledger', 'team-activity', 'activity', 'guide', 'more'];
+  const account = dropdown(
+    h('button', { type: 'button', class: 'sn-acct', 'aria-label': `Account menu: ${me.name}, ${ROLE[me.role]}` },
+      h('span', { class: 'av' }, initials(me.name)),
+      h('span', { class: 'sn-who' }, h('b', {}, me.name), h('small', {}, ROLE[me.role])), icon('chevron-up')),
+    () => [h('div', { class: 'who' }, h('b', {}, me.name), h('span', { class: 'small muted' }, `${me.login_id} · ${ROLE[me.role]}`)),
+      mi('#/account', 'account', 'My account'),
+      h('button', { type: 'button', role: 'menuitem', onclick: signOut }, icon('signout'), 'Sign out')]);
+  account.classList.add('up');
+  return h('aside', { class: 'sidenav', 'aria-label': 'Main' },
+    brand(),
+    h('button', { type: 'button', class: 'sn-search', onclick: openSearch }, icon('search'), h('span', {}, 'Search'),
+      h('span', { class: 'sr' }, ' people, audits and tags')),
+    h('nav', { class: 'sn-scroll', 'aria-label': 'Sections' },
+      h('div', { class: 'sn-items' },
+        item('overview', 'overview', 'Overview'), item('audits', 'audits', 'Audits'), item('team', 'team', 'Team'),
+        item('tasks', 'tasks', 'Tasks', badge), item('reports', 'doc', 'Reports')),
+      group('Field apps', on('apps') || fieldPages().some(p => p.id === active),
+        [item('apps', 'apps', 'App console'), ...fieldPages().map(p => item(p.id, ICONS[`app-${p.code}`] ? `app-${p.code}` : 'phone', p.label))]),
+      group('More', moreIds.includes(active), [
+        item('pipeline', 'audits', 'Companies'), item('report-studio', 'doc', 'Report Studio'),
+        mine('ledger') && item('ledger', 'doc', 'Energy Ledger'), item('team-activity', 'team', 'Team activity'),
+        item('activity', 'activity', 'Activity log'), ...toolLinks().map(t => sideItem(toolItem(t))),
+        item('guide', 'guide', 'Getting started'), sideItem(mi('/apps/', 'download', 'Download page', true))])),
+    account);
 }
 
 // Overview only: the dark header with the field photo, holding the page's opening.
