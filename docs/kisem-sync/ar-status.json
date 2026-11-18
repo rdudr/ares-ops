@@ -1,0 +1,2234 @@
+{
+ "KU-261118-1413-CON-2": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "the KISEM ledger itself"
+ },
+ "KU-261118-1413-CON": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "the KISEM ledger itself"
+ },
+ "KU-261118-1243-ZERO": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "FOX logo / mark"
+ },
+ "KU-261118-1243-XMER": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "FOX logo / mark"
+ },
+ "KU-261118-1243-THX": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "FOX logo / mark"
+ },
+ "KU-261118-1243-PUMP": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "FOX logo / mark"
+ },
+ "KU-261118-1243-MLA": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "FOX logo / mark"
+ },
+ "KU-261118-1243-LUX": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "FOX logo / mark"
+ },
+ "KU-261118-1243-JET": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "FOX logo / mark"
+ },
+ "KU-261118-1243-INV": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "no Inventory WTEA app in AR"
+ },
+ "KU-261118-1243-GRID": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "FOX logo / mark"
+ },
+ "KU-261118-1243-DRY": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "FOX logo / mark"
+ },
+ "KU-261118-1243-CON": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "FOX logo / mark"
+ },
+ "KU-261118-1243-ACMP": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "FOX logo / mark"
+ },
+ "KU-261118-0042-CON": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM reference company"
+ },
+ "KU-261117-2313-JET": {
+  "status": "pr-open",
+  "ar_ref": "ares-jet branch fix-pipe-area d9475b7",
+  "at": "2026-11-18",
+  "note": "fixed on a branch 18 Nov, waiting for merge and an APK / web rebuild"
+ },
+ "KU-261117-1804-SITE": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM's website; AR has its own (AR-Enterprise-website-design)"
+ },
+ "KU-261117-1800-SITE": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM's website; AR has its own (AR-Enterprise-website-design)"
+ },
+ "KU-261117-1756-SITE": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM's website; AR has its own (AR-Enterprise-website-design)"
+ },
+ "KU-261117-1750-SITE": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM's website; AR has its own (AR-Enterprise-website-design)"
+ },
+ "KU-261117-1746-SITE": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM's website; AR has its own (AR-Enterprise-website-design)"
+ },
+ "KU-261117-1739-SITE": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM's website; AR has its own (AR-Enterprise-website-design)"
+ },
+ "KU-261117-1727-SITE": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM's website; AR has its own (AR-Enterprise-website-design)"
+ },
+ "KU-261117-1715-SITE": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM's website; AR has its own (AR-Enterprise-website-design)"
+ },
+ "KU-261117-1700-SITE": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM's website; AR has its own (AR-Enterprise-website-design)"
+ },
+ "KU-261117-1613-INV": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "no Inventory WTEA app in AR"
+ },
+ "KU-261117-1317-CON": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM server folders"
+ },
+ "KU-261117-1103-SITE": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM's website; AR has its own (AR-Enterprise-website-design)"
+ },
+ "KU-261116-1900-DL": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM's download page; AR has its own (AR-Enterprise-APPS-Repo-)"
+ },
+ "KU-261116-1854-PMN": {
+  "status": "ported",
+  "ar_ref": "report_studio_ares d044986",
+  "at": "2026-11-18",
+  "note": "Report Studio copied from PostMan-KISEM oracle, 16 Nov"
+ },
+ "KU-261116-1630-DL": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM's download page; AR has its own (AR-Enterprise-APPS-Repo-)"
+ },
+ "KU-261116-1630-CON": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM download page"
+ },
+ "KU-261116-1556-SITE": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM's website; AR has its own (AR-Enterprise-website-design)"
+ },
+ "KU-261116-1554-ZERO": {
+  "status": "ported",
+  "ar_ref": "ares-cooling d288bd8",
+  "at": "2026-11-18",
+  "note": "kit replay KISEM MLA 3c4ed6f..oracle (kit files only)"
+ },
+ "KU-261116-1554-XMER": {
+  "status": "ported",
+  "ar_ref": "ares-xmer 10f251e",
+  "at": "2026-11-18",
+  "note": "kit replay KISEM MLA 3c4ed6f..oracle (kit files only)"
+ },
+ "KU-261116-1554-THX": {
+  "status": "ported",
+  "ar_ref": "ares-boiler c8fc4f9",
+  "at": "2026-11-18",
+  "note": "kit replay KISEM MLA 3c4ed6f..oracle (kit files only)"
+ },
+ "KU-261116-1554-PUMP": {
+  "status": "ported",
+  "ar_ref": "ares-pump ca40db1",
+  "at": "2026-11-18",
+  "note": "kit replay KISEM MLA 3c4ed6f..oracle (kit files only)"
+ },
+ "KU-261116-1554-PMN": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM addresses"
+ },
+ "KU-261116-1554-MLA": {
+  "status": "ported",
+  "ar_ref": "ares-mla cc9c114",
+  "at": "2026-11-18",
+  "note": "kit replay KISEM MLA 3c4ed6f..oracle (kit files only)"
+ },
+ "KU-261116-1554-LUX": {
+  "status": "ported",
+  "ar_ref": "ares-light f305ccd",
+  "at": "2026-11-18",
+  "note": "kit replay KISEM MLA 3c4ed6f..oracle (kit files only)"
+ },
+ "KU-261116-1554-JET": {
+  "status": "ported",
+  "ar_ref": "ares-jet dd13f60",
+  "at": "2026-11-18",
+  "note": "kit replay KISEM MLA 3c4ed6f..oracle (kit files only)"
+ },
+ "KU-261116-1554-INV": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "no Inventory WTEA app in AR"
+ },
+ "KU-261116-1554-GRID": {
+  "status": "ported",
+  "ar_ref": "ares-brief dd957c8",
+  "at": "2026-11-18",
+  "note": "kit replay KISEM MLA 3c4ed6f..oracle (kit files only)"
+ },
+ "KU-261116-1554-DRY": {
+  "status": "ported",
+  "ar_ref": "ares-dryer c93673f",
+  "at": "2026-11-18",
+  "note": "kit replay KISEM MLA 3c4ed6f..oracle (kit files only)"
+ },
+ "KU-261116-1554-CON": {
+  "status": "ported",
+  "ar_ref": "ares-ops 3b0d257 (sync part only)",
+  "at": "2026-11-18",
+  "note": ""
+ },
+ "KU-261116-1554-ACMP": {
+  "status": "ported",
+  "ar_ref": "ares-air ec3b30f",
+  "at": "2026-11-18",
+  "note": "kit replay KISEM MLA 3c4ed6f..oracle (kit files only)"
+ },
+ "KU-261116-1140-CON": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM hosting move"
+ },
+ "KU-261116-1139-SITE": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM's website; AR has its own (AR-Enterprise-website-design)"
+ },
+ "KU-261116-1121-PQA": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM sign-in"
+ },
+ "KU-261116-1119-ZERO": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM build, address or naming; AR apps build and sign in their own way"
+ },
+ "KU-261116-1119-XMER": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM build, address or naming; AR apps build and sign in their own way"
+ },
+ "KU-261116-1119-THX": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM build, address or naming; AR apps build and sign in their own way"
+ },
+ "KU-261116-1119-PUMP": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM build, address or naming; AR apps build and sign in their own way"
+ },
+ "KU-261116-1119-PMN": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM addresses"
+ },
+ "KU-261116-1119-MLA": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM build, address or naming; AR apps build and sign in their own way"
+ },
+ "KU-261116-1119-LUX": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM build, address or naming; AR apps build and sign in their own way"
+ },
+ "KU-261116-1119-JET": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM build, address or naming; AR apps build and sign in their own way"
+ },
+ "KU-261116-1119-INV": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "no Inventory WTEA app in AR"
+ },
+ "KU-261116-1119-GRID": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM build, address or naming; AR apps build and sign in their own way"
+ },
+ "KU-261116-1119-DRY": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM build, address or naming; AR apps build and sign in their own way"
+ },
+ "KU-261116-1119-ACMP": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM build, address or naming; AR apps build and sign in their own way"
+ },
+ "KU-261116-1112-CON": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM domains and deploy scripts"
+ },
+ "KU-261116-1017-ZERO": {
+  "status": "ported",
+  "ar_ref": "ares-cooling d288bd8",
+  "at": "2026-11-18",
+  "note": "kit replay KISEM MLA 3c4ed6f..oracle (kit files only)"
+ },
+ "KU-261116-1017-XMER": {
+  "status": "ported",
+  "ar_ref": "ares-xmer 10f251e",
+  "at": "2026-11-18",
+  "note": "kit replay KISEM MLA 3c4ed6f..oracle (kit files only)"
+ },
+ "KU-261116-1017-THX": {
+  "status": "ported",
+  "ar_ref": "ares-boiler c8fc4f9",
+  "at": "2026-11-18",
+  "note": "kit replay KISEM MLA 3c4ed6f..oracle (kit files only)"
+ },
+ "KU-261116-1017-PUMP": {
+  "status": "ported",
+  "ar_ref": "ares-pump ca40db1",
+  "at": "2026-11-18",
+  "note": "kit replay KISEM MLA 3c4ed6f..oracle (kit files only)"
+ },
+ "KU-261116-1017-PMN": {
+  "status": "ported",
+  "ar_ref": "report_studio_ares d044986",
+  "at": "2026-11-18",
+  "note": "Report Studio copied from PostMan-KISEM oracle, 16 Nov"
+ },
+ "KU-261116-1017-MLA": {
+  "status": "ported",
+  "ar_ref": "ares-mla cc9c114",
+  "at": "2026-11-18",
+  "note": "kit replay KISEM MLA 3c4ed6f..oracle (kit files only)"
+ },
+ "KU-261116-1017-LUX": {
+  "status": "ported",
+  "ar_ref": "ares-light f305ccd",
+  "at": "2026-11-18",
+  "note": "kit replay KISEM MLA 3c4ed6f..oracle (kit files only)"
+ },
+ "KU-261116-1017-JET": {
+  "status": "ported",
+  "ar_ref": "ares-jet dd13f60",
+  "at": "2026-11-18",
+  "note": "kit replay KISEM MLA 3c4ed6f..oracle (kit files only)"
+ },
+ "KU-261116-1017-INV": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "no Inventory WTEA app in AR"
+ },
+ "KU-261116-1017-GRID": {
+  "status": "ported",
+  "ar_ref": "ares-brief dd957c8",
+  "at": "2026-11-18",
+  "note": "kit replay KISEM MLA 3c4ed6f..oracle (kit files only)"
+ },
+ "KU-261116-1017-DRY": {
+  "status": "ported",
+  "ar_ref": "ares-dryer c93673f",
+  "at": "2026-11-18",
+  "note": "kit replay KISEM MLA 3c4ed6f..oracle (kit files only)"
+ },
+ "KU-261116-1017-ACMP": {
+  "status": "ported",
+  "ar_ref": "ares-air ec3b30f",
+  "at": "2026-11-18",
+  "note": "kit replay KISEM MLA 3c4ed6f..oracle (kit files only)"
+ },
+ "KU-261116-0905-SITE": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM's website; AR has its own (AR-Enterprise-website-design)"
+ },
+ "KU-261115-0906-SITE": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM's website; AR has its own (AR-Enterprise-website-design)"
+ },
+ "KU-261114-2251-DL": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM's download page; AR has its own (AR-Enterprise-APPS-Repo-)"
+ },
+ "KU-261114-2250-PMN": {
+  "status": "ported",
+  "ar_ref": "report_studio_ares d044986",
+  "at": "2026-11-18",
+  "note": "Report Studio copied from PostMan-KISEM oracle, 16 Nov"
+ },
+ "KU-261114-2250-CON": {
+  "status": "ported",
+  "ar_ref": "ares-ops 3b0d257",
+  "at": "2026-11-18",
+  "note": ""
+ },
+ "KU-261114-2225-CON": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "Inventory WTEA (no AR app)"
+ },
+ "KU-261114-2224-CON": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "Inventory WTEA (no AR app)"
+ },
+ "KU-261114-2217-CON": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "Inventory WTEA (no AR app)"
+ },
+ "KU-261114-2215-GRID": {
+  "status": "skipped",
+  "ar_ref": "ares-brief d4b853a",
+  "at": "2026-11-18",
+  "note": "inventory tab not taken: AR has no Inventory WTEA"
+ },
+ "KU-261114-1752-XMER": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "needs Inventory WTEA (no AR app)"
+ },
+ "KU-261114-1751-ZERO": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "needs Inventory WTEA (no AR app)"
+ },
+ "KU-261114-1750-PUMP": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "needs Inventory WTEA (no AR app)"
+ },
+ "KU-261114-1749-JET": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "needs Inventory WTEA (no AR app)"
+ },
+ "KU-261114-1748-THX": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "needs Inventory WTEA (no AR app)"
+ },
+ "KU-261114-1747-MLA": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "needs Inventory WTEA (no AR app)"
+ },
+ "KU-261114-1746-INV": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "no Inventory WTEA app in AR"
+ },
+ "KU-261114-1746-ACMP": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "needs Inventory WTEA (no AR app)"
+ },
+ "KU-261114-1742-DL": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM's download page; AR has its own (AR-Enterprise-APPS-Repo-)"
+ },
+ "KU-261114-1742-CON-2": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "Inventory WTEA (no AR app)"
+ },
+ "KU-261114-1742-CON": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "Inventory WTEA (no AR app)"
+ },
+ "KU-261114-1740-INV": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "no Inventory WTEA app in AR"
+ },
+ "KU-261114-1740-CON": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "Inventory WTEA (no AR app)"
+ },
+ "KU-261114-1724-CON": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "Inventory WTEA (no AR app)"
+ },
+ "KU-261114-1719-ZERO": {
+  "status": "ported",
+  "ar_ref": "ares-cooling d288bd8",
+  "at": "2026-11-18",
+  "note": "kit replay KISEM MLA 3c4ed6f..oracle (kit files only)"
+ },
+ "KU-261114-1719-XMER": {
+  "status": "ported",
+  "ar_ref": "ares-xmer 10f251e",
+  "at": "2026-11-18",
+  "note": "kit replay KISEM MLA 3c4ed6f..oracle (kit files only)"
+ },
+ "KU-261114-1719-THX": {
+  "status": "ported",
+  "ar_ref": "ares-boiler c8fc4f9",
+  "at": "2026-11-18",
+  "note": "kit replay KISEM MLA 3c4ed6f..oracle (kit files only)"
+ },
+ "KU-261114-1719-PUMP": {
+  "status": "ported",
+  "ar_ref": "ares-pump ca40db1",
+  "at": "2026-11-18",
+  "note": "kit replay KISEM MLA 3c4ed6f..oracle (kit files only)"
+ },
+ "KU-261114-1719-MLA": {
+  "status": "ported",
+  "ar_ref": "ares-mla cc9c114",
+  "at": "2026-11-18",
+  "note": "kit replay KISEM MLA 3c4ed6f..oracle (kit files only)"
+ },
+ "KU-261114-1719-LUX": {
+  "status": "ported",
+  "ar_ref": "ares-light f305ccd",
+  "at": "2026-11-18",
+  "note": "kit replay KISEM MLA 3c4ed6f..oracle (kit files only)"
+ },
+ "KU-261114-1719-JET": {
+  "status": "ported",
+  "ar_ref": "ares-jet dd13f60",
+  "at": "2026-11-18",
+  "note": "kit replay KISEM MLA 3c4ed6f..oracle (kit files only)"
+ },
+ "KU-261114-1719-GRID": {
+  "status": "ported",
+  "ar_ref": "ares-brief dd957c8",
+  "at": "2026-11-18",
+  "note": "kit replay KISEM MLA 3c4ed6f..oracle (kit files only)"
+ },
+ "KU-261114-1719-DRY": {
+  "status": "ported",
+  "ar_ref": "ares-dryer c93673f",
+  "at": "2026-11-18",
+  "note": "kit replay KISEM MLA 3c4ed6f..oracle (kit files only)"
+ },
+ "KU-261114-1719-CON": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM menu item (Chat, coming soon)"
+ },
+ "KU-261114-1719-ACMP": {
+  "status": "ported",
+  "ar_ref": "ares-air ec3b30f",
+  "at": "2026-11-18",
+  "note": "kit replay KISEM MLA 3c4ed6f..oracle (kit files only)"
+ },
+ "KU-261114-1712-CON": {
+  "status": "ported",
+  "ar_ref": "ares-ops 3b0d257 (image rule)",
+  "at": "2026-11-18",
+  "note": ""
+ },
+ "KU-261114-1228-SITE": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM's website; AR has its own (AR-Enterprise-website-design)"
+ },
+ "KU-261114-1224-SITE": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM's website; AR has its own (AR-Enterprise-website-design)"
+ },
+ "KU-261114-1218-SITE": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM's website; AR has its own (AR-Enterprise-website-design)"
+ },
+ "KU-261114-1218-CON": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM audit website"
+ },
+ "KU-261114-1214-SITE-2": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM's website; AR has its own (AR-Enterprise-website-design)"
+ },
+ "KU-261114-1214-SITE": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM's website; AR has its own (AR-Enterprise-website-design)"
+ },
+ "KU-261114-1208-SITE": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM's website; AR has its own (AR-Enterprise-website-design)"
+ },
+ "KU-261114-1201-SITE": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM's website; AR has its own (AR-Enterprise-website-design)"
+ },
+ "KU-261114-1147-SITE": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM's website; AR has its own (AR-Enterprise-website-design)"
+ },
+ "KU-261114-1144-SITE": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM's website; AR has its own (AR-Enterprise-website-design)"
+ },
+ "KU-261114-0924-SITE": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM's website; AR has its own (AR-Enterprise-website-design)"
+ },
+ "KU-261113-1717-SITE": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM's website; AR has its own (AR-Enterprise-website-design)"
+ },
+ "KU-261113-1526-PMN-2": {
+  "status": "ported",
+  "ar_ref": "report_studio_ares d044986",
+  "at": "2026-11-18",
+  "note": "Report Studio copied from PostMan-KISEM oracle, 16 Nov"
+ },
+ "KU-261113-1526-PMN": {
+  "status": "ported",
+  "ar_ref": "report_studio_ares d044986",
+  "at": "2026-11-18",
+  "note": "Report Studio copied from PostMan-KISEM oracle, 16 Nov"
+ },
+ "KU-261113-1525-MLA": {
+  "status": "ported",
+  "ar_ref": "ares-mla 92c027e",
+  "at": "2026-11-18",
+  "note": ""
+ },
+ "KU-261113-1525-ACMP": {
+  "status": "ported",
+  "ar_ref": "ares-air 35d0624",
+  "at": "2026-11-18",
+  "note": ""
+ },
+ "KU-261113-1033-DL": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM's download page; AR has its own (AR-Enterprise-APPS-Repo-)"
+ },
+ "KU-261113-1017-PMN": {
+  "status": "ported",
+  "ar_ref": "report_studio_ares d044986",
+  "at": "2026-11-18",
+  "note": "Report Studio copied from PostMan-KISEM oracle, 16 Nov"
+ },
+ "KU-261113-1003-GRID": {
+  "status": "skipped",
+  "ar_ref": "ares-brief d4b853a",
+  "at": "2026-11-18",
+  "note": "inventory tab not taken: AR has no Inventory WTEA"
+ },
+ "KU-261113-0925-SITE": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM's website; AR has its own (AR-Enterprise-website-design)"
+ },
+ "KU-261112-2328-PMN": {
+  "status": "ported",
+  "ar_ref": "report_studio_ares d044986",
+  "at": "2026-11-18",
+  "note": "Report Studio copied from PostMan-KISEM oracle, 16 Nov"
+ },
+ "KU-261112-2325-PMN": {
+  "status": "ported",
+  "ar_ref": "report_studio_ares d044986",
+  "at": "2026-11-18",
+  "note": "Report Studio copied from PostMan-KISEM oracle, 16 Nov"
+ },
+ "KU-261112-2315-PUMP": {
+  "status": "ported",
+  "ar_ref": "ares-pump 29f9406",
+  "at": "2026-11-18",
+  "note": ""
+ },
+ "KU-261112-2226-DL": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM's download page; AR has its own (AR-Enterprise-APPS-Repo-)"
+ },
+ "KU-261112-2223-DL": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM's download page; AR has its own (AR-Enterprise-APPS-Repo-)"
+ },
+ "KU-261112-2222-GRID": {
+  "status": "ported",
+  "ar_ref": "ares-brief d4b853a (PDF report tab; KISEM's new name and icon not taken)",
+  "at": "2026-11-18",
+  "note": ""
+ },
+ "KU-261112-2212-ACMP": {
+  "status": "ported",
+  "ar_ref": "ares-air 55e13ef",
+  "at": "2026-11-18",
+  "note": ""
+ },
+ "KU-261112-2203-XMER": {
+  "status": "ported",
+  "ar_ref": "ares-xmer cdcbf6e",
+  "at": "2026-11-18",
+  "note": ""
+ },
+ "KU-261112-2202-CON": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "IITGN e-mail"
+ },
+ "KU-261112-2201-ZERO": {
+  "status": "ported",
+  "ar_ref": "ares-cooling 5e28630",
+  "at": "2026-11-18",
+  "note": ""
+ },
+ "KU-261112-2153-MLA": {
+  "status": "ported",
+  "ar_ref": "ares-mla a43d700",
+  "at": "2026-11-18",
+  "note": ""
+ },
+ "KU-261112-2143-THX": {
+  "status": "ported",
+  "ar_ref": "ares-boiler f617f3f",
+  "at": "2026-11-18",
+  "note": ""
+ },
+ "KU-261112-1719-SITE": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM's website; AR has its own (AR-Enterprise-website-design)"
+ },
+ "KU-261112-1715-SITE": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM's website; AR has its own (AR-Enterprise-website-design)"
+ },
+ "KU-261112-1703-CON": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM audit website"
+ },
+ "KU-261112-1700-SITE": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM's website; AR has its own (AR-Enterprise-website-design)"
+ },
+ "KU-261112-1659-SITE": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM's website; AR has its own (AR-Enterprise-website-design)"
+ },
+ "KU-261112-1657-SITE": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM's website; AR has its own (AR-Enterprise-website-design)"
+ },
+ "KU-261112-1654-SITE": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM's website; AR has its own (AR-Enterprise-website-design)"
+ },
+ "KU-261112-1624-SITE": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM's website; AR has its own (AR-Enterprise-website-design)"
+ },
+ "KU-261104-1836-CON": {
+  "status": "ported",
+  "ar_ref": "ares-ops a4438b1",
+  "at": "2026-11-18",
+  "note": ""
+ },
+ "KU-261104-1810-CON": {
+  "status": "ported",
+  "ar_ref": "ares-ops a4438b1",
+  "at": "2026-11-18",
+  "note": ""
+ },
+ "KU-261104-1710-PMN": {
+  "status": "ported",
+  "ar_ref": "report_studio_ares d044986",
+  "at": "2026-11-18",
+  "note": "Report Studio copied from PostMan-KISEM oracle, 16 Nov"
+ },
+ "KU-261104-1710-CON": {
+  "status": "ported",
+  "ar_ref": "ares-ops b09c1fc, a4438b1 (ED rates and tariffs)",
+  "at": "2026-11-18",
+  "note": ""
+ },
+ "KU-261104-1710-ACMP": {
+  "status": "ported",
+  "ar_ref": "ares-air e6ab4ef",
+  "at": "2026-11-18",
+  "note": ""
+ },
+ "KU-261104-1548-ZERO": {
+  "status": "ported",
+  "ar_ref": "ares-cooling d288bd8",
+  "at": "2026-11-18",
+  "note": "kit replay KISEM MLA 3c4ed6f..oracle (kit files only)"
+ },
+ "KU-261104-1548-XMER": {
+  "status": "ported",
+  "ar_ref": "ares-xmer 10f251e",
+  "at": "2026-11-18",
+  "note": "kit replay KISEM MLA 3c4ed6f..oracle (kit files only)"
+ },
+ "KU-261104-1548-THX": {
+  "status": "ported",
+  "ar_ref": "ares-boiler c8fc4f9",
+  "at": "2026-11-18",
+  "note": "kit replay KISEM MLA 3c4ed6f..oracle (kit files only)"
+ },
+ "KU-261104-1548-PUMP": {
+  "status": "ported",
+  "ar_ref": "ares-pump ca40db1",
+  "at": "2026-11-18",
+  "note": "kit replay KISEM MLA 3c4ed6f..oracle (kit files only)"
+ },
+ "KU-261104-1548-PMN": {
+  "status": "ported",
+  "ar_ref": "report_studio_ares d044986",
+  "at": "2026-11-18",
+  "note": "Report Studio copied from PostMan-KISEM oracle, 16 Nov"
+ },
+ "KU-261104-1548-MLA": {
+  "status": "ported",
+  "ar_ref": "ares-mla cc9c114",
+  "at": "2026-11-18",
+  "note": "kit replay KISEM MLA 3c4ed6f..oracle (kit files only)"
+ },
+ "KU-261104-1548-LUX": {
+  "status": "ported",
+  "ar_ref": "ares-light f305ccd",
+  "at": "2026-11-18",
+  "note": "kit replay KISEM MLA 3c4ed6f..oracle (kit files only)"
+ },
+ "KU-261104-1548-JET": {
+  "status": "ported",
+  "ar_ref": "ares-jet dd13f60",
+  "at": "2026-11-18",
+  "note": "kit replay KISEM MLA 3c4ed6f..oracle (kit files only)"
+ },
+ "KU-261104-1548-GRID": {
+  "status": "ported",
+  "ar_ref": "ares-brief dd957c8",
+  "at": "2026-11-18",
+  "note": "kit replay KISEM MLA 3c4ed6f..oracle (kit files only)"
+ },
+ "KU-261104-1548-DRY": {
+  "status": "ported",
+  "ar_ref": "ares-dryer c93673f",
+  "at": "2026-11-18",
+  "note": "kit replay KISEM MLA 3c4ed6f..oracle (kit files only)"
+ },
+ "KU-261104-1548-CON": {
+  "status": "ported",
+  "ar_ref": "ares-ops b09c1fc, a4438b1",
+  "at": "2026-11-18",
+  "note": ""
+ },
+ "KU-261104-1548-ACMP": {
+  "status": "ported",
+  "ar_ref": "ares-air f32403b",
+  "at": "2026-11-18",
+  "note": ""
+ },
+ "KU-261104-1137-CON": {
+  "status": "ported",
+  "ar_ref": "ares-ops b09c1fc, a4438b1",
+  "at": "2026-11-18",
+  "note": ""
+ },
+ "KU-261104-1129-PMN": {
+  "status": "ported",
+  "ar_ref": "report_studio_ares d044986",
+  "at": "2026-11-18",
+  "note": "Report Studio copied from PostMan-KISEM oracle, 16 Nov"
+ },
+ "KU-261104-1129-CON": {
+  "status": "ported",
+  "ar_ref": "ares-ops b09c1fc, a4438b1",
+  "at": "2026-11-18",
+  "note": ""
+ },
+ "KU-261103-1955-ZERO": {
+  "status": "ported",
+  "ar_ref": "ares-cooling 1673801",
+  "at": "2026-11-18",
+  "note": "in the KISEM code Cool Zone was ported from (port-app.mjs)"
+ },
+ "KU-261103-1955-XMER": {
+  "status": "ported",
+  "ar_ref": "ares-xmer e3f1b81",
+  "at": "2026-11-18",
+  "note": "in the KISEM code Trafo Check was ported from (port-app.mjs)"
+ },
+ "KU-261103-1955-THX": {
+  "status": "ported",
+  "ar_ref": "ares-boiler f35832a",
+  "at": "2026-11-18",
+  "note": "in the KISEM code Boiler & Fuel was ported from (port-app.mjs)"
+ },
+ "KU-261103-1955-PUMP": {
+  "status": "ported",
+  "ar_ref": "ares-pump 949ce80",
+  "at": "2026-11-18",
+  "note": "in the KISEM code Hydro Flow was ported from (port-app.mjs)"
+ },
+ "KU-261103-1955-MLA": {
+  "status": "ported",
+  "ar_ref": "ares-mla e08b412",
+  "at": "2026-11-18",
+  "note": "in the KISEM code Motor Pulse was ported from (port-app.mjs)"
+ },
+ "KU-261103-1955-LUX": {
+  "status": "ported",
+  "ar_ref": "ares-light 33d32cf",
+  "at": "2026-11-18",
+  "note": "in the KISEM code Lux Survey was ported from (port-app.mjs)"
+ },
+ "KU-261103-1955-JET": {
+  "status": "ported",
+  "ar_ref": "ares-jet 4ec2651",
+  "at": "2026-11-18",
+  "note": "in the KISEM code Dye House was ported from (port-app.mjs)"
+ },
+ "KU-261103-1955-GRID": {
+  "status": "ported",
+  "ar_ref": "ares-brief dd0bb0a",
+  "at": "2026-11-18",
+  "note": "in the KISEM code BRIEF was ported from (port-app.mjs)"
+ },
+ "KU-261103-1955-DRY": {
+  "status": "ported",
+  "ar_ref": "ares-dryer 430e080",
+  "at": "2026-11-18",
+  "note": "in the KISEM code Dryer Heat was ported from (port-app.mjs)"
+ },
+ "KU-261103-1955-CON": {
+  "status": "ported",
+  "ar_ref": "ares-ops 17c53f0",
+  "at": "2026-11-18",
+  "note": ""
+ },
+ "KU-261103-1955-ACMP": {
+  "status": "ported",
+  "ar_ref": "ares-air ccf6cf2",
+  "at": "2026-11-18",
+  "note": "in the KISEM code Air Findings was ported from (port-app.mjs)"
+ },
+ "KU-261103-1946-CON": {
+  "status": "ported",
+  "ar_ref": "ares-ops 17c53f0",
+  "at": "2026-11-18",
+  "note": ""
+ },
+ "KU-261103-1937-CON": {
+  "status": "ported",
+  "ar_ref": "ares-ops 17c53f0",
+  "at": "2026-11-18",
+  "note": ""
+ },
+ "KU-261103-1715-ACMP": {
+  "status": "ported",
+  "ar_ref": "ares-air ccf6cf2",
+  "at": "2026-11-18",
+  "note": "in the KISEM code Air Findings was ported from (port-app.mjs)"
+ },
+ "KU-261103-1714-PMN": {
+  "status": "ported",
+  "ar_ref": "report_studio_ares d044986",
+  "at": "2026-11-18",
+  "note": "Report Studio copied from PostMan-KISEM oracle, 16 Nov"
+ },
+ "KU-261103-1105-PMN": {
+  "status": "ported",
+  "ar_ref": "report_studio_ares d044986",
+  "at": "2026-11-18",
+  "note": "Report Studio copied from PostMan-KISEM oracle, 16 Nov"
+ },
+ "KU-261103-0915-ZERO": {
+  "status": "ported",
+  "ar_ref": "ares-cooling 1673801",
+  "at": "2026-11-18",
+  "note": "in the KISEM code Cool Zone was ported from (port-app.mjs)"
+ },
+ "KU-261103-0915-XMER": {
+  "status": "ported",
+  "ar_ref": "ares-xmer e3f1b81",
+  "at": "2026-11-18",
+  "note": "in the KISEM code Trafo Check was ported from (port-app.mjs)"
+ },
+ "KU-261103-0915-THX": {
+  "status": "ported",
+  "ar_ref": "ares-boiler f35832a",
+  "at": "2026-11-18",
+  "note": "in the KISEM code Boiler & Fuel was ported from (port-app.mjs)"
+ },
+ "KU-261103-0915-PUMP": {
+  "status": "ported",
+  "ar_ref": "ares-pump 949ce80",
+  "at": "2026-11-18",
+  "note": "in the KISEM code Hydro Flow was ported from (port-app.mjs)"
+ },
+ "KU-261103-0915-MLA": {
+  "status": "ported",
+  "ar_ref": "ares-mla e08b412",
+  "at": "2026-11-18",
+  "note": "in the KISEM code Motor Pulse was ported from (port-app.mjs)"
+ },
+ "KU-261103-0915-LUX": {
+  "status": "ported",
+  "ar_ref": "ares-light 33d32cf",
+  "at": "2026-11-18",
+  "note": "in the KISEM code Lux Survey was ported from (port-app.mjs)"
+ },
+ "KU-261103-0915-JET": {
+  "status": "ported",
+  "ar_ref": "ares-jet 4ec2651",
+  "at": "2026-11-18",
+  "note": "in the KISEM code Dye House was ported from (port-app.mjs)"
+ },
+ "KU-261103-0915-GRID": {
+  "status": "ported",
+  "ar_ref": "ares-brief dd0bb0a",
+  "at": "2026-11-18",
+  "note": "in the KISEM code BRIEF was ported from (port-app.mjs)"
+ },
+ "KU-261103-0915-DRY": {
+  "status": "ported",
+  "ar_ref": "ares-dryer 430e080",
+  "at": "2026-11-18",
+  "note": "in the KISEM code Dryer Heat was ported from (port-app.mjs)"
+ },
+ "KU-261103-0915-CON": {
+  "status": "ported",
+  "ar_ref": "ares-ops 17c53f0",
+  "at": "2026-11-18",
+  "note": ""
+ },
+ "KU-261103-0915-ACMP": {
+  "status": "ported",
+  "ar_ref": "ares-air ccf6cf2",
+  "at": "2026-11-18",
+  "note": "in the KISEM code Air Findings was ported from (port-app.mjs)"
+ },
+ "KU-261103-0243-ACMP": {
+  "status": "ported",
+  "ar_ref": "ares-air ccf6cf2",
+  "at": "2026-11-18",
+  "note": "in the KISEM code Air Findings was ported from (port-app.mjs)"
+ },
+ "KU-261103-0214-PMN": {
+  "status": "ported",
+  "ar_ref": "report_studio_ares d044986",
+  "at": "2026-11-18",
+  "note": "Report Studio copied from PostMan-KISEM oracle, 16 Nov"
+ },
+ "KU-261103-0203-PQA-2": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM sign-in"
+ },
+ "KU-261103-0203-PMN": {
+  "status": "ported",
+  "ar_ref": "report_studio_ares d044986",
+  "at": "2026-11-18",
+  "note": "Report Studio copied from PostMan-KISEM oracle, 16 Nov"
+ },
+ "KU-261103-0140-ZERO": {
+  "status": "ported",
+  "ar_ref": "ares-cooling 1673801",
+  "at": "2026-11-18",
+  "note": "in the KISEM code Cool Zone was ported from (port-app.mjs)"
+ },
+ "KU-261103-0140-XMER": {
+  "status": "ported",
+  "ar_ref": "ares-xmer e3f1b81",
+  "at": "2026-11-18",
+  "note": "in the KISEM code Trafo Check was ported from (port-app.mjs)"
+ },
+ "KU-261103-0140-THX": {
+  "status": "ported",
+  "ar_ref": "ares-boiler f35832a",
+  "at": "2026-11-18",
+  "note": "in the KISEM code Boiler & Fuel was ported from (port-app.mjs)"
+ },
+ "KU-261103-0140-PUMP": {
+  "status": "ported",
+  "ar_ref": "ares-pump 949ce80",
+  "at": "2026-11-18",
+  "note": "in the KISEM code Hydro Flow was ported from (port-app.mjs)"
+ },
+ "KU-261103-0140-MLA": {
+  "status": "ported",
+  "ar_ref": "ares-mla e08b412",
+  "at": "2026-11-18",
+  "note": "in the KISEM code Motor Pulse was ported from (port-app.mjs)"
+ },
+ "KU-261103-0140-LUX": {
+  "status": "ported",
+  "ar_ref": "ares-light 33d32cf",
+  "at": "2026-11-18",
+  "note": "in the KISEM code Lux Survey was ported from (port-app.mjs)"
+ },
+ "KU-261103-0140-JET": {
+  "status": "ported",
+  "ar_ref": "ares-jet 4ec2651",
+  "at": "2026-11-18",
+  "note": "in the KISEM code Dye House was ported from (port-app.mjs)"
+ },
+ "KU-261103-0140-GRID": {
+  "status": "ported",
+  "ar_ref": "ares-brief dd0bb0a",
+  "at": "2026-11-18",
+  "note": "in the KISEM code BRIEF was ported from (port-app.mjs)"
+ },
+ "KU-261103-0140-DRY": {
+  "status": "ported",
+  "ar_ref": "ares-dryer 430e080",
+  "at": "2026-11-18",
+  "note": "in the KISEM code Dryer Heat was ported from (port-app.mjs)"
+ },
+ "KU-261103-0140-ACMP": {
+  "status": "ported",
+  "ar_ref": "ares-air ccf6cf2",
+  "at": "2026-11-18",
+  "note": "in the KISEM code Air Findings was ported from (port-app.mjs)"
+ },
+ "KU-261103-0139-PMN": {
+  "status": "ported",
+  "ar_ref": "report_studio_ares d044986",
+  "at": "2026-11-18",
+  "note": "Report Studio copied from PostMan-KISEM oracle, 16 Nov"
+ },
+ "KU-261102-2135-LUX": {
+  "status": "ported",
+  "ar_ref": "ares-light 33d32cf",
+  "at": "2026-11-18",
+  "note": "in the KISEM code Lux Survey was ported from (port-app.mjs)"
+ },
+ "KU-261102-2134-ZERO": {
+  "status": "ported",
+  "ar_ref": "ares-cooling 1673801",
+  "at": "2026-11-18",
+  "note": "in the KISEM code Cool Zone was ported from (port-app.mjs)"
+ },
+ "KU-261102-2134-XMER": {
+  "status": "ported",
+  "ar_ref": "ares-xmer e3f1b81",
+  "at": "2026-11-18",
+  "note": "in the KISEM code Trafo Check was ported from (port-app.mjs)"
+ },
+ "KU-261102-2134-THX": {
+  "status": "ported",
+  "ar_ref": "ares-boiler f35832a",
+  "at": "2026-11-18",
+  "note": "in the KISEM code Boiler & Fuel was ported from (port-app.mjs)"
+ },
+ "KU-261102-2134-PUMP": {
+  "status": "ported",
+  "ar_ref": "ares-pump 949ce80",
+  "at": "2026-11-18",
+  "note": "in the KISEM code Hydro Flow was ported from (port-app.mjs)"
+ },
+ "KU-261102-2134-MLA": {
+  "status": "ported",
+  "ar_ref": "ares-mla e08b412",
+  "at": "2026-11-18",
+  "note": "in the KISEM code Motor Pulse was ported from (port-app.mjs)"
+ },
+ "KU-261102-2134-JET": {
+  "status": "ported",
+  "ar_ref": "ares-jet 4ec2651",
+  "at": "2026-11-18",
+  "note": "in the KISEM code Dye House was ported from (port-app.mjs)"
+ },
+ "KU-261102-2134-GRID": {
+  "status": "ported",
+  "ar_ref": "ares-brief dd0bb0a",
+  "at": "2026-11-18",
+  "note": "in the KISEM code BRIEF was ported from (port-app.mjs)"
+ },
+ "KU-261102-2134-DRY": {
+  "status": "ported",
+  "ar_ref": "ares-dryer 430e080",
+  "at": "2026-11-18",
+  "note": "in the KISEM code Dryer Heat was ported from (port-app.mjs)"
+ },
+ "KU-261102-2134-ACMP": {
+  "status": "ported",
+  "ar_ref": "ares-air ccf6cf2",
+  "at": "2026-11-18",
+  "note": "in the KISEM code Air Findings was ported from (port-app.mjs)"
+ },
+ "KU-261102-2128-CON": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM sign-in page and marks"
+ },
+ "KU-261102-2118-PMN": {
+  "status": "ported",
+  "ar_ref": "report_studio_ares d044986",
+  "at": "2026-11-18",
+  "note": "Report Studio copied from PostMan-KISEM oracle, 16 Nov"
+ },
+ "KU-261102-2118-CON": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM faculty cards (AR keeps its own Team page, 25329ab)"
+ },
+ "KU-261102-2105-PMN": {
+  "status": "ported",
+  "ar_ref": "report_studio_ares d044986",
+  "at": "2026-11-18",
+  "note": "Report Studio copied from PostMan-KISEM oracle, 16 Nov"
+ },
+ "KU-261102-2105-LUX": {
+  "status": "ported",
+  "ar_ref": "ares-light 33d32cf",
+  "at": "2026-11-18",
+  "note": "in the KISEM code Lux Survey was ported from (port-app.mjs)"
+ },
+ "KU-261102-2105-DRY": {
+  "status": "ported",
+  "ar_ref": "ares-dryer 430e080",
+  "at": "2026-11-18",
+  "note": "in the KISEM code Dryer Heat was ported from (port-app.mjs)"
+ },
+ "KU-261102-2105-DL": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM's download page; AR has its own (AR-Enterprise-APPS-Repo-)"
+ },
+ "KU-261102-2105-CON": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "AR registers its own apps (lib/apps.js)"
+ },
+ "KU-261102-2058-ZERO": {
+  "status": "ported",
+  "ar_ref": "ares-cooling 1673801",
+  "at": "2026-11-18",
+  "note": "in the KISEM code Cool Zone was ported from (port-app.mjs)"
+ },
+ "KU-261102-2058-XMER": {
+  "status": "ported",
+  "ar_ref": "ares-xmer e3f1b81",
+  "at": "2026-11-18",
+  "note": "in the KISEM code Trafo Check was ported from (port-app.mjs)"
+ },
+ "KU-261102-2058-THX": {
+  "status": "ported",
+  "ar_ref": "ares-boiler f35832a",
+  "at": "2026-11-18",
+  "note": "in the KISEM code Boiler & Fuel was ported from (port-app.mjs)"
+ },
+ "KU-261102-2058-PUMP": {
+  "status": "ported",
+  "ar_ref": "ares-pump 949ce80",
+  "at": "2026-11-18",
+  "note": "in the KISEM code Hydro Flow was ported from (port-app.mjs)"
+ },
+ "KU-261102-2058-MLA": {
+  "status": "ported",
+  "ar_ref": "ares-mla e08b412",
+  "at": "2026-11-18",
+  "note": "in the KISEM code Motor Pulse was ported from (port-app.mjs)"
+ },
+ "KU-261102-2058-JET": {
+  "status": "ported",
+  "ar_ref": "ares-jet 4ec2651",
+  "at": "2026-11-18",
+  "note": "in the KISEM code Dye House was ported from (port-app.mjs)"
+ },
+ "KU-261102-2058-GRID": {
+  "status": "ported",
+  "ar_ref": "ares-brief dd0bb0a",
+  "at": "2026-11-18",
+  "note": "in the KISEM code BRIEF was ported from (port-app.mjs)"
+ },
+ "KU-261102-2058-ACMP": {
+  "status": "ported",
+  "ar_ref": "ares-air ccf6cf2",
+  "at": "2026-11-18",
+  "note": "in the KISEM code Air Findings was ported from (port-app.mjs)"
+ },
+ "KU-261102-2054-LUX": {
+  "status": "ported",
+  "ar_ref": "ares-light 33d32cf",
+  "at": "2026-11-18",
+  "note": "in the KISEM code Lux Survey was ported from (port-app.mjs)"
+ },
+ "KU-261102-2054-DRY": {
+  "status": "ported",
+  "ar_ref": "ares-dryer 430e080",
+  "at": "2026-11-18",
+  "note": "in the KISEM code Dryer Heat was ported from (port-app.mjs)"
+ },
+ "KU-261102-1705-CON": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM's old PostMan and EASS"
+ },
+ "KU-261102-1704-ZERO": {
+  "status": "ported",
+  "ar_ref": "ares-cooling 1673801",
+  "at": "2026-11-18",
+  "note": "in the KISEM code Cool Zone was ported from (port-app.mjs)"
+ },
+ "KU-261102-1704-XMER": {
+  "status": "ported",
+  "ar_ref": "ares-xmer e3f1b81",
+  "at": "2026-11-18",
+  "note": "in the KISEM code Trafo Check was ported from (port-app.mjs)"
+ },
+ "KU-261102-1704-THX": {
+  "status": "ported",
+  "ar_ref": "ares-boiler f35832a",
+  "at": "2026-11-18",
+  "note": "in the KISEM code Boiler & Fuel was ported from (port-app.mjs)"
+ },
+ "KU-261102-1704-PUMP": {
+  "status": "ported",
+  "ar_ref": "ares-pump 949ce80",
+  "at": "2026-11-18",
+  "note": "in the KISEM code Hydro Flow was ported from (port-app.mjs)"
+ },
+ "KU-261102-1704-PMN": {
+  "status": "ported",
+  "ar_ref": "report_studio_ares d044986",
+  "at": "2026-11-18",
+  "note": "Report Studio copied from PostMan-KISEM oracle, 16 Nov"
+ },
+ "KU-261102-1704-MLA": {
+  "status": "ported",
+  "ar_ref": "ares-mla e08b412",
+  "at": "2026-11-18",
+  "note": "in the KISEM code Motor Pulse was ported from (port-app.mjs)"
+ },
+ "KU-261102-1704-JET": {
+  "status": "ported",
+  "ar_ref": "ares-jet 4ec2651",
+  "at": "2026-11-18",
+  "note": "in the KISEM code Dye House was ported from (port-app.mjs)"
+ },
+ "KU-261102-1704-GRID": {
+  "status": "ported",
+  "ar_ref": "ares-brief dd0bb0a",
+  "at": "2026-11-18",
+  "note": "in the KISEM code BRIEF was ported from (port-app.mjs)"
+ },
+ "KU-261102-1704-CON": {
+  "status": "ported",
+  "ar_ref": "ares-ops 17c53f0",
+  "at": "2026-11-18",
+  "note": ""
+ },
+ "KU-261102-1704-ACMP": {
+  "status": "ported",
+  "ar_ref": "ares-air ccf6cf2",
+  "at": "2026-11-18",
+  "note": "in the KISEM code Air Findings was ported from (port-app.mjs)"
+ },
+ "KU-261102-1637-PMN": {
+  "status": "ported",
+  "ar_ref": "report_studio_ares d044986",
+  "at": "2026-11-18",
+  "note": "Report Studio copied from PostMan-KISEM oracle, 16 Nov"
+ },
+ "KU-261102-1620-PMN": {
+  "status": "ported",
+  "ar_ref": "report_studio_ares d044986",
+  "at": "2026-11-18",
+  "note": "Report Studio copied from PostMan-KISEM oracle, 16 Nov"
+ },
+ "KU-261102-1605-CON": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM PostMan address"
+ },
+ "KU-261102-1544-ZERO": {
+  "status": "ported",
+  "ar_ref": "ares-cooling 1673801",
+  "at": "2026-11-18",
+  "note": "in the KISEM code Cool Zone was ported from (port-app.mjs)"
+ },
+ "KU-261102-1544-XMER": {
+  "status": "ported",
+  "ar_ref": "ares-xmer e3f1b81",
+  "at": "2026-11-18",
+  "note": "in the KISEM code Trafo Check was ported from (port-app.mjs)"
+ },
+ "KU-261102-1544-THX": {
+  "status": "ported",
+  "ar_ref": "ares-boiler f35832a",
+  "at": "2026-11-18",
+  "note": "in the KISEM code Boiler & Fuel was ported from (port-app.mjs)"
+ },
+ "KU-261102-1544-PUMP": {
+  "status": "ported",
+  "ar_ref": "ares-pump 949ce80",
+  "at": "2026-11-18",
+  "note": "in the KISEM code Hydro Flow was ported from (port-app.mjs)"
+ },
+ "KU-261102-1544-PMN-2": {
+  "status": "ported",
+  "ar_ref": "report_studio_ares d044986",
+  "at": "2026-11-18",
+  "note": "Report Studio copied from PostMan-KISEM oracle, 16 Nov"
+ },
+ "KU-261102-1544-PMN": {
+  "status": "ported",
+  "ar_ref": "report_studio_ares d044986",
+  "at": "2026-11-18",
+  "note": "Report Studio copied from PostMan-KISEM oracle, 16 Nov"
+ },
+ "KU-261102-1544-MLA": {
+  "status": "ported",
+  "ar_ref": "ares-mla e08b412",
+  "at": "2026-11-18",
+  "note": "in the KISEM code Motor Pulse was ported from (port-app.mjs)"
+ },
+ "KU-261102-1544-JET": {
+  "status": "ported",
+  "ar_ref": "ares-jet 4ec2651",
+  "at": "2026-11-18",
+  "note": "in the KISEM code Dye House was ported from (port-app.mjs)"
+ },
+ "KU-261102-1544-GRID": {
+  "status": "ported",
+  "ar_ref": "ares-brief dd0bb0a",
+  "at": "2026-11-18",
+  "note": "in the KISEM code BRIEF was ported from (port-app.mjs)"
+ },
+ "KU-261102-1544-CON": {
+  "status": "ported",
+  "ar_ref": "ares-ops 17c53f0 (AI bill reader off)",
+  "at": "2026-11-18",
+  "note": ""
+ },
+ "KU-261102-1544-ACMP": {
+  "status": "ported",
+  "ar_ref": "ares-air ccf6cf2",
+  "at": "2026-11-18",
+  "note": "in the KISEM code Air Findings was ported from (port-app.mjs)"
+ },
+ "KU-261102-1134-DL": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM's download page; AR has its own (AR-Enterprise-APPS-Repo-)"
+ },
+ "KU-261102-1129-ZERO": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM build, address or naming; AR apps build and sign in their own way"
+ },
+ "KU-261102-1129-XMER": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM build, address or naming; AR apps build and sign in their own way"
+ },
+ "KU-261102-1129-THX": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM build, address or naming; AR apps build and sign in their own way"
+ },
+ "KU-261102-1129-PUMP": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM build, address or naming; AR apps build and sign in their own way"
+ },
+ "KU-261102-1129-MLA": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM build, address or naming; AR apps build and sign in their own way"
+ },
+ "KU-261102-1129-JET": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM build, address or naming; AR apps build and sign in their own way"
+ },
+ "KU-261102-1129-GRID": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM build, address or naming; AR apps build and sign in their own way"
+ },
+ "KU-261102-1129-DL": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM's download page; AR has its own (AR-Enterprise-APPS-Repo-)"
+ },
+ "KU-261102-1129-CON": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM app rename"
+ },
+ "KU-261102-1129-ACMP": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM build, address or naming; AR apps build and sign in their own way"
+ },
+ "KU-261102-1123-ZERO": {
+  "status": "ported",
+  "ar_ref": "ares-cooling 1673801",
+  "at": "2026-11-18",
+  "note": "in the KISEM code Cool Zone was ported from (port-app.mjs)"
+ },
+ "KU-261102-1057-ZERO": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM build, address or naming; AR apps build and sign in their own way"
+ },
+ "KU-261102-1057-XMER": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM build, address or naming; AR apps build and sign in their own way"
+ },
+ "KU-261102-1057-THX": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM build, address or naming; AR apps build and sign in their own way"
+ },
+ "KU-261102-1057-PUMP": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM build, address or naming; AR apps build and sign in their own way"
+ },
+ "KU-261102-1057-MLA": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM build, address or naming; AR apps build and sign in their own way"
+ },
+ "KU-261102-1057-JET": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM build, address or naming; AR apps build and sign in their own way"
+ },
+ "KU-261102-1057-GRID": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM build, address or naming; AR apps build and sign in their own way"
+ },
+ "KU-261102-1057-DL": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM's download page; AR has its own (AR-Enterprise-APPS-Repo-)"
+ },
+ "KU-261102-1057-CON": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM app rename"
+ },
+ "KU-261102-1057-ACMP": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM build, address or naming; AR apps build and sign in their own way"
+ },
+ "KU-261102-1054-DL": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM's download page; AR has its own (AR-Enterprise-APPS-Repo-)"
+ },
+ "KU-261102-1046-XMER": {
+  "status": "ported",
+  "ar_ref": "ares-xmer e3f1b81",
+  "at": "2026-11-18",
+  "note": "in the KISEM code Trafo Check was ported from (port-app.mjs)"
+ },
+ "KU-261102-1046-DL": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM's download page; AR has its own (AR-Enterprise-APPS-Repo-)"
+ },
+ "KU-261102-1046-CON": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "AR registers its own apps (lib/apps.js)"
+ },
+ "KU-261101-1921-JET": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM build, address or naming; AR apps build and sign in their own way"
+ },
+ "KU-261101-1921-GRID": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM build, address or naming; AR apps build and sign in their own way"
+ },
+ "KU-261101-1855-ZERO": {
+  "status": "ported",
+  "ar_ref": "ares-cooling 1673801",
+  "at": "2026-11-18",
+  "note": "in the KISEM code Cool Zone was ported from (port-app.mjs)"
+ },
+ "KU-261101-1851-PUMP": {
+  "status": "ported",
+  "ar_ref": "ares-pump 949ce80",
+  "at": "2026-11-18",
+  "note": "in the KISEM code Hydro Flow was ported from (port-app.mjs)"
+ },
+ "KU-261101-1851-DL": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM's download page; AR has its own (AR-Enterprise-APPS-Repo-)"
+ },
+ "KU-261101-1848-THX": {
+  "status": "ported",
+  "ar_ref": "ares-boiler f35832a",
+  "at": "2026-11-18",
+  "note": "in the KISEM code Boiler & Fuel was ported from (port-app.mjs)"
+ },
+ "KU-261101-1848-MLA": {
+  "status": "ported",
+  "ar_ref": "ares-mla e08b412",
+  "at": "2026-11-18",
+  "note": "in the KISEM code Motor Pulse was ported from (port-app.mjs)"
+ },
+ "KU-261101-1848-JET": {
+  "status": "ported",
+  "ar_ref": "ares-jet 4ec2651",
+  "at": "2026-11-18",
+  "note": "in the KISEM code Dye House was ported from (port-app.mjs)"
+ },
+ "KU-261101-1848-GRID": {
+  "status": "ported",
+  "ar_ref": "ares-brief dd0bb0a",
+  "at": "2026-11-18",
+  "note": "in the KISEM code BRIEF was ported from (port-app.mjs)"
+ },
+ "KU-261101-1848-ACMP": {
+  "status": "ported",
+  "ar_ref": "ares-air ccf6cf2",
+  "at": "2026-11-18",
+  "note": "in the KISEM code Air Findings was ported from (port-app.mjs)"
+ },
+ "KU-261101-1843-THX": {
+  "status": "ported",
+  "ar_ref": "ares-boiler f35832a",
+  "at": "2026-11-18",
+  "note": "in the KISEM code Boiler & Fuel was ported from (port-app.mjs)"
+ },
+ "KU-261101-1843-JET": {
+  "status": "ported",
+  "ar_ref": "ares-jet 4ec2651",
+  "at": "2026-11-18",
+  "note": "in the KISEM code Dye House was ported from (port-app.mjs)"
+ },
+ "KU-261101-1843-GRID": {
+  "status": "ported",
+  "ar_ref": "ares-brief dd0bb0a",
+  "at": "2026-11-18",
+  "note": "in the KISEM code BRIEF was ported from (port-app.mjs)"
+ },
+ "KU-261101-1843-DL": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM's download page; AR has its own (AR-Enterprise-APPS-Repo-)"
+ },
+ "KU-261101-1839-THX": {
+  "status": "ported",
+  "ar_ref": "ares-boiler f35832a",
+  "at": "2026-11-18",
+  "note": "in the KISEM code Boiler & Fuel was ported from (port-app.mjs)"
+ },
+ "KU-261101-1839-GRID": {
+  "status": "ported",
+  "ar_ref": "ares-brief dd0bb0a",
+  "at": "2026-11-18",
+  "note": "in the KISEM code BRIEF was ported from (port-app.mjs)"
+ },
+ "KU-261101-1838-MLA": {
+  "status": "ported",
+  "ar_ref": "ares-mla e08b412",
+  "at": "2026-11-18",
+  "note": "in the KISEM code Motor Pulse was ported from (port-app.mjs)"
+ },
+ "KU-261101-1826-THX": {
+  "status": "ported",
+  "ar_ref": "ares-boiler f35832a",
+  "at": "2026-11-18",
+  "note": "in the KISEM code Boiler & Fuel was ported from (port-app.mjs)"
+ },
+ "KU-261101-1824-MLA": {
+  "status": "ported",
+  "ar_ref": "ares-mla e08b412",
+  "at": "2026-11-18",
+  "note": "in the KISEM code Motor Pulse was ported from (port-app.mjs)"
+ },
+ "KU-261101-1824-GRID": {
+  "status": "ported",
+  "ar_ref": "ares-brief dd0bb0a",
+  "at": "2026-11-18",
+  "note": "in the KISEM code BRIEF was ported from (port-app.mjs)"
+ },
+ "KU-261101-1824-DL": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM's download page; AR has its own (AR-Enterprise-APPS-Repo-)"
+ },
+ "KU-261101-1508-MLA": {
+  "status": "ported",
+  "ar_ref": "ares-mla e08b412",
+  "at": "2026-11-18",
+  "note": "in the KISEM code Motor Pulse was ported from (port-app.mjs)"
+ },
+ "KU-261101-1508-DL": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM's download page; AR has its own (AR-Enterprise-APPS-Repo-)"
+ },
+ "KU-261101-1506-DL": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM's download page; AR has its own (AR-Enterprise-APPS-Repo-)"
+ },
+ "KU-261101-1454-CON": {
+  "status": "ported",
+  "ar_ref": "ares-ops 17c53f0",
+  "at": "2026-11-18",
+  "note": ""
+ },
+ "KU-261101-1452-CON": {
+  "status": "ported",
+  "ar_ref": "ares-ops 17c53f0",
+  "at": "2026-11-18",
+  "note": ""
+ },
+ "KU-261101-1450-DL": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM's download page; AR has its own (AR-Enterprise-APPS-Repo-)"
+ },
+ "KU-261101-1432-ACMP": {
+  "status": "ported",
+  "ar_ref": "ares-air d30a4d2",
+  "at": "2026-11-18",
+  "note": ""
+ },
+ "KU-261101-1428-DL": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM's download page; AR has its own (AR-Enterprise-APPS-Repo-)"
+ },
+ "KU-261101-1426-CON": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM build server"
+ },
+ "KU-261101-1414-CON": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM download page"
+ },
+ "KU-261101-1411-CON": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM build server"
+ },
+ "KU-261101-1408-ZERO": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM build, address or naming; AR apps build and sign in their own way"
+ },
+ "KU-261101-1408-THX": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM build, address or naming; AR apps build and sign in their own way"
+ },
+ "KU-261101-1408-PUMP": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM build, address or naming; AR apps build and sign in their own way"
+ },
+ "KU-261101-1408-MLA": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM build, address or naming; AR apps build and sign in their own way"
+ },
+ "KU-261101-1408-JET": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM build, address or naming; AR apps build and sign in their own way"
+ },
+ "KU-261101-1408-GRID": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM build, address or naming; AR apps build and sign in their own way"
+ },
+ "KU-261101-1408-DL": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM's download page; AR has its own (AR-Enterprise-APPS-Repo-)"
+ },
+ "KU-261101-1408-CON": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM build server"
+ },
+ "KU-261101-1408-ACMP": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM build, address or naming; AR apps build and sign in their own way"
+ },
+ "KU-261101-1400-ZERO": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM build, address or naming; AR apps build and sign in their own way"
+ },
+ "KU-261101-1400-THX": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM build, address or naming; AR apps build and sign in their own way"
+ },
+ "KU-261101-1400-PUMP": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM build, address or naming; AR apps build and sign in their own way"
+ },
+ "KU-261101-1400-MLA": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM build, address or naming; AR apps build and sign in their own way"
+ },
+ "KU-261101-1400-JET": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM build, address or naming; AR apps build and sign in their own way"
+ },
+ "KU-261101-1400-GRID": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM build, address or naming; AR apps build and sign in their own way"
+ },
+ "KU-261101-1400-DL": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM's download page; AR has its own (AR-Enterprise-APPS-Repo-)"
+ },
+ "KU-261101-1400-CON": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM deploy script"
+ },
+ "KU-261101-1400-ACMP": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM build, address or naming; AR apps build and sign in their own way"
+ },
+ "KU-261101-1357-DL": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM's download page; AR has its own (AR-Enterprise-APPS-Repo-)"
+ },
+ "KU-261101-1349-DL": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM's download page; AR has its own (AR-Enterprise-APPS-Repo-)"
+ },
+ "KU-261101-1349-CON": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM download page"
+ },
+ "KU-261101-1336-MLA": {
+  "status": "ported",
+  "ar_ref": "ares-mla e08b412",
+  "at": "2026-11-18",
+  "note": "in the KISEM code Motor Pulse was ported from (port-app.mjs)"
+ },
+ "KU-261030-1819-CON": {
+  "status": "ported",
+  "ar_ref": "ares-ops 17c53f0",
+  "at": "2026-11-18",
+  "note": ""
+ },
+ "KU-261030-1802-CON": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM server deploys"
+ },
+ "KU-261030-1750-CON": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM audit website"
+ },
+ "KU-261030-1317-CON": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM deploy script"
+ },
+ "KU-261030-1308-JET": {
+  "status": "ported",
+  "ar_ref": "ares-jet 4ec2651",
+  "at": "2026-11-18",
+  "note": "in the KISEM code Dye House was ported from (port-app.mjs)"
+ },
+ "KU-261030-1307-CON": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM deploy script"
+ },
+ "KU-261030-1301-CON": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "eassiitgn.page"
+ },
+ "KU-261030-1243-CON": {
+  "status": "ported",
+  "ar_ref": "ares-ops 17c53f0",
+  "at": "2026-11-18",
+  "note": ""
+ },
+ "KU-261030-1223-CON": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "IITGN NAS"
+ },
+ "KU-261030-1219-CON": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "IITGN NAS"
+ },
+ "KU-261030-1214-CON": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM backups (AR has its own)"
+ },
+ "KU-261030-1153-CON": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM backups"
+ },
+ "KU-261030-1148-CON": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM server"
+ },
+ "KU-261030-1145-CON": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM server"
+ },
+ "KU-261030-1141-CON": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM server"
+ },
+ "KU-261030-1125-CON": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM look"
+ },
+ "KU-261030-1057-CON": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM service name"
+ },
+ "KU-261030-1055-CON": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "KISEM server"
+ },
+ "KU-261030-1051-CON": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-18",
+  "note": "FOX Console's start as a copy of ARES"
+ },
+ "KU-261028-2057-MLA": {
+  "status": "ported",
+  "ar_ref": "ares-mla e08b412",
+  "at": "2026-11-18",
+  "note": "in the KISEM code Motor Pulse was ported from (port-app.mjs)"
+ },
+ "KU-261028-2049-MLA": {
+  "status": "ported",
+  "ar_ref": "ares-mla e08b412",
+  "at": "2026-11-18",
+  "note": "in the KISEM code Motor Pulse was ported from (port-app.mjs)"
+ },
+ "KU-261028-2001-MLA": {
+  "status": "ported",
+  "ar_ref": "ares-mla e08b412",
+  "at": "2026-11-18",
+  "note": "in the KISEM code Motor Pulse was ported from (port-app.mjs)"
+ },
+ "KU-261009-1557-PQA": {
+  "status": "ported",
+  "ar_ref": "ares-power 284674d",
+  "at": "2026-11-18",
+  "note": "in the KISEM code Grid Lens was ported from (port-app.mjs)"
+ },
+ "KU-261009-1347-PQA": {
+  "status": "ported",
+  "ar_ref": "ares-power 284674d",
+  "at": "2026-11-18",
+  "note": "in the KISEM code Grid Lens was ported from (port-app.mjs)"
+ },
+ "KU-261009-1153-ZERO": {
+  "status": "ported",
+  "ar_ref": "ares-cooling 1673801",
+  "at": "2026-11-18",
+  "note": "in the KISEM code Cool Zone was ported from (port-app.mjs)"
+ },
+ "KU-261009-1148-ZERO": {
+  "status": "ported",
+  "ar_ref": "ares-cooling 1673801",
+  "at": "2026-11-18",
+  "note": "in the KISEM code Cool Zone was ported from (port-app.mjs)"
+ },
+ "KU-261007-1550-PUMP": {
+  "status": "ported",
+  "ar_ref": "ares-pump 949ce80",
+  "at": "2026-11-18",
+  "note": "in the KISEM code Hydro Flow was ported from (port-app.mjs)"
+ },
+ "KU-261007-1005-PQA": {
+  "status": "ported",
+  "ar_ref": "ares-power 284674d",
+  "at": "2026-11-18",
+  "note": "in the KISEM code Grid Lens was ported from (port-app.mjs)"
+ }
+}
