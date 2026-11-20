@@ -413,6 +413,12 @@
   "at": "2026-11-18",
   "note": "FOX logo / mark"
  },
+ "KU-261118-1220-CON": {
+  "status": "ported",
+  "ar_ref": "ares-ops main (glass bar commit)",
+  "at": "2026-11-20",
+  "note": ""
+ },
  "KU-261118-1028-SITE": {
   "status": "not-applicable",
   "ar_ref": "",

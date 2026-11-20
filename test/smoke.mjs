@@ -1448,6 +1448,19 @@ await step('KISEM 17-19 Nov: report codes are logged; the Energy Ledger has no a
   assert.equal(unknown.data.error, wrong.data.error);
 });
 
+await step('KISEM review: no move into Processing while field tasks are open, unless moved on anyway with a note', async () => {
+  const au = (await admin('POST', '/api/audits', { client_name: 'Gate Test Works', site_name: 'Unit 1', sector: 'TX', title: 'Walkthrough energy audit',
+    fy: 'FY2025-26', district: 'Surat', state: 'Gujarat', work_type: 'walkthrough' })).data.id;
+  db.prepare("UPDATE audits SET stage = 'field' WHERE id = ?").run(au);
+  db.prepare("INSERT INTO tasks (id, audit_id, app, title, status, created_at) VALUES ('T-gate-1', ?, 'mla', 'Record 5 motors in Motor Pulse', 'todo', ?)").run(au, Date.now());
+  const r1 = await admin('POST', `/api/audits/${au}/stage`, { to: 'processing' });
+  assert.equal(r1.status, 409); assert.equal(r1.data.code, 'open_field_tasks'); assert.match(r1.data.error, /Record 5 motors in Motor Pulse/);
+  assert.equal((await admin('POST', `/api/audits/${au}/stage`, { to: 'processing', force: true })).status, 409, 'a reason is needed');
+  assert.equal((await admin('POST', `/api/audits/${au}/stage`, { to: 'processing', force: true, note: 'Plant sends the rest by e-mail' })).status, 200);
+  assert.equal(db.prepare('SELECT stage FROM audits WHERE id = ?').get(au).stage, 'processing');
+  assert.ok(db.prepare("SELECT 1 FROM audit_stage_log WHERE audit_id = ? AND note = 'Plant sends the rest by e-mail'").get(au));
+});
+
 server.close();
 fs.rmSync(filesDir, { recursive: true, force: true });
 console.log(`\n${passed} checks passed`);

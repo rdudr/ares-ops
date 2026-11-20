@@ -330,7 +330,7 @@ const PAGES = [
   { id: 'audits', label: 'Audits', group: 'Manage', icon: 'audits' },
   { id: 'reports', label: 'Previous reports', group: 'Manage', icon: 'doc' },
   { id: 'report-studio', label: 'Report Studio', group: 'Tools', icon: 'doc' },
-  { id: 'ledger', label: 'Energy Ledger', group: 'Manage', icon: 'doc', needs: 'ledger' },
+  { id: 'ledger', label: 'Energy Ledger', group: 'Field apps', icon: 'app-bills', needs: 'ledger' },
   { id: 'apps', label: 'App console', group: 'Field apps', icon: 'apps' },
   { id: 'guide', label: 'Getting started', group: null, icon: 'guide' },
   { id: 'account', label: 'My account', group: null, icon: 'account' },
@@ -465,24 +465,33 @@ function shell(active, content) {
   const on = id => id === active || (id === 'apps' && active.startsWith('apps'));
   const cur = id => on(id) ? { class: 'on', 'aria-current': 'page' } : {};
   const link = (id, label) => h('a', { href: `#/${id}`, ...cur(id) }, label);
-  // Tasks shows how many are overdue; filled in once the task list arrives.
+  // Tasks shows your own open tasks (red when one of them is late); Audits, for those who approve, the
+  // drafts waiting for approval. Filled in once the lists arrive.
   const badge = h('span', { class: 'nbadge', hidden: true });
   const tasksLink = h('a', { href: '#/tasks', ...cur('tasks') }, 'Tasks', badge);
   api('GET', '/api/tasks', null, { background: true }).then(({ tasks }) => {
-    const n = tasks.filter(t => t.status !== 'done' && t.due_at && t.due_at < Date.now()).length;
-    if (n) {
-      badge.replaceChildren(h('span', { class: 'sr' }, 'overdue: '), String(n)); badge.hidden = false;
+    const mineOpen = tasks.filter(t => t.assignee === me.id && t.status !== 'done');
+    const late = mineOpen.filter(isLate).length;
+    if (mineOpen.length) {
+      badge.replaceChildren(h('span', { class: 'sr' }, late ? `your open tasks, ${late} late: ` : 'your open tasks: '), String(mineOpen.length));
+      badge.classList.toggle('calm', !late); badge.hidden = false;
       const db = document.querySelector('.dock .dbadge');
-      if (db) { db.textContent = String(n); db.hidden = false; }
+      if (db) { db.textContent = String(mineOpen.length); db.hidden = false; }
     }
+  }).catch(() => {});
+  const apprBadge = h('span', { class: 'nbadge calm', hidden: true });
+  if (canApproveStage()) api('GET', '/api/audits', null, { background: true }).then(({ audits }) => {
+    const n = audits.filter(a => a.stage === 'review').length;
+    if (n) { apprBadge.replaceChildren(h('span', { class: 'sr' }, 'drafts waiting for approval: '), String(n)); apprBadge.hidden = false; }
   }).catch(() => {});
   const ddBtn = (label, isOn) => h('button', { type: 'button', class: isOn ? 'on' : null }, label, icon('chevron'));
 
-  const fieldMenu = dropdown(ddBtn('Field apps', on('apps')),
-    () => [mi('#/apps', 'apps', 'App console'), fieldPages().map(p => mi(`#/${p.id}`, 'phone', p.label))]);
-  const moreMenu = dropdown(ddBtn('More', ['activity', 'team-activity', 'pipeline', 'ledger', 'report-studio', 'guide', 'more'].includes(active)),
-    () => [mi('#/pipeline', 'audits', 'Companies'), mi('#/report-studio', 'doc', 'Report Studio'), mine('ledger') && mi('#/ledger', 'doc', 'Energy Ledger'), mi('#/team-activity', 'team', 'Team activity'), mi('#/activity', 'activity', 'Activity log'),
-      toolLinks().map(toolItem),
+  const fieldMenu = dropdown(ddBtn('Field apps', on('apps') || active === 'ledger'),
+    () => [mi('#/apps', 'apps', 'App console'), fieldPages().map(p => mi(`#/${p.id}`, 'phone', p.label)),
+      toolLinks().filter(t => t.code === 'power').map(toolItem), mine('ledger') && mi('#/ledger', 'app-bills', 'Energy Ledger')]);
+  const moreMenu = dropdown(ddBtn('More', ['activity', 'team-activity', 'pipeline', 'report-studio', 'guide', 'more'].includes(active)),
+    () => [mi('#/pipeline', 'audits', 'Companies'), mi('#/report-studio', 'doc', 'Report Studio'), mi('#/team-activity', 'team', 'Team activity'), mi('#/activity', 'activity', 'Activity log'),
+      toolLinks().filter(t => t.code !== 'power').map(toolItem),
       mi('#/guide', 'guide', 'Getting started'), mi('/apps/', 'download', 'Download page', true)]);
   const account = dropdown(
     h('button', { type: 'button', class: 'acct', 'aria-label': `Account menu: ${me.name}, ${ROLE[me.role]}` },
@@ -508,23 +517,53 @@ function shell(active, content) {
     h('a', { href: '#/tasks', ...cur('tasks') }, icon('tasks'), 'Tasks', h('span', { class: 'dbadge', hidden: true, 'aria-hidden': 'true' })), dockLink('team', 'team', 'Team'),
     h('a', { href: '#/more', class: inDock ? null : 'on', 'aria-current': active === 'more' ? 'page' : null }, icon('more'), 'More'));
 
-  root.replaceChildren(h('div', { class: 'shell' }, sideNav(active, on, me, badge),
-    h('div', { class: 'col' }, h('header', { class: 'hero' }, nav, heroSlot), h('main', { class: 'main' }, content))), dock);
+  root.replaceChildren(h('div', { class: 'shell' }, sideNav(active, on, me, badge, apprBadge),
+    h('div', { class: 'col' }, quickBar(active), h('header', { class: 'hero' }, nav, heroSlot), h('main', { class: 'main' }, content))), dock);
+}
+
+// Desktop: the glass quick-access bar at the top right. The day's main jobs one click away (billing,
+// reports, downloads, a new audit), whichever page you are on. The left menu still lists everything.
+function quickBar(active) {
+  const tool = code => TOOLS.find(t => t.code === code);
+  const sub = (a, text) => { a.append(h('small', {}, text)); return a; };
+  const qBtn = (label, ic, isOn) => h('button', { type: 'button', class: isOn ? 'qb on' : 'qb' }, icon(ic), h('span', {}, label), icon('chevron'));
+  const menu = (label, ic, ids, items) => items().some(Boolean) ? dropdown(qBtn(label, ic, ids.includes(active)), () => items().filter(Boolean)) : null;
+  const billing = menu('Billing', 'app-bills', ['ledger'], () => [
+    mine('bills') && sub(toolItem(tool('bills')), 'GST invoices, opens in a new tab'),
+    mine('ledger') && sub(mi('#/ledger', 'doc', 'Energy Ledger'), 'Bills and savings per company'),
+  ]);
+  const reports = menu('Reports', 'doc', ['report-studio', 'reports'], () => [
+    sub(mi('#/report-studio', 'app-report', 'Report Studio'), 'Write and finish a report'),
+    sub(mi('#/reports', 'doc', 'Previous reports'), 'Every report already sent'),
+    mine('power') && sub(toolItem(tool('power')), 'Power quality files, opens in a new tab'),
+  ]);
+  const downloads = menu('Downloads', 'download', ['guide'], () => [
+    sub(mi('/apps/', 'download', 'Download page', true), 'Field apps for phones and laptops'),
+    sub(mi('#/apps', 'apps', 'App console'), 'What each field app has saved'),
+    sub(mi('#/guide', 'guide', 'Getting started'), 'How the Console works, step by step'),
+  ]);
+  const isCo = active === 'pipeline';
+  const companies = h('a', { href: '#/pipeline', class: isCo ? 'qb on' : 'qb', 'aria-current': isCo ? 'page' : null }, icon('audits'), h('span', {}, 'Companies'));
+  return h('div', { class: 'qbar-wrap' }, h('nav', { class: 'qbar', 'aria-label': 'Quick access' },
+    billing, reports, downloads, companies,
+    h('button', { type: 'button', class: 'qb qsearch', 'aria-label': 'Search people, audits, tasks and pages (press / or Ctrl K)', onclick: openSearch },
+      icon('search'), h('kbd', { 'aria-hidden': 'true' }, '/')),
+    h('button', { type: 'button', class: 'qb qnew', onclick: newAudit }, icon('plus'), h('span', {}, 'New audit'))));
 }
 
 // Desktop: the menu down the left side (phones keep the top bar and the dock). Field apps and More are
 // groups that open on a click; the one holding the current page starts open.
-function sideNav(active, on, me, topBadge) {
+function sideNav(active, on, me, topBadge, apprBadge) {
   const cur = id => on(id) ? { class: 'on', 'aria-current': 'page' } : {};
   const item = (id, ic, label, extra) => h('a', { href: `#/${id}`, ...cur(id) }, icon(ic), h('span', {}, label), extra);
   const sideItem = a => { a.removeAttribute('role'); return a; };
-  // The overdue count: same number as the top bar's, copied when it arrives.
-  const badge = h('span', { class: 'nbadge', hidden: true });
-  new MutationObserver(() => { badge.textContent = topBadge.textContent.replace('overdue: ', ''); badge.hidden = topBadge.hidden; })
+  // The task count: same as the top bar's (phones), copied when it arrives.
+  const badge = topBadge.cloneNode(true);
+  new MutationObserver(() => { badge.replaceChildren(...[...topBadge.childNodes].map(n => n.cloneNode(true))); badge.className = topBadge.className; badge.hidden = topBadge.hidden; })
     .observe(topBadge, { childList: true, subtree: true, attributes: true });
   const group = (label, isOpen, items) => h('details', { class: 'sn-group', open: isOpen || null },
     h('summary', {}, h('span', {}, label), icon('chevron')), h('div', { class: 'sn-items' }, items));
-  const moreIds = ['pipeline', 'report-studio', 'ledger', 'team-activity', 'activity', 'guide', 'more'];
+  const moreIds = ['pipeline', 'report-studio', 'team-activity', 'activity', 'guide', 'more'];
   const account = dropdown(
     h('button', { type: 'button', class: 'sn-acct', 'aria-label': `Account menu: ${me.name}, ${ROLE[me.role]}` },
       h('span', { class: 'av' }, initials(me.name)),
@@ -539,14 +578,16 @@ function sideNav(active, on, me, topBadge) {
       h('span', { class: 'sr' }, ' people, audits and tags')),
     h('nav', { class: 'sn-scroll', 'aria-label': 'Sections' },
       h('div', { class: 'sn-items' },
-        item('overview', 'overview', 'Overview'), item('audits', 'audits', 'Audits'), item('team', 'team', 'Team'),
+        item('overview', 'overview', 'Overview'), item('audits', 'audits', 'Audits', apprBadge), item('team', 'team', 'Team'),
         item('tasks', 'tasks', 'Tasks', badge), item('reports', 'doc', 'Reports')),
-      group('Field apps', on('apps') || fieldPages().some(p => p.id === active),
-        [item('apps', 'apps', 'App console'), ...fieldPages().map(p => item(p.id, ICONS[`app-${p.code}`] ? `app-${p.code}` : 'phone', p.label))]),
+      group('Field apps', on('apps') || active === 'ledger' || fieldPages().some(p => p.id === active),
+        [item('apps', 'apps', 'App console'), ...fieldPages().map(p => item(p.id, ICONS[`app-${p.code}`] ? `app-${p.code}` : 'phone', p.label)),
+          ...toolLinks().filter(t => t.code === 'power').map(t => sideItem(toolItem(t))),
+          mine('ledger') && item('ledger', 'app-bills', 'Energy Ledger')]),
       group('More', moreIds.includes(active), [
         item('pipeline', 'audits', 'Companies'), item('report-studio', 'doc', 'Report Studio'),
-        mine('ledger') && item('ledger', 'doc', 'Energy Ledger'), item('team-activity', 'team', 'Team activity'),
-        item('activity', 'activity', 'Activity log'), ...toolLinks().map(t => sideItem(toolItem(t))),
+        item('team-activity', 'team', 'Team activity'),
+        item('activity', 'activity', 'Activity log'), ...toolLinks().filter(t => t.code !== 'power').map(t => sideItem(toolItem(t))),
         item('guide', 'guide', 'Getting started'), sideItem(mi('/apps/', 'download', 'Download page', true))])),
     account);
 }
@@ -560,7 +601,7 @@ function heroHead(...kids) {
 
 // Search (the magnifier in the menu, or "/"): people, audits and tasks, straight to their page.
 async function openSearch() {
-  const input = h('input', { type: 'search', placeholder: 'Name, Login ID, tag or task', 'aria-label': 'Search' });
+  const input = h('input', { type: 'search', placeholder: 'Name, Login ID, tag, task or page', 'aria-label': 'Search' });
   const out = h('div', { class: 'sresults', role: 'list' });
   const dlg = h('dialog', { class: 'search', 'aria-label': 'Search' }, h('div', { class: 'body' },
     h('label', { class: 'sfield' }, icon('search'), input), out));
@@ -576,7 +617,10 @@ async function openSearch() {
     if (!q) return out.replaceChildren(h('p', { class: 'empty' }, 'Type a name, Login ID, industry tag or task.'));
     const has = (...xs) => xs.some(x => String(x || '').toLowerCase().includes(q));
     const row = (href, ic, b, sub) => h('a', { href, role: 'listitem', class: 'mrow' }, h('span', { class: 'mic', 'aria-hidden': 'true' }, icon(ic)), h('span', { class: 'mt' }, h('b', {}, b), h('span', {}, sub)));
+    const pages = [...menuPages().filter(p => p.id !== 'more').map(p => [`#/${p.id}`, p.icon, p.label]), ...fieldPages().map(p => [`#/${p.id}`, 'phone', p.label]),
+      ...toolLinks().map(t => [t.href, 'external', t.label]), ['/apps/', 'download', 'Download page']];
     const hits = [
+      ...pages.filter(([, , label]) => has(label)).slice(0, 4).map(([href, ic, label]) => { const r = row(href, ic, label, 'Page'); if (!href.startsWith('#')) { r.target = '_blank'; r.rel = 'noopener'; } return r; }),
       ...users.filter(u => has(u.name, u.login_id)).slice(0, 6).map(u => row(`#/team?p=${u.id}`, 'team', u.name, `${ROLE[u.role]} · ${u.login_id}`)),
       ...audits.filter(a => has(a.industry_tag, a.id, a.title, a.client_name, a.site_name)).slice(0, 6).map(a => row(`#/audit/${encodeURIComponent(a.id)}`, 'audits', `${a.industry_tag} · ${a.title}`, `${a.client_name} — ${a.site_name}`)),
       ...tasks.filter(t => has(t.title, t.industry_tag)).slice(0, 6).map(t => row('#/tasks', 'tasks', t.title, [t.industry_tag, t.assignee_name || 'Not assigned'].join(' · '))),
@@ -588,6 +632,7 @@ async function openSearch() {
   input.focus();
 }
 document.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k' && state.me && !document.querySelector('dialog[open]')) { e.preventDefault(); openSearch(); return; }
   if (e.key === '/' && state.me && !e.target.closest('input, textarea, select, [contenteditable]') && !document.querySelector('dialog[open]')) { e.preventDefault(); openSearch(); }
 });
 
@@ -854,7 +899,15 @@ async function overview(holder, { background = false } = {}) {
 
   // ---- Needs attention ----
   const unlock = async u => { try { await api('POST', `/api/users/${u.id}/unlock`); toast(`${u.name} can sign in again`); overview(holder); } catch (ex) { toast(ex.message); } };
+  // For you: your own next task comes first, then what the whole team has to sort out.
+  const myOpen = open.filter(x => x.assignee === me.id).sort((a, b) => (a.due_at || 9e15) - (b.due_at || 9e15));
+  const myLate = myOpen.filter(isLate).length;
   const attn = [
+    myOpen.length && h('div', { class: 'at mine' }, h('span', { class: `at-ic ${myLate ? 'bad' : 'good'}`, 'aria-hidden': 'true' }, icon('tasks')),
+      h('span', { class: 'at-t' }, h('b', {}, `For you: ${inWords(myOpen.length, true)} open task${myOpen.length === 1 ? '' : 's'}${myLate ? `, ${inWords(myLate, true)} late` : ''}`),
+        h('span', {}, `Next: ${myOpen[0].title}${myOpen[0].due_at ? ` (due ${fmtDay(myOpen[0].due_at)})` : ''}`),
+        h('a', { href: '#/tasks', class: 'd-only' }, 'Your tasks', icon('arrow'))),
+      h('a', { href: '#/tasks', class: 'at-go m-only', 'aria-label': 'Your tasks' }, icon('chevron-r'))),
     overdue.length && h('div', { class: 'at' }, h('span', { class: 'at-ic bad', 'aria-hidden': 'true' }, icon('clock')),
       h('span', { class: 'at-t' }, h('b', {}, `${overdue.length} task${overdue.length === 1 ? '' : 's'} overdue`),
         h('span', { class: 'd-only' }, overdue.slice(0, 4).map(x => `${x.title} (${fmtDay(x.due_at)})`).join(', ')),
@@ -876,7 +929,7 @@ async function overview(holder, { background = false } = {}) {
   ].filter(Boolean);
   const attention = h('section', { class: 'ov-card attn', 'aria-labelledby': 'h-attn' },
     h('span', { class: 'kicker red' }, 'Needs attention'),
-    h('h2', { id: 'h-attn' }, attn.length ? `${inWords(attn.length)} thing${attn.length === 1 ? '' : 's'} to sort out` : 'Nothing to sort out'),
+    h('h2', { id: 'h-attn' }, (n => n ? `${inWords(n)} thing${n === 1 ? '' : 's'} to sort out` : 'Nothing to sort out')(attn.length - (myOpen.length ? 1 : 0))),
     attn.length ? h('div', {}, attn.slice(0, 5)) : h('p', { class: 'empty' }, 'No overdue tasks, and everyone can sign in and sync.'),
     attn.length > 5 ? h('a', { class: 'sc-all', href: '#/pipeline' }, `and ${attn.length - 5} more`, icon('arrow')) : null);
 
@@ -951,17 +1004,18 @@ function morePage(holder) {
     ext && h('span', { class: 'sr' }, ' (opens in a new tab)'));
   const group = (title, rows, extra) => h('section', { class: 'card mgroup' }, h('div', { class: 'cap' }, h('h2', { class: 'kick' }, title), extra), rows);
   const tagline = code => state.apps.find(a => a.code === code)?.tagline;
+  const toolRows = list => list.map(t => {
+    const r = row(t.href, 'external', t.label, tagline(t.app), true);
+    if (!NO_LAUNCH.has(t.code)) r.addEventListener('click', e => { e.preventDefault(); openTool(t.code); });
+    return r;
+  });
   holder.replaceChildren(
     pageTitle({ title: 'More' }),
-    group('Field apps', fieldPages().map(p => row(`#/${p.id}`, 'phone', p.label, tagline(p.id.slice(5)))), h('a', { href: '#/apps', class: 'small' }, 'App console')),
+    group('Field apps', [...fieldPages().map(p => row(`#/${p.id}`, 'phone', p.label, tagline(p.id.slice(5)))), ...toolRows(toolLinks().filter(t => t.code === 'power')),
+      mine('ledger') && row('#/ledger', 'app-bills', 'Energy Ledger', 'Bills, baseline and GHG per company')], h('a', { href: '#/apps', class: 'small' }, 'App console')),
     group('Records', [row('#/pipeline', 'audits', 'Companies', 'Every company and its progress'), row('#/reports', 'doc', 'Previous reports', 'Finalised audits'),
-      mine('ledger') && row('#/ledger', 'doc', 'Energy Ledger', 'Bills, baseline and GHG per company'),
       row('#/team-activity', 'team', 'Team activity', 'Hours, records and who is working'), row('#/activity', 'activity', 'Activity log', 'Every sign-in, change and sync')]),
-    group('Tools', [row('#/report-studio', 'doc', 'Report Studio', 'Report drafts with Claude, reviewed per audit'), ...toolLinks().map(t => {
-      const r = row(t.href, 'external', t.label, tagline(t.app), true);
-      if (!NO_LAUNCH.has(t.code)) r.addEventListener('click', e => { e.preventDefault(); openTool(t.code); });
-      return r;
-    })]),
+    group('Tools', [row('#/report-studio', 'doc', 'Report Studio', 'Report drafts with Claude, reviewed per audit'), ...toolRows(toolLinks().filter(t => t.code !== 'power'))]),
     group('Help', [row('#/guide', 'guide', 'Getting started', 'From new login to recording on site'), row('/apps/', 'download', 'Download page', 'Newest version of every field app', true)]),
     h('section', { class: 'card mgroup' },
       h('div', { class: 'macct' }, h('span', { class: 'av lg' }, initials(me.name)),
@@ -1432,7 +1486,18 @@ function canMoveStage(a) {
 }
 async function moveTo(a, to, note, reload) {
   try { await api('POST', `/api/audits/${encodeURIComponent(a.id)}/stage`, { to, note: note || null }); toast('Audit moved on'); reload(); }
-  catch (ex) { toast(ex.message); }
+  catch (ex) {
+    if (ex.code !== 'open_field_tasks') return toast(ex.message);
+    // Field tasks still open: say which, and let the lead move on anyway with a reason (kept in the history).
+    openDialog('Field tasks still open', f => {
+      f.append(h('p', {}, ex.message), h('p', {}, h('a', { href: '#/tasks' }, 'Open the task list')),
+        field('Why move on anyway', h('textarea', { name: 'note', rows: 3, required: true, placeholder: 'e.g. "Plant sends the last readings by e-mail"' }), 'Shown in the audit’s history'));
+    }, async f => {
+      if (!val(f, 'note')) throw new Error('Say why it moves on with tasks open.');
+      await api('POST', `/api/audits/${encodeURIComponent(a.id)}/stage`, { to, note: val(f, 'note'), force: true });
+      toast('Audit moved on'); reload();
+    }, { submitLabel: 'Move on anyway' });
+  }
 }
 function sendBack(a, P, reload, onlyTo = null) {
   const cur = a.stages.indexOf(a.stage);
