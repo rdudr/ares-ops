@@ -415,7 +415,7 @@
  },
  "KU-261118-1220-CON": {
   "status": "ported",
-  "ar_ref": "ares-ops main (glass bar commit)",
+  "ar_ref": "ares-ops 9ec6318",
   "at": "2026-11-20",
   "note": ""
  },
