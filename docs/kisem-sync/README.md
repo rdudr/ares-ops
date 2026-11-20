@@ -24,3 +24,6 @@ App names: A-CMP = Air Findings, Thermo-X = Boiler & Fuel, GridMap = BRIEF, AC, 
 Cool Zone, Dryers = Dryer Heat, JET-Eff = Dye House, Lighting = Lux Survey, MLA = Motor Pulse,
 Pump EFF = Hydro Flow, Xmer-Eff = Trafo Check, AI-PQA = Grid Lens, FOX Console = ARES Console,
 PostMan = Report Studio. KISEM's Inventory WTEA, download page and audit website have no AR app.
+
+**The routine for every KISEM change, fixes first: [RUNBOOK.md](RUNBOOK.md)**
+(`clients/kisem-port/pending.mjs --fixes` → replay → test → `mark.mjs` → push).

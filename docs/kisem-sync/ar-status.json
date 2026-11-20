@@ -1,4 +1,328 @@
 {
+ "KU-261120-1033-SITE": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-20",
+  "note": "KISEM website, Inventory WTEA or the KISEM download page: none in AR"
+ },
+ "KU-261120-1003-SITE": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-20",
+  "note": "KISEM website, Inventory WTEA or the KISEM download page: none in AR"
+ },
+ "KU-261119-2348-PMN": {
+  "status": "pr-open",
+  "ar_ref": "report_studio_ares report-studio-web dabaa42",
+  "at": "2026-11-20",
+  "note": ""
+ },
+ "KU-261119-2343-CON": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-20",
+  "note": "KISEM's own test companies on its server"
+ },
+ "KU-261119-2339-XMER": {
+  "status": "ported",
+  "ar_ref": "ares-xmer 0bbeadb",
+  "at": "2026-11-20",
+  "note": ""
+ },
+ "KU-261119-2328-PUMP": {
+  "status": "ported",
+  "ar_ref": "ares-pump 19db3b8",
+  "at": "2026-11-20",
+  "note": ""
+ },
+ "KU-261119-2328-JET": {
+  "status": "ported",
+  "ar_ref": "ares-jet e376070",
+  "at": "2026-11-20",
+  "note": ""
+ },
+ "KU-261119-2328-ACMP": {
+  "status": "ported",
+  "ar_ref": "ares-air 980098a",
+  "at": "2026-11-20",
+  "note": ""
+ },
+ "KU-261119-2324-INV": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-20",
+  "note": "KISEM website, Inventory WTEA or the KISEM download page: none in AR"
+ },
+ "KU-261119-2324-GRID": {
+  "status": "ported",
+  "ar_ref": "ares-brief a3d8085",
+  "at": "2026-11-20",
+  "note": ""
+ },
+ "KU-261119-2319-ZERO": {
+  "status": "ported",
+  "ar_ref": "ares-cooling 420b046",
+  "at": "2026-11-20",
+  "note": ""
+ },
+ "KU-261119-2317-THX": {
+  "status": "ported",
+  "ar_ref": "ares-boiler 3e5ba0c",
+  "at": "2026-11-20",
+  "note": ""
+ },
+ "KU-261119-2315-LUX": {
+  "status": "ported",
+  "ar_ref": "ares-light caecb59",
+  "at": "2026-11-20",
+  "note": ""
+ },
+ "KU-261119-2314-DRY": {
+  "status": "ported",
+  "ar_ref": "ares-dryer 6785044",
+  "at": "2026-11-20",
+  "note": ""
+ },
+ "KU-261119-2312-SITE": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-20",
+  "note": "KISEM website, Inventory WTEA or the KISEM download page: none in AR"
+ },
+ "KU-261119-2311-MLA": {
+  "status": "ported",
+  "ar_ref": "ares-mla 70fc92a",
+  "at": "2026-11-20",
+  "note": ""
+ },
+ "KU-261119-2305-SITE": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-20",
+  "note": "KISEM website, Inventory WTEA or the KISEM download page: none in AR"
+ },
+ "KU-261119-1858-SITE": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-20",
+  "note": "KISEM website, Inventory WTEA or the KISEM download page: none in AR"
+ },
+ "KU-261119-1840-SITE": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-20",
+  "note": "KISEM website, Inventory WTEA or the KISEM download page: none in AR"
+ },
+ "KU-261119-1837-SITE": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-20",
+  "note": "KISEM website, Inventory WTEA or the KISEM download page: none in AR"
+ },
+ "KU-261119-1830-SITE": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-20",
+  "note": "KISEM website, Inventory WTEA or the KISEM download page: none in AR"
+ },
+ "KU-261119-1827-PMN": {
+  "status": "pr-open",
+  "ar_ref": "report_studio_ares report-studio-web dabaa42",
+  "at": "2026-11-20",
+  "note": ""
+ },
+ "KU-261119-1820-XMER": {
+  "status": "ported",
+  "ar_ref": "ares-xmer 0bbeadb",
+  "at": "2026-11-20",
+  "note": ""
+ },
+ "KU-261119-1405-XMER": {
+  "status": "ported",
+  "ar_ref": "ares-xmer 0bbeadb",
+  "at": "2026-11-20",
+  "note": ""
+ },
+ "KU-261119-1405-PMN": {
+  "status": "pr-open",
+  "ar_ref": "report_studio_ares report-studio-web dabaa42",
+  "at": "2026-11-20",
+  "note": ""
+ },
+ "KU-261119-1405-ACMP": {
+  "status": "ported",
+  "ar_ref": "ares-air 980098a",
+  "at": "2026-11-20",
+  "note": ""
+ },
+ "KU-261119-1348-XMER": {
+  "status": "ported",
+  "ar_ref": "ares-xmer 0bbeadb",
+  "at": "2026-11-20",
+  "note": ""
+ },
+ "KU-261119-1348-PMN": {
+  "status": "pr-open",
+  "ar_ref": "report_studio_ares report-studio-web dabaa42",
+  "at": "2026-11-20",
+  "note": ""
+ },
+ "KU-261119-1307-SITE": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-20",
+  "note": "KISEM website, Inventory WTEA or the KISEM download page: none in AR"
+ },
+ "KU-261119-1306-SITE": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-20",
+  "note": "KISEM website, Inventory WTEA or the KISEM download page: none in AR"
+ },
+ "KU-261119-1257-PMN": {
+  "status": "pr-open",
+  "ar_ref": "report_studio_ares report-studio-web dabaa42",
+  "at": "2026-11-20",
+  "note": ""
+ },
+ "KU-261119-1255-SITE": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-20",
+  "note": "KISEM website, Inventory WTEA or the KISEM download page: none in AR"
+ },
+ "KU-261119-1255-CON": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-20",
+  "note": "KISEM audit website (no AR site)"
+ },
+ "KU-261118-1934-PMN": {
+  "status": "pr-open",
+  "ar_ref": "report_studio_ares report-studio-web dabaa42",
+  "at": "2026-11-20",
+  "note": ""
+ },
+ "KU-261118-1931-SITE": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-20",
+  "note": "KISEM website, Inventory WTEA or the KISEM download page: none in AR"
+ },
+ "KU-261118-1931-CON": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-20",
+  "note": "KISEM audit website (no AR site)"
+ },
+ "KU-261118-1515-ZERO": {
+  "status": "ported",
+  "ar_ref": "ares-cooling 420b046",
+  "at": "2026-11-20",
+  "note": ""
+ },
+ "KU-261118-1515-XMER": {
+  "status": "ported",
+  "ar_ref": "ares-xmer 0bbeadb",
+  "at": "2026-11-20",
+  "note": ""
+ },
+ "KU-261118-1515-THX": {
+  "status": "ported",
+  "ar_ref": "ares-boiler 3e5ba0c",
+  "at": "2026-11-20",
+  "note": ""
+ },
+ "KU-261118-1515-PUMP": {
+  "status": "ported",
+  "ar_ref": "ares-pump 19db3b8",
+  "at": "2026-11-20",
+  "note": ""
+ },
+ "KU-261118-1515-PMN": {
+  "status": "pr-open",
+  "ar_ref": "report_studio_ares report-studio-web dabaa42",
+  "at": "2026-11-20",
+  "note": ""
+ },
+ "KU-261118-1515-MLA": {
+  "status": "ported",
+  "ar_ref": "ares-mla 70fc92a",
+  "at": "2026-11-20",
+  "note": ""
+ },
+ "KU-261118-1515-LUX": {
+  "status": "ported",
+  "ar_ref": "ares-light caecb59",
+  "at": "2026-11-20",
+  "note": ""
+ },
+ "KU-261118-1515-JET": {
+  "status": "ported",
+  "ar_ref": "ares-jet e376070",
+  "at": "2026-11-20",
+  "note": ""
+ },
+ "KU-261118-1515-INV": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-20",
+  "note": "KISEM website, Inventory WTEA or the KISEM download page: none in AR"
+ },
+ "KU-261118-1515-GRID": {
+  "status": "ported",
+  "ar_ref": "ares-brief a3d8085",
+  "at": "2026-11-20",
+  "note": ""
+ },
+ "KU-261118-1515-DRY": {
+  "status": "ported",
+  "ar_ref": "ares-dryer 6785044",
+  "at": "2026-11-20",
+  "note": ""
+ },
+ "KU-261118-1515-ACMP": {
+  "status": "ported",
+  "ar_ref": "ares-air 980098a",
+  "at": "2026-11-20",
+  "note": ""
+ },
+ "KU-261118-1444-CON": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-20",
+  "note": "KISEM's update ledger and AR sync notes"
+ },
+ "KU-261118-1440-CON": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-20",
+  "note": "KISEM's update ledger and AR sync notes"
+ },
+ "KU-261118-1437-PMN": {
+  "status": "pr-open",
+  "ar_ref": "report_studio_ares report-studio-web dabaa42",
+  "at": "2026-11-20",
+  "note": ""
+ },
+ "KU-261118-1437-CON": {
+  "status": "ported",
+  "ar_ref": "ares-ops c2addfa",
+  "at": "2026-11-20",
+  "note": ""
+ },
+ "KU-261118-1421-PMN": {
+  "status": "pr-open",
+  "ar_ref": "report_studio_ares report-studio-web dabaa42",
+  "at": "2026-11-20",
+  "note": ""
+ },
+ "KU-261118-1421-CON": {
+  "status": "ported",
+  "ar_ref": "ares-ops c2addfa",
+  "at": "2026-11-20",
+  "note": ""
+ },
  "KU-261118-1413-CON-2": {
   "status": "not-applicable",
   "ar_ref": "",
@@ -10,6 +334,12 @@
   "ar_ref": "",
   "at": "2026-11-18",
   "note": "the KISEM ledger itself"
+ },
+ "KU-261118-1310-ACMP": {
+  "status": "ported",
+  "ar_ref": "ares-air 980098a",
+  "at": "2026-11-20",
+  "note": ""
  },
  "KU-261118-1243-ZERO": {
   "status": "not-applicable",
@@ -83,17 +413,71 @@
   "at": "2026-11-18",
   "note": "FOX logo / mark"
  },
+ "KU-261118-1028-SITE": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-20",
+  "note": "KISEM website, Inventory WTEA or the KISEM download page: none in AR"
+ },
  "KU-261118-0042-CON": {
   "status": "not-applicable",
   "ar_ref": "",
   "at": "2026-11-18",
   "note": "KISEM reference company"
  },
- "KU-261117-2313-JET": {
+ "KU-261117-2327-PMN": {
   "status": "pr-open",
-  "ar_ref": "ares-jet branch fix-pipe-area d9475b7",
-  "at": "2026-11-18",
-  "note": "fixed on a branch 18 Nov, waiting for merge and an APK / web rebuild"
+  "ar_ref": "report_studio_ares report-studio-web dabaa42",
+  "at": "2026-11-20",
+  "note": ""
+ },
+ "KU-261117-2325-ZERO": {
+  "status": "ported",
+  "ar_ref": "ares-cooling 420b046",
+  "at": "2026-11-20",
+  "note": ""
+ },
+ "KU-261117-2324-MLA": {
+  "status": "ported",
+  "ar_ref": "ares-mla 70fc92a",
+  "at": "2026-11-20",
+  "note": ""
+ },
+ "KU-261117-2320-CON": {
+  "status": "ported",
+  "ar_ref": "ares-ops c2addfa",
+  "at": "2026-11-20",
+  "note": ""
+ },
+ "KU-261117-2319-THX": {
+  "status": "ported",
+  "ar_ref": "ares-boiler 3e5ba0c",
+  "at": "2026-11-20",
+  "note": ""
+ },
+ "KU-261117-2316-ACMP": {
+  "status": "ported",
+  "ar_ref": "ares-air 980098a",
+  "at": "2026-11-20",
+  "note": ""
+ },
+ "KU-261117-2313-JET": {
+  "status": "ported",
+  "ar_ref": "ares-jet 809aae9",
+  "at": "2026-11-20",
+  "note": ""
+ },
+ "KU-261117-2312-PMN": {
+  "status": "pr-open",
+  "ar_ref": "report_studio_ares report-studio-web dabaa42",
+  "at": "2026-11-20",
+  "note": ""
+ },
+ "KU-261117-2312-CON": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-20",
+  "note": "KISEM's own Claude connector; AR has Gajendra's one connector (16 Nov)"
  },
  "KU-261117-1804-SITE": {
   "status": "not-applicable",
@@ -155,11 +539,131 @@
   "at": "2026-11-18",
   "note": "no Inventory WTEA app in AR"
  },
+ "KU-261117-1547-XMER": {
+  "status": "ported",
+  "ar_ref": "ares-xmer 0bbeadb",
+  "at": "2026-11-20",
+  "note": ""
+ },
+ "KU-261117-1547-THX": {
+  "status": "ported",
+  "ar_ref": "ares-boiler 3e5ba0c",
+  "at": "2026-11-20",
+  "note": ""
+ },
+ "KU-261117-1547-PMN": {
+  "status": "pr-open",
+  "ar_ref": "report_studio_ares report-studio-web dabaa42",
+  "at": "2026-11-20",
+  "note": ""
+ },
+ "KU-261117-1547-MLA": {
+  "status": "ported",
+  "ar_ref": "ares-mla 70fc92a",
+  "at": "2026-11-20",
+  "note": ""
+ },
+ "KU-261117-1546-ACMP": {
+  "status": "ported",
+  "ar_ref": "ares-air 980098a",
+  "at": "2026-11-20",
+  "note": ""
+ },
+ "KU-261117-1540-MLA": {
+  "status": "ported",
+  "ar_ref": "ares-mla 70fc92a",
+  "at": "2026-11-20",
+  "note": ""
+ },
+ "KU-261117-1540-ACMP": {
+  "status": "ported",
+  "ar_ref": "ares-air 980098a",
+  "at": "2026-11-20",
+  "note": ""
+ },
+ "KU-261117-1317-GRID": {
+  "status": "ported",
+  "ar_ref": "ares-brief a3d8085",
+  "at": "2026-11-20",
+  "note": ""
+ },
  "KU-261117-1317-CON": {
   "status": "not-applicable",
   "ar_ref": "",
   "at": "2026-11-18",
   "note": "KISEM server folders"
+ },
+ "KU-261117-1140-ZERO": {
+  "status": "ported",
+  "ar_ref": "ares-cooling 420b046",
+  "at": "2026-11-20",
+  "note": ""
+ },
+ "KU-261117-1140-XMER": {
+  "status": "ported",
+  "ar_ref": "ares-xmer 0bbeadb",
+  "at": "2026-11-20",
+  "note": ""
+ },
+ "KU-261117-1140-THX": {
+  "status": "ported",
+  "ar_ref": "ares-boiler 3e5ba0c",
+  "at": "2026-11-20",
+  "note": ""
+ },
+ "KU-261117-1140-PUMP": {
+  "status": "ported",
+  "ar_ref": "ares-pump 19db3b8",
+  "at": "2026-11-20",
+  "note": ""
+ },
+ "KU-261117-1140-PMN": {
+  "status": "pr-open",
+  "ar_ref": "report_studio_ares report-studio-web dabaa42",
+  "at": "2026-11-20",
+  "note": ""
+ },
+ "KU-261117-1140-MLA": {
+  "status": "ported",
+  "ar_ref": "ares-mla 70fc92a",
+  "at": "2026-11-20",
+  "note": ""
+ },
+ "KU-261117-1140-LUX": {
+  "status": "ported",
+  "ar_ref": "ares-light caecb59",
+  "at": "2026-11-20",
+  "note": ""
+ },
+ "KU-261117-1140-JET": {
+  "status": "ported",
+  "ar_ref": "ares-jet e376070",
+  "at": "2026-11-20",
+  "note": ""
+ },
+ "KU-261117-1140-GRID": {
+  "status": "ported",
+  "ar_ref": "ares-brief a3d8085",
+  "at": "2026-11-20",
+  "note": ""
+ },
+ "KU-261117-1140-DRY": {
+  "status": "ported",
+  "ar_ref": "ares-dryer 6785044",
+  "at": "2026-11-20",
+  "note": ""
+ },
+ "KU-261117-1140-ACMP": {
+  "status": "ported",
+  "ar_ref": "ares-air 980098a",
+  "at": "2026-11-20",
+  "note": ""
+ },
+ "KU-261117-1138-CON": {
+  "status": "ported",
+  "ar_ref": "ares-ops c2addfa",
+  "at": "2026-11-20",
+  "note": ""
  },
  "KU-261117-1103-SITE": {
   "status": "not-applicable",
@@ -167,17 +671,71 @@
   "at": "2026-11-18",
   "note": "KISEM's website; AR has its own (AR-Enterprise-website-design)"
  },
+ "KU-261116-1904-THX": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-20",
+  "note": "takes back out a file swept into the Excel exchange commit, which AR skipped"
+ },
  "KU-261116-1900-DL": {
   "status": "not-applicable",
   "ar_ref": "",
   "at": "2026-11-18",
   "note": "KISEM's download page; AR has its own (AR-Enterprise-APPS-Repo-)"
  },
+ "KU-261116-1854-ZERO": {
+  "status": "skipped",
+  "ar_ref": "",
+  "at": "2026-11-20",
+  "note": "no Excel Team Data Exchange in AR (decided 16 Nov)"
+ },
+ "KU-261116-1854-THX": {
+  "status": "skipped",
+  "ar_ref": "",
+  "at": "2026-11-20",
+  "note": "no Excel Team Data Exchange in AR (decided 16 Nov)"
+ },
+ "KU-261116-1854-PUMP": {
+  "status": "skipped",
+  "ar_ref": "",
+  "at": "2026-11-20",
+  "note": "no Excel Team Data Exchange in AR (decided 16 Nov)"
+ },
  "KU-261116-1854-PMN": {
   "status": "ported",
   "ar_ref": "report_studio_ares d044986",
   "at": "2026-11-18",
   "note": "Report Studio copied from PostMan-KISEM oracle, 16 Nov"
+ },
+ "KU-261116-1854-MLA": {
+  "status": "skipped",
+  "ar_ref": "",
+  "at": "2026-11-20",
+  "note": "no Excel Team Data Exchange in AR (decided 16 Nov)"
+ },
+ "KU-261116-1854-JET": {
+  "status": "skipped",
+  "ar_ref": "",
+  "at": "2026-11-20",
+  "note": "no Excel Team Data Exchange in AR (decided 16 Nov)"
+ },
+ "KU-261116-1854-GRID": {
+  "status": "skipped",
+  "ar_ref": "",
+  "at": "2026-11-20",
+  "note": "no Excel Team Data Exchange in AR (decided 16 Nov)"
+ },
+ "KU-261116-1854-CON": {
+  "status": "skipped",
+  "ar_ref": "",
+  "at": "2026-11-20",
+  "note": "no Excel Team Data Exchange in AR (decided 16 Nov)"
+ },
+ "KU-261116-1854-ACMP": {
+  "status": "skipped",
+  "ar_ref": "",
+  "at": "2026-11-20",
+  "note": "no Excel Team Data Exchange in AR (decided 16 Nov)"
  },
  "KU-261116-1630-DL": {
   "status": "not-applicable",
@@ -436,6 +994,12 @@
   "ar_ref": "ares-dryer c93673f",
   "at": "2026-11-18",
   "note": "kit replay KISEM MLA 3c4ed6f..oracle (kit files only)"
+ },
+ "KU-261116-1017-CON": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-20",
+  "note": "Inventory WTEA: not in AR (decided)"
  },
  "KU-261116-1017-ACMP": {
   "status": "ported",
@@ -791,6 +1355,12 @@
   "at": "2026-11-18",
   "note": ""
  },
+ "KU-261112-2229-CON": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-20",
+  "note": "Inventory WTEA: not in AR (decided)"
+ },
  "KU-261112-2226-DL": {
   "status": "not-applicable",
   "ar_ref": "",
@@ -844,6 +1414,18 @@
   "ar_ref": "ares-boiler f617f3f",
   "at": "2026-11-18",
   "note": ""
+ },
+ "KU-261112-2023-CON": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-20",
+  "note": "Inventory WTEA: not in AR (decided)"
+ },
+ "KU-261112-1728-CON": {
+  "status": "not-applicable",
+  "ar_ref": "",
+  "at": "2026-11-20",
+  "note": "Inventory WTEA: not in AR (decided)"
  },
  "KU-261112-1719-SITE": {
   "status": "not-applicable",
