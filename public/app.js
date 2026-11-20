@@ -1948,7 +1948,8 @@ async function auditPage(holder, id) {
             if (!confirm('Reopen this audit? It returns to the running lists and its data can be changed again.')) return;
             try { const note = (prompt('Why is this audit being reopened? (a short written reason)') || '').trim(); if (!note) return; await api('POST', `/api/audits/${enc}/reopen`, { note }); toast('Audit reopened'); route(); } catch (ex) { toast(ex.message); }
           } }, 'Reopen', h('span', { class: 'go-ic', 'aria-hidden': 'true' }, icon('arrow')))
-          : h('button', { type: 'button', class: 'ah-fin', onclick: () => finaliseAudit(a) }, 'Finalise audit', h('span', { class: 'go-ic', 'aria-hidden': 'true' }, icon('tick'))))),
+          // Finalising (publishing) waits for the Admin's approval: before that the stage buttons lead there.
+          : ['approved', 'published'].includes(a.stage) ? h('button', { type: 'button', class: 'ah-fin', onclick: () => finaliseAudit(a) }, 'Finalise audit', h('span', { class: 'go-ic', 'aria-hidden': 'true' }, icon('tick'))) : null)),
     h('div', { class: 'ah-steps' },
       h('ol', { 'aria-label': 'Stage of this audit' }, pa.stages.map((key, i) => {
         const s = stageState(pa, key), now = i === curIdx;

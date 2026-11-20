@@ -19,6 +19,9 @@ import { migrateCea, watchCea } from './lib/cea.js';
 const here = path.dirname(fileURLToPath(import.meta.url));
 
 const dbFile = process.env.DB_FILE || path.join(here, 'data', 'ares.db');
+if (process.env.NODE_ENV === 'production' && !process.env.MCP_HANDLE_SECRET) {
+  console.warn(new Date().toISOString(), 'MCP_HANDLE_SECRET is not set: Claude plant handles could be worked back to audit codes.');
+}
 const config = {
   port: Number(process.env.PORT || 8080),
   host: process.env.HOST || '127.0.0.1',
@@ -29,7 +32,8 @@ const config = {
   trustProxy: process.env.TRUST_PROXY === '1',
   // Web origins of the AR field apps allowed to call the app API from a browser or phone webview.
   // Only routes that need an app (bearer) token answer them; Console cookie routes never do.
-  appOrigins: (process.env.APP_ORIGINS || 'https://localhost,capacitor://localhost,http://localhost:3000')
+  // http://localhost:3000 (an app's dev server) only off the real server; the phones' webviews always.
+  appOrigins: (process.env.APP_ORIGINS || `https://localhost,capacitor://localhost${process.env.NODE_ENV === 'production' ? '' : ',http://localhost:3000'}`)
     .split(',').map(o => o.trim()).filter(Boolean),
   // GST Billing site (see lib/routes-billing.js) and the Console address it sends people to.
   billingHost: process.env.BILLING_HOST || 'billing.arenergyservices.in',

@@ -521,6 +521,12 @@ await step('the Console edits and removes records, phones get the change; finali
   const listing = zip.toString('latin1');
   assert.ok(listing.includes('Company.json') && listing.includes('Apps/Hydro Flow/pump_test.csv') && listing.includes('Files/index.csv'));
 
+  // Finalising waits for the approval (Approved stage), as the platform rules say.
+  assert.equal((await admin('POST', `/api/audits/${auditId}/finalise`, {})).status, 409);
+  for (const to of ['processing', 'review', 'approved']) {
+    const mv = await admin('POST', `/api/audits/${auditId}/stage`, { to });
+    assert.equal(mv.status, 200, `stage ${to}: ${JSON.stringify(mv.data)}`);
+  }
   assert.equal((await admin('POST', `/api/audits/${auditId}/finalise`, {})).status, 200);
   const me = await app('GET', '/api/device/me');
   assert.ok(!me.data.audits.some(a => a.id === auditId)); // gone from the running list
@@ -1428,6 +1434,18 @@ await step('Report Studio page: every audit with its report-draft progress; a st
   assert.ok(r.data.audits.every(a => !('ai_until' in a) || a.ai_until === null || typeof a.ai_until === 'number'));
   const anon = await fetch(base + '/api/report-drafts');
   assert.equal(anon.status, 401);
+});
+
+await step('KISEM 17-19 Nov: report codes are logged; the Energy Ledger has no app pass; unknown sign-ins answer like wrong ones', async () => {
+  const tok = (await appLogin('fl.one', p1.pw, 'pump')).data.token;
+  const app = appClient(tok);
+  assert.equal((await app('POST', '/api/device/pdf-issued', { code: 'PDF-ABCD2345', what: 'Pump report' })).status, 200);
+  assert.ok(db.prepare("SELECT 1 FROM activity WHERE action = 'pdf.issued' AND detail LIKE 'PDF-ABCD2345%'").get());
+  assert.equal((await app('POST', '/api/device/pdf-issued', { code: 'nope' })).status, 400);
+  assert.equal((await appLogin('fl.one', p1.pw, 'ledger')).status, 400); // no sync route into the Energy Ledger
+  const unknown = await appLogin('nobody.here', 'x'.repeat(12), 'pump'), wrong = await appLogin('fl.one', 'x'.repeat(12), 'pump');
+  assert.equal(unknown.status, 401);
+  assert.equal(unknown.data.error, wrong.data.error);
 });
 
 server.close();
