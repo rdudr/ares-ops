@@ -44,7 +44,7 @@ const config = {
 };
 
 // What the app websites (field apps, Report Studio) may call from their own address.
-const APP_API = /^\/api\/(device\/|sync$|files(\/|$)|audits\/[^/]+\/data$|audits\/[^/]+\/report-draft(\/sections\/[^/]+)?$|ai\/(status|bill-read)$|team-cards$)/;
+const APP_API = /^\/api\/(device\/|sync$|files(\/|$)|audits\/[^/]+\/data$|audits\/[^/]+\/report-draft(\/sections\/[^/]+)?$|ai\/(status|bill-read|assist\/(status|ask|insights))$|team-cards$)/;
 
 // Exact origins from APP_ORIGINS, plus any https://<name>.arenergyservices.in (where AR app web builds live).
 // Nothing deeper, and nothing that merely ends in the name.

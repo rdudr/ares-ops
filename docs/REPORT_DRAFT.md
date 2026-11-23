@@ -100,3 +100,33 @@ masks all of them in every result and refuses a result that still holds one.
 
 `/mcp` on `ops.` and `api.` (`lib/mcp.js`, personal tokens) is retired: it answers `410` with the new
 address. `MCP_CONNECTOR=on` brings it back as it was.
+
+## Real-time AI in Report Studio (experiment, branch `ai-assist`)
+
+`lib/ai-assist.js` answers Report Studio directly, without Claude: "Ask AI now" for one chapter request,
+and "AI insights" for a chapter or the whole report. ARES calls any OpenAI-compatible chat-completions
+API with a key only it holds, and saves the answer as an `ai_suggestion` record (the same as the
+connector's drafts, with `source: 'assist'`; insights have `purpose: 'insights'` and items of type
+`insight`, which never print by themselves).
+
+| Route (Report Studio sign-in or the Console) | Does |
+|---|---|
+| `GET /api/ai/assist/status?audit_id=` | on or off, provider and model, demo only or not, today's count and limits |
+| `POST /api/ai/assist/ask` `{audit_id, chapter, text, focus, request_id}` | answers one request; the suggestion `answers` it |
+| `POST /api/ai/assist/insights` `{audit_id, chapter}` (`all` for the whole report) | insights |
+
+Privacy is the connector's (lib/mcp-guard.js): the saved facts sheet only, through its allow-list, under the
+plant's code name; the whole prompt, the engineer's words included, is scanned for this audit's names,
+people and numbers and not sent if one is found (`blocked`); the answer may give figures only as `[[F.id]]`
+and is sent back once with the problems if it breaks a rule, then dropped (`invalid`).
+
+Settings: `AI_ASSIST=on`, `AI_ASSIST_BASE_URL` (default Gemini's OpenAI-compatible address),
+`AI_ASSIST_KEY` (or `GEMINI_API_KEY`), `AI_ASSIST_MODEL` (or `GEMINI_MODEL`), `AI_ASSIST_TIER` (`free`, the
+default: demo audits only; `paid`: also real audits while their AI access is on), `AI_ASSIST_DAILY_MAX` (50),
+`AI_ASSIST_AUDIT_DAILY_MAX` (25), `AI_ASSIST_USER_GAP_S` (15), `AI_ASSIST_TIMEOUT_S` (60),
+`AI_ASSIST_REASONING` (not sent unless set). Every question is a row in `ai_assist_log`; answers and
+blocks are in the activity log (`ai.assist_answered`, `ai.assist_insights`, `ai.assist_blocked`).
+
+The provider's refusals reach the engineer in plain words, by code: `quota` (used up for the day),
+`quota_minute`, `billing`, `key`, `model`, `unavailable`, `timeout`; this server's own: `cap`, `cap_audit`,
+`slow_down`, `not_allowed`, `no_sheet`, `blocked`, `invalid`.
