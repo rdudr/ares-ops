@@ -124,7 +124,20 @@ Settings: `AI_ASSIST=on`, `AI_ASSIST_BASE_URL` (default Gemini's OpenAI-compatib
 `AI_ASSIST_KEY` (or `GEMINI_API_KEY`), `AI_ASSIST_MODEL` (or `GEMINI_MODEL`), `AI_ASSIST_TIER` (`free`, the
 default: demo audits only; `paid`: also real audits while their AI access is on), `AI_ASSIST_DAILY_MAX` (50),
 `AI_ASSIST_AUDIT_DAILY_MAX` (25), `AI_ASSIST_USER_GAP_S` (15), `AI_ASSIST_TIMEOUT_S` (60),
-`AI_ASSIST_REASONING` (not sent unless set). Every question is a row in `ai_assist_log`; answers and
+`AI_ASSIST_REASONING` (not sent unless set), `AI_ASSIST_RETRIES` (2) and `AI_ASSIST_RETRY_MS` (2000) for a
+5xx or dropped connection, `AI_ASSIST_BUDGET_S` (90: the whole request, backup included, ends before the
+Cloudflare tunnel's 100 s).
+
+Backups: when the main provider fails (down, timeout, quota, billing, key, model, unreadable answer) the same
+request goes to NVIDIA NIM (`NVIDIA_NIM_KEY`; `NVIDIA_NIM_MODEL`, default `minimaxai/minimax-m3.1-flash`;
+`NVIDIA_NIM_BASE_URL`, default `https://integrate.api.nvidia.com/v1/`), then to OpenRouter (`OPENROUTER_API_KEY`
+and `OPENROUTER_MODEL`, off without a model; `OPENROUTER_BASE_URL`). A model setting may list several,
+comma-separated, tried in order. Each has `<NAME>_TIMEOUT_S` (80) and `<NAME>_TIER` (`free`, the default: demo
+audits only; `paid`: also real ones). `AI_ASSIST_BACKUPS=off` turns them all off. With a backup set, the main
+provider gets at most 25 s and one retry; a backup is not started with less than 15 s of the budget left. The
+answer is labelled with the provider that gave it, `ai_assist_log.model` names that model, the reply carries
+`backup: true`, and `/api/ai/assist/status` lists `backups`. Every provider failure is written to the service log
+(`ai-assist: …`), never the key or the prompt. Every question is a row in `ai_assist_log`; answers and
 blocks are in the activity log (`ai.assist_answered`, `ai.assist_insights`, `ai.assist_blocked`).
 
 The provider's refusals reach the engineer in plain words, by code: `quota` (used up for the day),

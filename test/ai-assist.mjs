@@ -28,8 +28,10 @@ const answer = obj => ({ status: 200, body: { model: 'fake-lite', choices: [{ me
   usage: { prompt_tokens: 100, completion_tokens: 40 } } });
 
 Object.assign(process.env, { AI_ASSIST_BASE_URL: `http://127.0.0.1:${fake.address().port}/v1beta/openai/`, AI_ASSIST_KEY: 'test-key',
-  AI_ASSIST_MODEL: 'fake-lite', AI_ASSIST_USER_GAP_S: '0', AI_ASSIST_DAILY_MAX: '50', AI_ASSIST_AUDIT_DAILY_MAX: '25' });
+  AI_ASSIST_MODEL: 'fake-lite', AI_ASSIST_USER_GAP_S: '0', AI_ASSIST_DAILY_MAX: '50', AI_ASSIST_AUDIT_DAILY_MAX: '25', AI_ASSIST_RETRY_MS: '5' });
 delete process.env.AI_ASSIST; delete process.env.AI_ASSIST_TIER;
+const BACKUP_ENV = ['NVIDIA_NIM_KEY', 'NVIDIA_NIM_MODEL', 'NVIDIA_NIM_BASE_URL', 'OPENROUTER_API_KEY', 'OPENROUTER_MODEL', 'OPENROUTER_BASE_URL'];
+for (const k of BACKUP_ENV) delete process.env[k];
 
 const db = openDb(':memory:');
 const filesDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ares-ai-files-'));
@@ -184,10 +186,51 @@ await step('the provider\'s refusals come back in plain words: quota, billing, k
   queue = [{ status: 400, body: { error: { message: 'API key not valid. Please pass a valid API key.', status: 'INVALID_ARGUMENT' } } }];
   r = await ask(demo, { text: 'Key test question for M-01.' });
   assert.equal(r.data.code, 'key');
-  queue = [{ status: 503, body: { error: { message: 'The model is overloaded.' } } }];
+  const down = { status: 503, body: { error: { message: 'The model is overloaded.' } } };
+  queue = [down, down, down];
   r = await ask(demo, { text: 'Down test question for M-01.' });
   assert.equal(r.data.code, 'unavailable');
+  assert.equal(queue.length, 0, 'a 503 is tried three times in all');
+  queue = [down, answer(good)];
+  r = await ask(demo, { text: 'Busy-then-fine test question for M-01.' });
+  assert.equal(r.status, 200, 'a busy moment is ridden out: ' + JSON.stringify(r.data));
   assert.equal(classifyProviderError(402, '').code, 'billing');
+});
+
+await step('backups when the main provider fails: NVIDIA NIM first, then OpenRouter; the reply says which answered', async () => {
+  const fakeUrl = `http://127.0.0.1:${fake.address().port}`;
+  // NIM with only its key gets MiniMax; OpenRouter is left out without a model.
+  Object.assign(process.env, { NVIDIA_NIM_KEY: 'nim-key', OPENROUTER_API_KEY: 'or-key' });
+  let st = (await rs('GET', `/api/ai/assist/status?audit_id=${demo}`)).data;
+  assert.deepEqual(st.backups, [{ provider: 'NVIDIA NIM', model: 'minimaxai/minimax-m3.1-flash' }]);
+  Object.assign(process.env, { NVIDIA_NIM_BASE_URL: `${fakeUrl}/nim/`, NVIDIA_NIM_MODEL: 'backup-a', OPENROUTER_BASE_URL: `${fakeUrl}/or/`, OPENROUTER_MODEL: 'backup-b' });
+  st = (await rs('GET', `/api/ai/assist/status?audit_id=${demo}`)).data;
+  assert.deepEqual(st.backups, [{ provider: 'NVIDIA NIM', model: 'backup-a' }, { provider: 'OpenRouter', model: 'backup-b' }]);
+  const quotaDay = { status: 429, body: { error: { message: 'Quota exceeded for metric: generate_content_free_tier_requests, per day' } } };
+  const down = { status: 503, body: { error: { message: 'The model is overloaded.' } } };
+  const busyUpstream = { status: 429, body: { error: { message: 'Provider returned error', metadata: { raw: 'backup-a is temporarily rate-limited upstream. Please retry shortly' } } } };
+  queue = [quotaDay, answer(good)];
+  let r = await ask(demo, { text: 'Backup test question for M-01.' });
+  assert.equal(r.status, 200, JSON.stringify(r.data)); assert.equal(r.data.backup, true); assert.equal(r.data.provider, 'NVIDIA NIM');
+  assert.equal(sent.at(-1).url, '/nim/chat/completions'); assert.equal(sent.at(-1).auth, 'Bearer nim-key'); assert.equal(sent.at(-1).body.model, 'backup-a');
+  assert.equal(db.prepare('SELECT model FROM ai_assist_log ORDER BY id DESC LIMIT 1').get().model, 'backup-a');
+  assert.match(JSON.parse(db.prepare('SELECT payload FROM records WHERE id = ?').get(r.data.suggestion).payload).client, /^NVIDIA NIM \(/);
+  // Main down (tried twice when a backup waits), NIM busy, OpenRouter answers.
+  queue = [down, down, busyUpstream, answer(good)];
+  r = await ask(demo, { text: 'Second backup test question for M-01.' });
+  assert.equal(r.status, 200, JSON.stringify(r.data)); assert.equal(r.data.provider, 'OpenRouter');
+  assert.equal(sent.at(-1).url, '/or/chat/completions'); assert.equal(sent.at(-1).auth, 'Bearer or-key'); assert.equal(queue.length, 0);
+  // Everything fails: the main provider's reason, and that the backup failed too.
+  queue = [quotaDay, down, down];
+  r = await ask(demo, { text: 'All down test question for M-01.' });
+  assert.equal(r.data.code, 'quota'); assert.match(r.data.error, /backup AI \(OpenRouter\) did not answer either/);
+  // A busy shared pool is a short wait, not a used-up day.
+  assert.equal(classifyProviderError(429, JSON.stringify(busyUpstream.body)).code, 'quota_minute');
+  // A free backup never gets a real company's audit, even when the main key is paid.
+  process.env.AI_ASSIST_TIER = 'paid';
+  assert.deepEqual((await rs('GET', `/api/ai/assist/status?audit_id=${real}`)).data.backups, []);
+  delete process.env.AI_ASSIST_TIER;
+  for (const k of BACKUP_ENV) delete process.env[k];
 });
 
 await step('daily limits: the server\'s, and each person\'s pace', async () => {
